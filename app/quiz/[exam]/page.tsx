@@ -31,9 +31,10 @@ export default async function ExamPage({ params, searchParams }: Props) {
       <QuizClient
         questions={questions}
         examId={examId}
-        examName={`${meta.name} (${meta.language === "ja" ? "日本語" : "English"})`}
+        examName={meta.name}
         initialFilter={filter}
         mode={mode}
+        lang={meta.language}
       />
     </main>
   );

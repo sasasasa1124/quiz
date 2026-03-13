@@ -11,6 +11,7 @@ interface Props {
   examName: string;
   initialFilter: "all" | "wrong";
   mode: "quiz" | "review";
+  lang: "ja" | "en";
 }
 
 function statsKey(examId: string) {
@@ -30,7 +31,7 @@ function saveStats(examId: string, stats: QuizStats) {
   localStorage.setItem(statsKey(examId), JSON.stringify(stats));
 }
 
-export default function QuizClient({ questions, examId, examName, initialFilter, mode }: Props) {
+export default function QuizClient({ questions, examId, examName, initialFilter, mode, lang }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState<QuizStats>({});
   const [filter, setFilter] = useState<"all" | "wrong">(initialFilter);
@@ -76,12 +77,12 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
     return s && s.correct < s.attempts;
   }).length;
 
-  const modeColor = mode === "quiz" ? "blue" : "purple";
+  const backHref = `/select/${mode}/${lang}`;
 
   if (filteredQuestions.length === 0) {
     return (
       <div className="max-w-3xl mx-auto">
-        <BackBar examName={examName} />
+        <BackBar examName={examName} href={backHref} />
         <div className="text-center py-20 border border-gray-200 rounded-xl bg-white">
           <p className="text-4xl mb-3">🎉</p>
           <p className="text-gray-700 font-medium mb-1">
@@ -113,7 +114,7 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
       {/* Top bar */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <Link href="/" className="text-sm text-gray-500 hover:text-gray-800">← ホーム</Link>
+          <Link href={backHref} className="text-sm text-gray-500 hover:text-gray-800">← 試験選択</Link>
           <span className="text-gray-300">|</span>
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
             mode === "quiz" ? "bg-blue-100 text-blue-700" : "bg-purple-100 text-purple-700"
@@ -175,10 +176,10 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
   );
 }
 
-function BackBar({ examName }: { examName: string }) {
+function BackBar({ examName, href }: { examName: string; href: string }) {
   return (
     <div className="flex items-center gap-3 mb-6">
-      <Link href="/" className="text-sm text-gray-500 hover:text-gray-800">← ホーム</Link>
+      <Link href={href} className="text-sm text-gray-500 hover:text-gray-800">← 試験選択</Link>
       <span className="text-gray-300">|</span>
       <span className="text-sm font-medium text-gray-700 truncate">{examName}</span>
     </div>
