@@ -22,7 +22,7 @@ function parseChoices(raw: string): Choice[] {
 
   for (const part of parts) {
     // Match label like "A.", "B.", "A)", "B)" etc.
-    const match = part.match(/^([A-Z])[.)]\s*(.+)$/s);
+    const match = part.match(/^([A-Z])[.)]\s*([\s\S]+)$/);
     if (match) {
       choices.push({ label: match[1], text: match[2].trim() });
     } else if (part.trim()) {

@@ -19,8 +19,15 @@ const statsKey = (id: string) => `quiz-stats-${id}`;
 
 function loadStats(examId: string): QuizStats {
   if (typeof window === "undefined") return {};
-  try { return JSON.parse(localStorage.getItem(statsKey(examId)) ?? "{}"); }
-  catch { return {}; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(statsKey(examId)) ?? "{}");
+    // migrate old format { attempts, correct } → discard (can't determine last result)
+    const migrated: QuizStats = {};
+    for (const [k, v] of Object.entries(raw)) {
+      if (v === 0 || v === 1) migrated[k] = v as 0 | 1;
+    }
+    return migrated;
+  } catch { return {}; }
 }
 
 function saveStats(examId: string, stats: QuizStats) {
@@ -39,27 +46,21 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
 
   const handleAnswer = useCallback((questionId: number, correct: boolean) => {
     setStats((prev) => {
-      const key = String(questionId);
-      const cur = prev[key] ?? { attempts: 0, correct: 0 };
-      const next = { ...prev, [key]: { attempts: cur.attempts + 1, correct: cur.correct + (correct ? 1 : 0) } };
+      const next = { ...prev, [String(questionId)]: correct ? 1 : 0 } as QuizStats;
       saveStats(examId, next);
       return next;
     });
   }, [examId]);
 
   const filteredQuestions = questions.filter((q) => {
-    if (filter === "wrong") {
-      const s = stats[String(q.id)];
-      return s && s.correct < s.attempts;
-    }
+    if (filter === "wrong") return stats[String(q.id)] === 0;
     return true;
   });
 
-  const totalAnswered = questions.filter((q) => stats[String(q.id)]).length;
-  const totalCorrect = questions.reduce((a, q) => a + (stats[String(q.id)]?.correct ?? 0), 0);
-  const totalAttempts = questions.reduce((a, q) => a + (stats[String(q.id)]?.attempts ?? 0), 0);
-  const overallRate = totalAttempts > 0 ? Math.round((totalCorrect / totalAttempts) * 100) : null;
-  const wrongCount = questions.filter((q) => { const s = stats[String(q.id)]; return s && s.correct < s.attempts; }).length;
+  const totalAnswered = questions.filter((q) => stats[String(q.id)] !== undefined).length;
+  const totalCorrect = questions.filter((q) => stats[String(q.id)] === 1).length;
+  const overallRate = totalAnswered > 0 ? Math.round((totalCorrect / questions.length) * 100) : null;
+  const wrongCount = questions.filter((q) => stats[String(q.id)] === 0).length;
 
   const ModeIcon = mode === "quiz" ? Brain : BookOpen;
   const modeLabel = mode === "quiz" ? "クイズ" : "フラッシュカード";
@@ -134,11 +135,27 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
           <span className={`text-xs font-semibold tabular-nums ${
             overallRate >= 80 ? "text-emerald-600" : overallRate >= 60 ? "text-amber-500" : "text-rose-500"
           }`}>
-            総合 {overallRate}%
-            <span className="font-normal text-gray-400 ml-1.5">{totalAnswered}/{questions.length}</span>
+            {totalCorrect}/{questions.length} 正解
+            <span className="font-normal text-gray-400 ml-1.5">({overallRate}%)</span>
           </span>
         )}
       </div>
+
+      {/* Jump slider */}
+      {filteredQuestions.length > 1 && (
+        <div className="flex items-center gap-3 mb-5">
+          <span className="text-xs text-gray-400 tabular-nums shrink-0">1</span>
+          <input
+            type="range"
+            min={0}
+            max={filteredQuestions.length - 1}
+            value={currentIndex}
+            onChange={(e) => setCurrentIndex(Number(e.target.value))}
+            className="flex-1 h-1 accent-gray-900 cursor-pointer"
+          />
+          <span className="text-xs text-gray-400 tabular-nums shrink-0">{filteredQuestions.length}</span>
+        </div>
+      )}
 
       <QuizQuestion
         question={q}

@@ -30,12 +30,11 @@ export default function ExamSelectClient({ exams, mode, lang }: Props) {
     const map: typeof statsMap = {};
     for (const exam of exams) {
       const stats = loadStats(exam.id);
-      const keys = Object.keys(stats);
-      const attempts = keys.reduce((a, k) => a + stats[k].attempts, 0);
-      const correct = keys.reduce((a, k) => a + stats[k].correct, 0);
-      const wrongCount = keys.filter((k) => stats[k].correct < stats[k].attempts).length;
+      const keys = Object.keys(stats).filter((k) => stats[k] === 0 || stats[k] === 1);
+      const correct = keys.filter((k) => stats[k] === 1).length;
+      const wrongCount = keys.filter((k) => stats[k] === 0).length;
       map[exam.id] = {
-        pct: attempts > 0 ? Math.round((correct / attempts) * 100) : null,
+        pct: keys.length > 0 ? Math.round((correct / exam.questionCount) * 100) : null,
         answered: keys.length,
         total: exam.questionCount,
         wrongCount,

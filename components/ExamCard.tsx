@@ -5,14 +5,14 @@ import type { ExamMeta } from "@/lib/types";
 
 interface Props {
   exam: ExamMeta;
-  stats?: { attempts: number; correct: number; answered: number; total: number };
+  stats?: { correct: number; answered: number; total: number };
   mode: "quiz" | "review";
 }
 
 export default function ExamCard({ exam, stats, mode }: Props) {
   const router = useRouter();
-  const pct = stats && stats.attempts > 0
-    ? Math.round((stats.correct / stats.attempts) * 100)
+  const pct = stats && stats.answered > 0
+    ? Math.round((stats.correct / stats.total) * 100)
     : null;
 
   const go = (filter: "all" | "wrong") =>

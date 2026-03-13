@@ -98,9 +98,8 @@ export default function QuizQuestion({
     return () => window.removeEventListener("keydown", handleKey);
   }, [question, submitted, toggleChoice, handleSubmit, onNext, onPrev]);
 
-  const correctRate = stat && stat.attempts > 0
-    ? Math.round((stat.correct / stat.attempts) * 100)
-    : null;
+  // stat is 0 | 1 | undefined
+  const lastResult = stat; // undefined = never, 0 = wrong, 1 = correct
 
   const isCorrect = submitted && !reviewMode
     ? question.answers.length === selected.size && question.answers.every((a) => selected.has(a))
@@ -113,13 +112,11 @@ export default function QuizQuestion({
         <span className="text-xs tabular-nums text-gray-400">
           {currentIndex + 1} / {total}
         </span>
-        {correctRate !== null && !reviewMode && (
+        {lastResult !== undefined && !reviewMode && (
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-            correctRate >= 80 ? "bg-emerald-50 text-emerald-600" :
-            correctRate >= 60 ? "bg-amber-50 text-amber-600" :
-            "bg-rose-50 text-rose-500"
+            lastResult === 1 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-500"
           }`}>
-            {correctRate}%
+            {lastResult === 1 ? "前回 ○" : "前回 ✕"}
           </span>
         )}
       </div>

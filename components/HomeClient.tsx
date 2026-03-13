@@ -21,7 +21,7 @@ function loadAllStats(examId: string): QuizStats {
 export default function HomeClient({ exams: initialExams }: Props) {
   const [mode, setMode] = useState<Mode>("quiz");
   const [langFilter, setLangFilter] = useState<"all" | "ja" | "en">("all");
-  const [statsMap, setStatsMap] = useState<Record<string, { attempts: number; correct: number; answered: number; total: number }>>({});
+  const [statsMap, setStatsMap] = useState<Record<string, { correct: number; answered: number; total: number }>>({});
   const [uploadStatus, setUploadStatus] = useState<"idle" | "uploading" | "done" | "error">("idle");
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -30,12 +30,11 @@ export default function HomeClient({ exams: initialExams }: Props) {
     const map: typeof statsMap = {};
     for (const exam of exams) {
       const stats = loadAllStats(exam.id);
-      const keys = Object.keys(stats);
+      const keys = Object.keys(stats).filter((k) => stats[k] === 0 || stats[k] === 1);
       map[exam.id] = {
         answered: keys.length,
         total: exam.questionCount,
-        attempts: keys.reduce((a, k) => a + stats[k].attempts, 0),
-        correct: keys.reduce((a, k) => a + stats[k].correct, 0),
+        correct: keys.filter((k) => stats[k] === 1).length,
       };
     }
     setStatsMap(map);

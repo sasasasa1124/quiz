@@ -22,9 +22,7 @@ export interface ExamMeta {
   questionCount: number;
 }
 
-export interface QuizStat {
-  attempts: number;
-  correct: number;
-}
+// 0 = last answer wrong, 1 = last answer correct, undefined = never answered
+export type QuizStat = 0 | 1;
 
 export type QuizStats = Record<string, QuizStat>; // key: questionId
