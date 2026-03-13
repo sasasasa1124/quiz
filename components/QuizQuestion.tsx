@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { CheckCircle2, XCircle, ChevronLeft, ChevronRight } from "lucide-react";
+import { CheckCircle2, XCircle, ChevronLeft, ChevronRight, ThumbsUp, ThumbsDown } from "lucide-react";
 import type { Question, QuizStat } from "@/lib/types";
 
 interface Props {
@@ -77,13 +77,15 @@ export default function QuizQuestion({
         toggleChoice(labels[num - 1]);
         return;
       }
+      if (reviewMode) {
+        // Flashcard: → or Enter = 知っている, ← = 知らない
+        if (e.key === "ArrowRight" || e.key === "Enter") { onAnswer?.(true);  onNext?.(); return; }
+        if (e.key === "ArrowLeft")                        { onAnswer?.(false); onNext?.(); return; }
+        return;
+      }
       // Enter → submit or advance
       if (e.key === "Enter") {
-        if (!submitted) {
-          handleSubmit();
-        } else {
-          onNext?.();
-        }
+        if (!submitted) { handleSubmit(); } else { onNext?.(); }
         return;
       }
       // ArrowRight / ArrowLeft
@@ -237,8 +239,8 @@ export default function QuizQuestion({
         </div>
       )}
 
-      {/* Navigation */}
-      {(submitted || reviewMode) && (
+      {/* Navigation — quiz mode */}
+      {submitted && !reviewMode && (
         <div className="flex gap-2">
           <button
             onClick={onPrev}
@@ -255,6 +257,30 @@ export default function QuizQuestion({
             {isLast ? "完了" : "次へ"}
             {!isLast && <ChevronRight size={16} />}
             {!isLast && <span className="text-xs font-normal opacity-40 ml-1">Enter</span>}
+          </button>
+        </div>
+      )}
+
+      {/* Navigation — flashcard mode */}
+      {reviewMode && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => { onAnswer?.(false); onNext?.(); }}
+            disabled={!hasNext && !isLast}
+            className="flex-1 h-12 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 hover:border-rose-300 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30"
+          >
+            <ThumbsDown size={15} strokeWidth={2} />
+            知らない
+            <span className="text-xs font-normal opacity-50 ml-0.5">←</span>
+          </button>
+          <button
+            onClick={() => { onAnswer?.(true); onNext?.(); }}
+            disabled={!hasNext && !isLast}
+            className="flex-1 h-12 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 hover:border-emerald-300 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30"
+          >
+            <ThumbsUp size={15} strokeWidth={2} />
+            知っている
+            <span className="text-xs font-normal opacity-50 ml-0.5">→</span>
           </button>
         </div>
       )}
