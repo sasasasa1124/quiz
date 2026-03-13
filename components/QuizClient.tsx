@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, BookOpen, Brain, Layers, AlertCircle,
@@ -14,11 +14,6 @@ interface Props {
   examId: string;
   examName: string;
   mode: "quiz" | "review";
-}
-
-interface ResultInfo {
-  type: "correct" | "wrong";
-  correctAnswer: string;
 }
 
 const statsKey = (id: string) => `quiz-stats-${id}`;
@@ -47,22 +42,16 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(mode === "review");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
-
-  const [resultInfo, setResultInfo] = useState<ResultInfo | null>(null);
   const [streak, setStreak] = useState(0);
-  const [reviewKnew, setReviewKnew] = useState<boolean | null>(null);
-  const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const backHref = `/select/${mode}`;
 
   useEffect(() => { setStats(loadStats(examId)); }, [examId]);
-  useEffect(() => () => { if (resultTimerRef.current) clearTimeout(resultTimerRef.current); }, []);
 
   useEffect(() => {
     setSelected(new Set());
     setSubmitted(mode === "review");
     setIsCorrect(null);
-    setReviewKnew(null);
   }, [currentIndex, filter, mode]);
 
   const filteredQuestions = questions.filter((q) => {
@@ -82,12 +71,6 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
       return next;
     });
   }, [examId]);
-
-  const showResultFeedback = useCallback((info: ResultInfo) => {
-    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
-    setResultInfo(info);
-    resultTimerRef.current = setTimeout(() => setResultInfo(null), info.type === "correct" ? 800 : 950);
-  }, []);
 
   const handleToggle = useCallback((label: string) => {
     if (submitted) return;
@@ -115,8 +98,7 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
     setSubmitted(true);
     recordAnswer(q.id, correct);
     setStreak((prev) => correct ? prev + 1 : 0);
-    showResultFeedback({ type: correct ? "correct" : "wrong", correctAnswer: q.answers.join(", ") });
-  }, [filteredQuestions, currentIndex, selected, recordAnswer, showResultFeedback]);
+  }, [filteredQuestions, currentIndex, selected, recordAnswer]);
 
   const goNext = useCallback(() => {
     setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
@@ -126,21 +108,21 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
     setCurrentIndex((i) => Math.max(i - 1, 0));
   }, []);
 
-  const handleKnow = useCallback((q: Question) => {
+  const handleKnow = useCallback(() => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
     recordAnswer(q.id, true);
     setStreak((prev) => prev + 1);
-    setReviewKnew(true);
-    showResultFeedback({ type: "correct", correctAnswer: "" });
     goNext();
-  }, [recordAnswer, showResultFeedback, goNext]);
+  }, [filteredQuestions, currentIndex, recordAnswer, goNext]);
 
-  const handleDontKnow = useCallback((q: Question) => {
+  const handleDontKnow = useCallback(() => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
     recordAnswer(q.id, false);
     setStreak(0);
-    setReviewKnew(false);
-    showResultFeedback({ type: "wrong", correctAnswer: q.answers.join(", ") });
     goNext();
-  }, [recordAnswer, showResultFeedback, goNext]);
+  }, [filteredQuestions, currentIndex, recordAnswer, goNext]);
 
   // Keyboard
   useEffect(() => {
@@ -152,9 +134,9 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
       if (e.target instanceof HTMLInputElement) return;
 
       if (mode === "review") {
-        if (e.key === "ArrowRight" || e.key === "Enter") { handleKnow(q); }
-        else if (e.key === "ArrowLeft")                   { handleDontKnow(q); }
-        else if (e.key === "Backspace")                   { goPrev(); }
+        if (e.key === "ArrowRight" || e.key === "Enter") handleKnow();
+        else if (e.key === "ArrowLeft")                  handleDontKnow();
+        else if (e.key === "Backspace")                  goPrev();
         return;
       }
       const num = parseInt(e.key);
@@ -169,10 +151,12 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
 
   const ModeIcon = mode === "quiz" ? Brain : BookOpen;
   const isLast = currentIndex === filteredQuestions.length - 1;
-  const showExplanation = mode === "quiz" ? isCorrect === false : reviewKnew === false;
   const sliderPct = filteredQuestions.length > 1
     ? `${(currentIndex / (filteredQuestions.length - 1)) * 100}%`
     : "0%";
+
+  // Right panel is visible when: review mode (always shows answer) OR quiz mode wrong answer
+  const showRightPanel = mode === "review" || (submitted && isCorrect === false);
 
   if (filteredQuestions.length === 0) {
     return (
@@ -239,14 +223,13 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
         <div className={`
           min-h-0 flex-1 flex flex-col overflow-hidden
           border-b lg:border-b-0 lg:border-r border-gray-200
-          relative transition-colors duration-300
-          ${submitted ? "lg:flex-1" : "flex-1"}
-          ${resultInfo?.type === "correct" ? "bg-emerald-50" :
-            resultInfo?.type === "wrong"   ? "bg-rose-50" :
+          transition-colors duration-300
+          ${isCorrect === true  ? "bg-emerald-50" :
+            isCorrect === false ? "bg-rose-50" :
             "bg-white"}
         `}>
           {/* Position indicator */}
-          <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 flex items-center justify-between">
+          <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3">
             <span className="text-xs tabular-nums text-gray-400">問 {currentIndex + 1} / {filteredQuestions.length}</span>
           </div>
 
@@ -262,8 +245,9 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
             />
           </div>
 
-          {/* Action buttons */}
+          {/* Action area */}
           <div className="shrink-0 px-4 sm:px-8 py-4 border-t border-gray-100">
+            {/* Quiz: before answer */}
             {mode === "quiz" && !submitted && (
               <button
                 onClick={handleSubmit}
@@ -274,100 +258,94 @@ export default function QuizClient({ questions, examId, examName, mode }: Props)
                 <span className="ml-2 text-xs font-normal opacity-40 hidden sm:inline">Enter</span>
               </button>
             )}
+
+            {/* Quiz: after answer — result + navigation */}
+            {mode === "quiz" && submitted && (
+              <div className="flex flex-col gap-3">
+                <div className={`flex items-center gap-2 ${isCorrect ? "text-emerald-600" : "text-rose-600"}`}>
+                  {isCorrect
+                    ? <>
+                        <CheckCircle2 size={17} strokeWidth={2.5} />
+                        <span className="font-semibold text-sm">正解!</span>
+                        {streak > 1 && <span className="text-xs text-emerald-400 ml-1">{streak}連続</span>}
+                      </>
+                    : <>
+                        <XCircle size={17} strokeWidth={2.5} />
+                        <span className="font-semibold text-sm">不正解</span>
+                        <span className="text-xs text-gray-400 ml-1">正答: {q.answers.join(", ")}</span>
+                      </>
+                  }
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={goPrev}
+                    disabled={currentIndex === 0}
+                    className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-20 transition-all"
+                  >
+                    <ChevronLeft size={17} />
+                  </button>
+                  <button
+                    onClick={goNext}
+                    disabled={isLast}
+                    className="flex-1 h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    {isLast ? "完了" : <>次へ <ChevronRight size={15} /> <span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Review: know / don't know */}
             {mode === "review" && (
               <div className="flex gap-2">
-                <button onClick={() => handleDontKnow(q)} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
+                <button onClick={handleDontKnow} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
                   <ThumbsDown size={14} strokeWidth={2} /> 知らない <span className="text-xs opacity-50 hidden sm:inline">←</span>
                 </button>
-                <button onClick={() => handleKnow(q)} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
+                <button onClick={handleKnow} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
                   <ThumbsUp size={14} strokeWidth={2} /> 知っている <span className="text-xs opacity-50 hidden sm:inline">→</span>
                 </button>
               </div>
             )}
           </div>
-
-          {/* Result overlay */}
-          {resultInfo && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-              <div className={`quiz-result-toast rounded-2xl px-6 sm:px-8 py-4 sm:py-5 flex items-center gap-3 sm:gap-4 shadow-2xl ${
-                resultInfo.type === "correct" ? "bg-emerald-500" : "bg-rose-500"
-              }`}>
-                {resultInfo.type === "correct"
-                  ? <CheckCircle2 size={40} className="text-white" strokeWidth={2.5} />
-                  : <XCircle     size={40} className="text-white" strokeWidth={2.5} />
-                }
-                <div>
-                  <p className="text-white font-bold text-xl leading-tight">
-                    {resultInfo.type === "correct" ? "正解!" : "不正解"}
-                  </p>
-                  {resultInfo.type === "correct" && streak > 1 && (
-                    <p className="text-emerald-100 text-sm mt-0.5">{streak}連続正解</p>
-                  )}
-                  {resultInfo.type === "wrong" && resultInfo.correctAnswer && (
-                    <p className="text-rose-100 text-sm mt-0.5">正答: {resultInfo.correctAnswer}</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Right panel: explanation */}
+        {/* Right panel: shown only when wrong (quiz) or always (review) */}
         <div className={`
           flex flex-col overflow-hidden bg-white
-          ${!submitted
-            ? "hidden lg:flex lg:w-[420px] lg:shrink-0"
-            : `shrink-0 w-full lg:w-[420px] lg:h-auto border-t lg:border-t-0 lg:border-l border-gray-200 ${showExplanation ? "h-[40vh]" : "h-auto"}`
+          ${!showRightPanel
+            ? "hidden"
+            : "shrink-0 w-full lg:w-[420px] border-t lg:border-t-0 lg:border-l border-gray-200 h-[40vh] lg:h-auto"
           }
         `}>
-          {submitted ? (
-            <>
-              <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 border-b border-gray-100">
-                {mode === "quiz" && isCorrect !== null && (
-                  <div className="flex items-center gap-2">
-                    {isCorrect
-                      ? <><CheckCircle2 size={17} className="text-emerald-500" /><span className="font-semibold text-emerald-700 text-sm">正解</span></>
-                      : <><XCircle size={17} className="text-rose-500" /><span className="font-semibold text-rose-600 text-sm">不正解</span><span className="text-xs text-gray-400 ml-2">正答: {q.answers.join(", ")}</span></>
-                    }
-                  </div>
-                )}
-                {mode === "review" && (
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">正答: {q.answers.join(", ")}</p>
-                )}
+          {/* Header: answer */}
+          <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 border-b border-gray-100">
+            {mode === "review" && (
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">正答: {q.answers.join(", ")}</p>
+            )}
+            {mode === "quiz" && isCorrect === false && (
+              <div className="flex items-center gap-2">
+                <XCircle size={15} className="text-rose-400 shrink-0" />
+                <span className="text-xs text-gray-500">解説</span>
               </div>
+            )}
+          </div>
 
-              {showExplanation && (
-                <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4">
-                  {q.explanation ? (
-                    <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{q.explanation}</p>
-                  ) : (
-                    <p className="text-sm text-gray-300">解説なし</p>
-                  )}
-                  {q.source && <p className="text-xs text-gray-300 mt-4">出典: {q.source}</p>}
-                </div>
-              )}
+          {/* Explanation */}
+          <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4">
+            {q.explanation ? (
+              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{q.explanation}</p>
+            ) : (
+              <p className="text-sm text-gray-300">解説なし</p>
+            )}
+            {q.source && <p className="text-xs text-gray-300 mt-4">出典: {q.source}</p>}
+          </div>
 
-              {mode === "quiz" && (
-                <div className="shrink-0 px-4 sm:px-8 py-4 border-t border-gray-100 flex gap-2">
-                  <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-20 transition-all">
-                    <ChevronLeft size={17} />
-                  </button>
-                  <button onClick={goNext} disabled={isLast} className="flex-1 h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5">
-                    {isLast ? "完了" : <>次へ <ChevronRight size={15} /> <span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
-                  </button>
-                </div>
-              )}
-              {mode === "review" && (
-                <div className="shrink-0 px-4 sm:px-8 py-4 border-t border-gray-100">
-                  <button onClick={goPrev} disabled={!currentIndex} className="w-full h-9 rounded-xl border border-gray-200 text-gray-400 text-xs hover:border-gray-300 hover:bg-gray-50 disabled:opacity-20 transition-all flex items-center justify-center gap-1.5">
-                    <ChevronLeft size={13} /> 前の問題に戻る <span className="opacity-50 ml-0.5 hidden sm:inline">⌫</span>
-                  </button>
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="flex-1 flex items-center justify-center">
-              <p className="text-sm text-gray-300">回答すると解説が表示されます</p>
+          {/* Review: back button */}
+          {mode === "review" && (
+            <div className="shrink-0 px-4 sm:px-8 py-4 border-t border-gray-100">
+              <button onClick={goPrev} disabled={!currentIndex} className="w-full h-9 rounded-xl border border-gray-200 text-gray-400 text-xs hover:border-gray-300 hover:bg-gray-50 disabled:opacity-20 transition-all flex items-center justify-center gap-1.5">
+                <ChevronLeft size={13} /> 前の問題に戻る <span className="opacity-50 ml-0.5 hidden sm:inline">⌫</span>
+              </button>
             </div>
           )}
         </div>
