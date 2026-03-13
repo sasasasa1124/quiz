@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, BookOpen, Brain, Layers, AlertCircle,
-  CheckCircle2, XCircle, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight,
+  CheckCircle2, XCircle, ThumbsUp, ThumbsDown, ChevronLeft, ChevronRight, Zap,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import QuizQuestion from "./QuizQuestion";
@@ -13,9 +13,12 @@ interface Props {
   questions: Question[];
   examId: string;
   examName: string;
-  initialFilter: "all" | "wrong";
   mode: "quiz" | "review";
-  lang: "ja" | "en";
+}
+
+interface ResultInfo {
+  type: "correct" | "wrong";
+  correctAnswer: string;
 }
 
 const statsKey = (id: string) => `quiz-stats-${id}`;
@@ -36,21 +39,24 @@ function saveStats(examId: string, stats: QuizStats) {
   localStorage.setItem(statsKey(examId), JSON.stringify(stats));
 }
 
-export default function QuizClient({ questions, examId, examName, initialFilter, mode, lang }: Props) {
+export default function QuizClient({ questions, examId, examName, mode }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState<QuizStats>({});
-  const [filter, setFilter] = useState<"all" | "wrong">(initialFilter);
+  const [filter, setFilter] = useState<"all" | "wrong">("all");
 
-  // Per-question UI state (lifted from QuizQuestion)
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(mode === "review");
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-  const backHref = `/select/${mode}/${lang}`;
+  const [resultInfo, setResultInfo] = useState<ResultInfo | null>(null);
+  const [streak, setStreak] = useState(0);
+  const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const backHref = `/select/${mode}`;
 
   useEffect(() => { setStats(loadStats(examId)); }, [examId]);
+  useEffect(() => () => { if (resultTimerRef.current) clearTimeout(resultTimerRef.current); }, []);
 
-  // Reset question state on navigation or filter change
   useEffect(() => {
     setSelected(new Set());
     setSubmitted(mode === "review");
@@ -74,6 +80,12 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
       return next;
     });
   }, [examId]);
+
+  const showResultFeedback = useCallback((info: ResultInfo) => {
+    if (resultTimerRef.current) clearTimeout(resultTimerRef.current);
+    setResultInfo(info);
+    resultTimerRef.current = setTimeout(() => setResultInfo(null), info.type === "correct" ? 800 : 950);
+  }, []);
 
   const handleToggle = useCallback((label: string) => {
     if (submitted) return;
@@ -100,7 +112,9 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
     setIsCorrect(correct);
     setSubmitted(true);
     recordAnswer(q.id, correct);
-  }, [filteredQuestions, currentIndex, selected, recordAnswer]);
+    setStreak((prev) => correct ? prev + 1 : 0);
+    showResultFeedback({ type: correct ? "correct" : "wrong", correctAnswer: q.answers.join(", ") });
+  }, [filteredQuestions, currentIndex, selected, recordAnswer, showResultFeedback]);
 
   const goNext = useCallback(() => {
     setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
@@ -110,6 +124,20 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
     setCurrentIndex((i) => Math.max(i - 1, 0));
   }, []);
 
+  const handleKnow = useCallback((q: Question) => {
+    recordAnswer(q.id, true);
+    setStreak((prev) => prev + 1);
+    showResultFeedback({ type: "correct", correctAnswer: "" });
+    goNext();
+  }, [recordAnswer, showResultFeedback, goNext]);
+
+  const handleDontKnow = useCallback((q: Question) => {
+    recordAnswer(q.id, false);
+    setStreak(0);
+    showResultFeedback({ type: "wrong", correctAnswer: q.answers.join(", ") });
+    goNext();
+  }, [recordAnswer, showResultFeedback, goNext]);
+
   // Keyboard
   useEffect(() => {
     const q = filteredQuestions[currentIndex];
@@ -117,11 +145,11 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
     const labels = q.choices.map((c) => c.label);
 
     const handler = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement) return; // don't intercept slider
+      if (e.target instanceof HTMLInputElement) return;
 
       if (mode === "review") {
-        if (e.key === "ArrowRight" || e.key === "Enter") { recordAnswer(q.id, true);  goNext(); }
-        else if (e.key === "ArrowLeft")                   { recordAnswer(q.id, false); goNext(); }
+        if (e.key === "ArrowRight" || e.key === "Enter") { handleKnow(q); }
+        else if (e.key === "ArrowLeft")                   { handleDontKnow(q); }
         else if (e.key === "Backspace")                   { goPrev(); }
         return;
       }
@@ -133,10 +161,13 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [filteredQuestions, currentIndex, submitted, mode, handleToggle, handleSubmit, goNext, goPrev, recordAnswer]);
+  }, [filteredQuestions, currentIndex, submitted, mode, handleToggle, handleSubmit, goNext, goPrev, handleKnow, handleDontKnow]);
 
   const ModeIcon = mode === "quiz" ? Brain : BookOpen;
   const isLast = currentIndex === filteredQuestions.length - 1;
+  const sliderPct = filteredQuestions.length > 1
+    ? `${(currentIndex / (filteredQuestions.length - 1)) * 100}%`
+    : "0%";
 
   if (filteredQuestions.length === 0) {
     return (
@@ -172,7 +203,13 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
             <span>{examName}</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
+          {streak >= 2 && (
+            <div key={streak} className="quiz-streak-badge flex items-center gap-1 text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-lg border border-amber-200">
+              <Zap size={11} fill="currentColor" />
+              {streak}
+            </div>
+          )}
           {overallRate !== null && (
             <span className={`text-xs font-semibold tabular-nums ${overallRate >= 80 ? "text-emerald-600" : overallRate >= 60 ? "text-amber-500" : "text-rose-500"}`}>
               {totalCorrect}/{questions.length} 正解
@@ -190,16 +227,15 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
         </div>
       </header>
 
-      {/* ── Progress bar ── */}
-      <div className="h-0.5 bg-gray-100 shrink-0">
-        <div className="h-full bg-gray-900 transition-all duration-300" style={{ width: `${((currentIndex + 1) / filteredQuestions.length) * 100}%` }} />
-      </div>
-
       {/* ── Main: two columns ── */}
       <div className="flex-1 flex overflow-hidden">
 
-        {/* Left panel: question + choices + action */}
-        <div className="flex-1 flex flex-col overflow-hidden border-r border-gray-200 bg-white">
+        {/* Left panel */}
+        <div className={`flex-1 flex flex-col overflow-hidden border-r border-gray-200 relative transition-colors duration-300 ${
+          resultInfo?.type === "correct" ? "bg-emerald-50" :
+          resultInfo?.type === "wrong"   ? "bg-rose-50" :
+          "bg-white"
+        }`}>
           {/* Position indicator */}
           <div className="shrink-0 px-8 pt-5 pb-3 flex items-center justify-between">
             <span className="text-xs tabular-nums text-gray-400">問 {currentIndex + 1} / {filteredQuestions.length}</span>
@@ -217,7 +253,7 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
             />
           </div>
 
-          {/* Action buttons (fixed at bottom of left panel) */}
+          {/* Action buttons */}
           <div className="shrink-0 px-8 py-4 border-t border-gray-100">
             {mode === "quiz" && !submitted && (
               <button
@@ -231,22 +267,46 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
             )}
             {mode === "review" && (
               <div className="flex gap-2">
-                <button onClick={() => { recordAnswer(q.id, false); goNext(); }} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
+                <button onClick={() => handleDontKnow(q)} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
                   <ThumbsDown size={14} strokeWidth={2} /> 知らない <span className="text-xs opacity-50">←</span>
                 </button>
-                <button onClick={() => { recordAnswer(q.id, true); goNext(); }} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
+                <button onClick={() => handleKnow(q)} disabled={isLast} className="flex-1 h-10 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-30">
                   <ThumbsUp size={14} strokeWidth={2} /> 知っている <span className="text-xs opacity-50">→</span>
                 </button>
               </div>
             )}
           </div>
+
+          {/* Result overlay */}
+          {resultInfo && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              <div className={`quiz-result-toast rounded-2xl px-8 py-5 flex items-center gap-4 shadow-2xl ${
+                resultInfo.type === "correct" ? "bg-emerald-500" : "bg-rose-500"
+              }`}>
+                {resultInfo.type === "correct"
+                  ? <CheckCircle2 size={44} className="text-white" strokeWidth={2.5} />
+                  : <XCircle     size={44} className="text-white" strokeWidth={2.5} />
+                }
+                <div>
+                  <p className="text-white font-bold text-xl leading-tight">
+                    {resultInfo.type === "correct" ? "正解!" : "不正解"}
+                  </p>
+                  {resultInfo.type === "correct" && streak > 1 && (
+                    <p className="text-emerald-100 text-sm mt-0.5">{streak}連続正解</p>
+                  )}
+                  {resultInfo.type === "wrong" && resultInfo.correctAnswer && (
+                    <p className="text-rose-100 text-sm mt-0.5">正答: {resultInfo.correctAnswer}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right panel: explanation */}
         <div className="w-[420px] shrink-0 flex flex-col overflow-hidden bg-white">
           {submitted ? (
             <>
-              {/* Result header */}
               <div className="shrink-0 px-8 pt-5 pb-3 border-b border-gray-100">
                 {mode === "quiz" && isCorrect !== null && (
                   <div className="flex items-center gap-2">
@@ -261,7 +321,6 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
                 )}
               </div>
 
-              {/* Explanation (scrollable) */}
               <div className="flex-1 overflow-y-auto px-8 py-4">
                 {q.explanation ? (
                   <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{q.explanation}</p>
@@ -271,7 +330,6 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
                 {q.source && <p className="text-xs text-gray-300 mt-4">出典: {q.source}</p>}
               </div>
 
-              {/* Nav buttons */}
               {mode === "quiz" && (
                 <div className="shrink-0 px-8 py-4 border-t border-gray-100 flex gap-2">
                   <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-20 transition-all">
@@ -298,21 +356,47 @@ export default function QuizClient({ questions, examId, examName, initialFilter,
         </div>
       </div>
 
-      {/* ── Footer: slider + hint ── */}
-      <footer className="shrink-0 border-t border-gray-200 bg-white px-6 py-2.5 flex items-center gap-4">
-        <span className="text-xs text-gray-300 tabular-nums shrink-0">1</span>
-        <input
-          type="range"
-          min={0}
-          max={filteredQuestions.length - 1}
-          value={currentIndex}
-          onChange={(e) => setCurrentIndex(Number(e.target.value))}
-          className="flex-1 h-1 accent-gray-900 cursor-pointer"
-        />
-        <span className="text-xs text-gray-300 tabular-nums shrink-0">{filteredQuestions.length}</span>
-        <span className="text-xs text-gray-300 ml-4 shrink-0">
-          {mode === "review" ? "← 知らない  → 知っている  ⌫ 前へ" : "1–9 選択  Enter 回答/次へ  ←→ 前後"}
-        </span>
+      {/* ── Footer: question map + slider ── */}
+      <footer className="shrink-0 border-t border-gray-200 bg-white px-6 pt-3 pb-2.5">
+        {/* Question status segments */}
+        <div className="flex items-end gap-px mb-2.5">
+          {filteredQuestions.map((fq, i) => {
+            const s = stats[String(fq.id)];
+            const isCurrent = i === currentIndex;
+            return (
+              <button
+                key={fq.id}
+                onClick={() => setCurrentIndex(i)}
+                title={`問 ${i + 1}`}
+                className={`flex-1 rounded-full transition-all duration-150 cursor-pointer ${
+                  isCurrent
+                    ? "h-3 bg-gray-800"
+                    : s === 1 ? "h-2 bg-emerald-400 hover:bg-emerald-500"
+                    : s === 0 ? "h-2 bg-rose-400 hover:bg-rose-500"
+                    : "h-2 bg-gray-200 hover:bg-gray-300"
+                }`}
+              />
+            );
+          })}
+        </div>
+
+        {/* Slider row */}
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-300 tabular-nums w-4 text-right shrink-0">1</span>
+          <input
+            type="range"
+            min={0}
+            max={filteredQuestions.length - 1}
+            value={currentIndex}
+            onChange={(e) => setCurrentIndex(Number(e.target.value))}
+            className="quiz-slider flex-1"
+            style={{ "--fill": sliderPct } as React.CSSProperties}
+          />
+          <span className="text-xs text-gray-300 tabular-nums w-4 shrink-0">{filteredQuestions.length}</span>
+          <span className="text-xs text-gray-300 ml-2 shrink-0">
+            {mode === "review" ? "← 知らない  → 知っている  ⌫ 前へ" : "1–9 選択  Enter 回答/次へ  ←→ 前後"}
+          </span>
+        </div>
       </footer>
     </div>
   );
