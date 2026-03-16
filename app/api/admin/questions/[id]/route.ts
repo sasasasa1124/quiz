@@ -3,7 +3,6 @@ import { updateQuestion, getQuestionById } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import type { Choice } from "@/lib/types";
 
-export const runtime = "edge";
 
 export async function PUT(
   req: NextRequest,

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-export const runtime = "edge";
 
 // Minimal CSV parser (edge-compatible, no Node.js deps)
 function parseCSV(text: string): Record<string, string>[] {
