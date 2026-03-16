@@ -1,0 +1,16 @@
+{
+  "extends": "next/core-web-vitals",
+  "rules": {
+    "@next/next/no-html-link-for-pages": "off"
+  },
+  "overrides": [
+    {
+      "files": ["app/**/*.ts", "app/**/*.tsx"],
+      "rules": {
+        "no-restricted-syntax": [
+          "off"
+        ]
+      }
+    }
+  ]
+}

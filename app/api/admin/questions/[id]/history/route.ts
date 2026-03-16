@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getQuestionHistory } from "@/lib/db";
 
+export const runtime = "edge";
+
 
 export async function GET(
   _req: NextRequest,
