@@ -60,7 +60,7 @@ function esc(s: string): string {
   return s.replace(/'/g, "''");
 }
 
-const lines: string[] = ["BEGIN TRANSACTION;"];
+const lines: string[] = [];
 
 const csvFiles = fs.readdirSync(CSV_DIR).filter((f) => f.endsWith(".csv"));
 
@@ -87,12 +87,12 @@ for (const file of csvFiles) {
   records.forEach((row, i) => {
     const num = parseInt(row["#"] ?? String(i + 1), 10);
     const id = `${examId}__${num}`;
-    const questionText = esc(row["質問"] ?? row["question"] ?? "");
-    const choices = parseChoices(row["選択肢"] ?? row["choices"] ?? "");
-    const answers = parseAnswers(row["解答"] ?? row["answer"] ?? row["answers"] ?? "");
-    const explanation = esc(row["解説"] ?? row["explanation"] ?? "");
-    const source = esc(row["ソース"] ?? row["source"] ?? "");
-    const isDuplicate = !!(row["重複"] ?? row["duplicate"] ?? "").trim() ? 1 : 0;
+    const questionText = esc(row["question"] ?? "");
+    const choices = parseChoices(row["choices"] ?? "");
+    const answers = parseAnswers(row["answer"] ?? row["answers"] ?? "");
+    const explanation = esc(row["explanation"] ?? "");
+    const source = esc(row["source"] ?? "");
+    const isDuplicate = !!(row["duplicate"] ?? "").trim() ? 1 : 0;
 
     const optionsJson = esc(JSON.stringify(choices));
     const answersJson = esc(JSON.stringify(answers));
@@ -106,12 +106,11 @@ for (const file of csvFiles) {
   console.log(`  ${examId}: ${records.length} questions`);
 }
 
-lines.push("COMMIT;");
 
 fs.writeFileSync(SQL_OUT, lines.join("\n"), "utf-8");
 console.log(`\nSQL written to ${SQL_OUT}`);
 
-const localFlag = isLocal ? "--local" : "";
+const localFlag = isLocal ? "--local" : "--remote";
 const cmd = `wrangler d1 execute quiz-db ${localFlag} --file=scripts/_seed.sql`;
 console.log(`Running: ${cmd}\n`);
 execSync(cmd, { stdio: "inherit", cwd: process.cwd() });

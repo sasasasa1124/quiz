@@ -102,20 +102,21 @@ export function getQuestions(examId: string): Question[] {
 
   return records.map((row): Question => {
     const num = parseInt(row["#"] ?? "0", 10);
-    const choices = parseChoices(row["選択肢"] ?? row["choices"] ?? "");
-    const answers = parseAnswers(row["解答"] ?? row["answer"] ?? row["answers"] ?? "");
+    const choices = parseChoices(row["choices"] ?? "");
+    const answers = parseAnswers(row["answer"] ?? row["answers"] ?? "");
     return {
       id: num,
       dbId: `${examId}__${num}`,
-      question: row["質問"] ?? row["question"] ?? "",
+      question: row["question"] ?? "",
       choices,
       answers,
-      explanation: row["解説"] ?? row["explanation"] ?? "",
-      source: row["ソース"] ?? row["source"] ?? "",
-      isDuplicate: !!(row["重複"] ?? row["duplicate"] ?? "").trim(),
+      explanation: row["explanation"] ?? "",
+      source: row["source"] ?? "",
+      isDuplicate: !!(row["duplicate"] ?? "").trim(),
       choiceCount: choices.length,
       isMultiple: answers.length > 1,
       version: 1,
+      category: null,
     };
   });
 }

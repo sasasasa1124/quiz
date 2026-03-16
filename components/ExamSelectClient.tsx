@@ -24,23 +24,17 @@ function loadStats(examId: string): QuizStats {
 
 type UploadStatus = "idle" | "uploading" | "done" | "error";
 
-const CSV_TEMPLATE_JA = `重複,#,質問,選択肢,解答,解説,ソース
-,1,問題文をここに記載,A. 選択肢A | B. 選択肢B | C. 選択肢C | D. 選択肢D,A,解説をここに記載,出典URL
-,2,複数選択の例,A. 選択肢A | B. 選択肢B | C. 選択肢C | D. 選択肢D | E. 選択肢E,"A,C",解説をここに記載,出典URL
-`;
-
-const CSV_TEMPLATE_EN = `duplicate,#,question,choices,answer,explanation,source
+const CSV_TEMPLATE = `duplicate,#,question,choices,answer,explanation,source
 ,1,Enter question text here,A. Choice A | B. Choice B | C. Choice C | D. Choice D,A,Enter explanation here,Source URL
 ,2,Multiple answer example,A. Choice A | B. Choice B | C. Choice C | D. Choice D | E. Choice E,"A,C",Enter explanation here,Source URL
 `;
 
-function downloadTemplate(lang: "ja" | "en") {
-  const content = lang === "ja" ? CSV_TEMPLATE_JA : CSV_TEMPLATE_EN;
-  const blob = new Blob([content], { type: "text/csv;charset=utf-8;" });
+function downloadTemplate() {
+  const blob = new Blob([CSV_TEMPLATE], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = lang === "ja" ? "quiz_template_ja.csv" : "quiz_template_en.csv";
+  a.download = "quiz_template.csv";
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -237,20 +231,12 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
               {/* Template download */}
               <div>
                 <p className="text-xs text-gray-400 mb-2">テンプレートをダウンロード</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => downloadTemplate("ja")}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all"
-                  >
-                    <Download size={12} /> JA
-                  </button>
-                  <button
-                    onClick={() => downloadTemplate("en")}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all"
-                  >
-                    <Download size={12} /> EN
-                  </button>
-                </div>
+                <button
+                  onClick={() => downloadTemplate()}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all"
+                >
+                  <Download size={12} /> CSV テンプレート
+                </button>
               </div>
 
               {/* Drop zone */}
