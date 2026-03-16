@@ -1,4 +1,5 @@
 import type { CategoryStat, Choice, ExamMeta, Question, QuestionHistoryEntry, QuizStats } from "./types";
+import { getRequestContext } from "@cloudflare/next-on-pages";
 
 // Minimal D1 type stub – replaced by @cloudflare/workers-types after npm install
 interface D1PreparedStatement {
@@ -15,11 +16,8 @@ interface D1Database {
 
 function getDB(): D1Database | null {
   try {
-    // Dynamic require so the module is optional at build/dev time
-    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-explicit-any
-    const { getRequestContext } = require("@cloudflare/next-on-pages") as any;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (getRequestContext() as any).env.DB as D1Database;
+    return (getRequestContext() as any).env.DB as D1Database ?? null;
   } catch {
     return null;
   }
