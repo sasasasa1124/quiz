@@ -22,7 +22,6 @@ function loadStats(examId: string): QuizStats {
   } catch { return {}; }
 }
 
-type LangFilter = "all" | "ja" | "en";
 type UploadStatus = "idle" | "uploading" | "done" | "error";
 
 const CSV_TEMPLATE_JA = `重複,#,質問,選択肢,解答,解説,ソース
@@ -58,7 +57,6 @@ async function uploadFile(file: File): Promise<ExamMeta> {
 export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
   const router = useRouter();
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
-  const [langFilter, setLangFilter] = useState<LangFilter>("all");
   const [statsMap, setStatsMap] = useState<Record<string, { pct: number | null; answered: number; total: number; wrongCount: number }>>({});
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
@@ -142,26 +140,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
     };
   }, [processFiles]);
 
-  const filtered = exams.filter((e) => langFilter === "all" || e.language === langFilter);
   const modeLabel = mode === "quiz" ? "クイズ" : mode === "review" ? "フラッシュカード" : "解答集";
-
-  const langToggle = (
-    <div className="flex gap-1">
-      {(["all", "ja", "en"] as const).map((l) => (
-        <button
-          key={l}
-          onClick={() => setLangFilter(l)}
-          className={`text-xs px-2.5 py-1 rounded-md border transition-colors ${
-            langFilter === l
-              ? "bg-gray-900 text-white border-gray-900"
-              : "border-gray-200 text-gray-500 hover:border-gray-400"
-          }`}
-        >
-          {l === "all" ? "すべて" : l === "ja" ? "JA" : "EN"}
-        </button>
-      ))}
-    </div>
-  );
 
   const uploadStatusText =
     uploadStatus === "uploading"
@@ -185,12 +164,12 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
         </div>
       )}
 
-      <PageHeader back={{ href: "/" }} title={modeLabel} right={langToggle} />
+      <PageHeader back={{ href: "/" }} title={modeLabel} />
 
       <div className="flex-1 px-4 sm:px-8 py-6 overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
           {/* Existing exam cards */}
-          {filtered.map((exam) => {
+          {exams.map((exam) => {
             const s = statsMap[exam.id];
             const pct = s?.pct ?? null;
             return (
