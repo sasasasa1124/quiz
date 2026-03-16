@@ -6,6 +6,7 @@ interface Props {
   params: Promise<{ mode: string }>;
 }
 
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 export default async function ExamSelectPage({ params }: Props) {

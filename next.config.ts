@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  // All routes run on Cloudflare edge (Workers) runtime
+  // Individual pages still need `export const runtime = "edge"` for next-on-pages
   // Tell Turbopack the workspace root includes the parent directory (for CSV files)
   turbopack: {
     root: path.resolve(__dirname, ".."),
