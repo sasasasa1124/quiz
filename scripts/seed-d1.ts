@@ -19,12 +19,18 @@ const CSV_DIR = path.join(process.cwd(), "..");
 const SQL_OUT = path.join(process.cwd(), "scripts", "_seed.sql");
 
 const EXAM_NAMES: Record<string, string> = {
-  experience_cloud_consultant_exam: "Experience Cloud Consultant",
-  mule_dev_201_exam: "MuleSoft Developer I (DEV201)",
-  plat_arch_202_exam: "Platform App Builder / Architect 202",
-  platform_iam_architect_exam: "Platform Identity & Access Mgmt Architect",
-  service_cloud_consultant_exam: "Service Cloud Consultant",
-  ux_designer_exam: "UX Designer",
+  experience_cloud_consultant_exam:                "Salesforce 認定 Experience Cloud コンサルタント",
+  experience_cloud_consultant_exam_en:             "Salesforce Certified Experience Cloud Consultant",
+  mulesoft_developer_exam:                         "Salesforce 認定 MuleSoft デベロッパー",
+  mulesoft_developer_exam_en:                      "Salesforce Certified MuleSoft Developer",
+  mulesoft_platform_integration_architect_exam:    "Salesforce 認定 MuleSoft Platform Integration アーキテクト",
+  mulesoft_platform_integration_architect_exam_en: "Salesforce Certified MuleSoft Platform Integration Architect",
+  platform_iam_architect_exam:                     "Salesforce 認定 Platform Identity and Access Management アーキテクト",
+  platform_iam_architect_exam_en:                  "Salesforce Certified Platform Identity and Access Management Architect",
+  service_cloud_consultant_exam:                   "Salesforce 認定 Service Cloud コンサルタント",
+  service_cloud_consultant_exam_en:                "Salesforce Certified Service Cloud Consultant",
+  ux_designer_exam:                                "Salesforce 認定 User Experience (UX) デザイナー",
+  ux_designer_exam_en:                             "Salesforce Certified Platform User Experience Designer",
 };
 
 interface Choice { label: string; text: string; }
@@ -66,8 +72,7 @@ const csvFiles = fs.readdirSync(CSV_DIR).filter((f) => f.endsWith(".csv"));
 
 for (const file of csvFiles) {
   const examId = file.replace(".csv", "");
-  const baseName = examId.endsWith("_en") ? examId.slice(0, -3) : examId;
-  const name = EXAM_NAMES[baseName] ?? baseName;
+  const name = EXAM_NAMES[examId] ?? examId;
 
   let records: Record<string, string>[];
   try {

@@ -2,9 +2,11 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, RotateCcw, Upload, Download, Plus, X } from "lucide-react";
+import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User } from "lucide-react";
+import Link from "next/link";
 import type { ExamMeta, QuizStats } from "@/lib/types";
 import PageHeader from "./PageHeader";
+import OnboardingGuide from "./OnboardingGuide";
 
 interface Props {
   exams: ExamMeta[];
@@ -142,6 +144,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative">
+      <OnboardingGuide />
       {/* Drag & drop overlay */}
       {isDragging && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
@@ -153,7 +156,18 @@ export default function ExamListClient({ exams: initialExams }: Props) {
         </div>
       )}
 
-      <PageHeader title="Exams" />
+      <PageHeader
+        title="Exams"
+        right={
+          <Link
+            href="/profile"
+            className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title="Profile"
+          >
+            <User size={14} />
+          </Link>
+        }
+      />
 
       <div className="flex-1 px-4 sm:px-8 py-6 overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
