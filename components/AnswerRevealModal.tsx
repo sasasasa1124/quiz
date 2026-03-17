@@ -39,17 +39,18 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
       />
 
       {/* Modal card — centered on sm+, bottom-sheet on mobile */}
-      <div className="
+      <div className={`
         modal-slide-up
-        relative bg-white w-full max-w-lg
+        relative w-full max-w-lg
         rounded-t-2xl sm:rounded-2xl
         shadow-2xl
         flex flex-col
         max-h-[85vh]
         mt-auto sm:mt-0
-      ">
+        ${isCorrect ? "bg-white" : "bg-rose-50"}
+      `}>
         {/* Header */}
-        <div className={`shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b border-gray-100`}>
+        <div className={`shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b ${isCorrect ? "border-gray-100" : "border-rose-100"}`}>
           <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? "bg-emerald-100" : "bg-rose-100"}`}>
             {isCorrect
               ? <CheckCircle2 size={22} className="text-emerald-500" strokeWidth={2.5} />
@@ -102,7 +103,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
         </div>
 
         {/* Footer */}
-        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t border-gray-100">
+        <div className={`shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t ${isCorrect ? "border-gray-100" : "border-rose-100"}`}>
           <button
             onClick={onAiExplain}
             className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-violet-500 hover:border-violet-200 transition-colors"
