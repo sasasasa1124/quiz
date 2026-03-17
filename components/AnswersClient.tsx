@@ -2,9 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpenCheck, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2 } from "lucide-react";
 import type { Question } from "@/lib/types";
 import QuestionEditModal from "./QuestionEditModal";
+import AiExplainPopup from "./AiExplainPopup";
+import AiRefinePopup from "./AiRefinePopup";
+import { useSettings } from "@/lib/settings-context";
+import type { AiExplainResponse } from "@/app/api/ai/explain/route";
+import type { AiRefineResponse } from "@/app/api/ai/refine/route";
 
 interface Props {
   questions: Question[];
@@ -19,19 +24,163 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const [currentIndex, setCurrentIndex] = useState(0);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
+  const { settings } = useSettings();
+
+  const [aiPopupOpen, setAiPopupOpen] = useState(false);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiResult, setAiResult] = useState<AiExplainResponse | null>(null);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiAdopting, setAiAdopting] = useState(false);
+
+  const [refinePopupOpen, setRefinePopupOpen] = useState(false);
+  const [refineLoading, setRefineLoading] = useState(false);
+  const [refineResult, setRefineResult] = useState<AiRefineResponse | null>(null);
+  const [refineError, setRefineError] = useState<string | null>(null);
+  const [refineAdopting, setRefineAdopting] = useState(false);
+
   const handleQuestionSave = useCallback((updated: Question) => {
     setQuestions((prev) => prev.map((q) => (q.dbId === updated.dbId ? updated : q)));
   }, []);
 
+  const handleAiExplain = useCallback(async () => {
+    const q = questions[currentIndex];
+    if (!q) return;
+    setAiPopupOpen(true);
+    setAiLoading(true);
+    setAiResult(null);
+    setAiError(null);
+    try {
+      const res = await fetch("/api/ai/explain", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q.question,
+          choices: q.choices,
+          answers: q.answers,
+          explanation: q.explanation,
+          userPrompt: settings.aiPrompt,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error: string };
+        throw new Error(err.error ?? "Request failed");
+      }
+      const data = await res.json() as AiExplainResponse;
+      setAiResult(data);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "Failed to get AI explanation");
+    } finally {
+      setAiLoading(false);
+    }
+  }, [questions, currentIndex, settings.aiPrompt]);
+
+  const handleAiAdopt = useCallback(async () => {
+    if (!aiResult) return;
+    const q = questions[currentIndex];
+    if (!q) return;
+    setAiAdopting(true);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: q.question,
+          options: q.choices,
+          answers: aiResult.answers,
+          explanation: aiResult.explanation,
+          change_reason: "AI-generated via Gemini",
+        }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      setQuestions((prev) =>
+        prev.map((pq) =>
+          pq.dbId === q.dbId
+            ? { ...pq, answers: aiResult.answers, explanation: aiResult.explanation }
+            : pq
+        )
+      );
+      setAiPopupOpen(false);
+      setAiResult(null);
+    } catch (e) {
+      setAiError(e instanceof Error ? e.message : "Failed to adopt answer");
+    } finally {
+      setAiAdopting(false);
+    }
+  }, [aiResult, questions, currentIndex]);
+
+  const handleAiRefine = useCallback(async () => {
+    const q = questions[currentIndex];
+    if (!q) return;
+    setRefinePopupOpen(true);
+    setRefineLoading(true);
+    setRefineResult(null);
+    setRefineError(null);
+    try {
+      const res = await fetch("/api/ai/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q.question,
+          choices: q.choices,
+          userPrompt: settings.aiRefinePrompt,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error: string };
+        throw new Error(err.error ?? "Request failed");
+      }
+      const data = await res.json() as AiRefineResponse;
+      setRefineResult(data);
+    } catch (e) {
+      setRefineError(e instanceof Error ? e.message : "Failed to refine question");
+    } finally {
+      setRefineLoading(false);
+    }
+  }, [questions, currentIndex, settings.aiRefinePrompt]);
+
+  const handleRefineAdopt = useCallback(async () => {
+    if (!refineResult) return;
+    const q = questions[currentIndex];
+    if (!q) return;
+    setRefineAdopting(true);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: refineResult.question,
+          options: refineResult.choices,
+          answers: q.answers,
+          explanation: q.explanation,
+          change_reason: `AI refined: ${refineResult.changesSummary || "typo/grammar fix"}`,
+        }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      setQuestions((prev) =>
+        prev.map((pq) =>
+          pq.dbId === q.dbId
+            ? { ...pq, question: refineResult.question, choices: refineResult.choices }
+            : pq
+        )
+      );
+      setRefinePopupOpen(false);
+      setRefineResult(null);
+    } catch (e) {
+      setRefineError(e instanceof Error ? e.message : "Failed to adopt refinement");
+    } finally {
+      setRefineAdopting(false);
+    }
+  }, [refineResult, questions, currentIndex]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (editingQuestion) return;
+      if (editingQuestion || aiPopupOpen || refinePopupOpen) return;
       if (e.key === "ArrowRight" || e.key === "Enter") setCurrentIndex((i) => Math.min(i + 1, questions.length - 1));
       else if (e.key === "ArrowLeft" || e.key === "Backspace") setCurrentIndex((i) => Math.max(i - 1, 0));
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [questions.length, editingQuestion]);
+  }, [questions.length, editingQuestion, aiPopupOpen, refinePopupOpen]);
 
   // Touch swipe
   const touchStartX = useRef<number | null>(null);
@@ -96,11 +245,20 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
         <div className="max-w-3xl mx-auto flex flex-col gap-4">
           {/* Question */}
           <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5">
-            <p className="text-[11px] text-gray-400 mb-2">
-              Q{currentIndex + 1}
-              {q.isMultiple && <span className="ml-2 text-violet-500 font-semibold">Multi</span>}
-              <span className="ml-2 text-gray-300">v{q.version}</span>
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] text-gray-400">
+                Q{currentIndex + 1}
+                {q.isMultiple && <span className="ml-2 text-violet-500 font-semibold">Multi</span>}
+                <span className="ml-2 text-gray-300">v{q.version}</span>
+              </p>
+              <button
+                onClick={handleAiRefine}
+                className="text-gray-300 hover:text-amber-500 transition-colors"
+                title="AI Refine"
+              >
+                <Wand2 size={12} />
+              </button>
+            </div>
             <div
               className="text-sm lg:text-base leading-relaxed text-gray-900 font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
               dangerouslySetInnerHTML={{ __html: q.question }}
@@ -136,13 +294,24 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           </div>
 
           {/* Explanation */}
-          {q.explanation && (
-            <div className="bg-white rounded-xl border border-gray-100 px-5 py-4">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Explanation</p>
-              <p className="text-sm lg:text-base leading-relaxed text-gray-600 whitespace-pre-wrap">{q.explanation}</p>
-              {q.source && <p className="text-xs text-gray-300 mt-3">Source: {q.source}</p>}
+          <div className="bg-white rounded-xl border border-gray-100 px-5 py-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Explanation</p>
+              <button
+                onClick={handleAiExplain}
+                className="text-gray-300 hover:text-violet-500 transition-colors"
+                title="AI Explain"
+              >
+                <Sparkles size={12} />
+              </button>
             </div>
-          )}
+            {q.explanation ? (
+              <p className="text-sm lg:text-base leading-relaxed text-gray-600 whitespace-pre-wrap">{q.explanation}</p>
+            ) : (
+              <p className="text-sm text-gray-300">—</p>
+            )}
+            {q.source && <p className="text-xs text-gray-300 mt-3">Source: {q.source}</p>}
+          </div>
         </div>
       </div>
 
@@ -193,6 +362,40 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           question={editingQuestion}
           onClose={() => setEditingQuestion(null)}
           onSave={handleQuestionSave}
+        />
+      )}
+
+      {/* AI Explain popup */}
+      {aiPopupOpen && (
+        <AiExplainPopup
+          loading={aiLoading}
+          result={aiResult}
+          error={aiError}
+          adopting={aiAdopting}
+          onAdopt={handleAiAdopt}
+          onDismiss={() => {
+            setAiPopupOpen(false);
+            setAiResult(null);
+            setAiError(null);
+          }}
+        />
+      )}
+
+      {/* AI Refine popup */}
+      {refinePopupOpen && (
+        <AiRefinePopup
+          originalQuestion={q.question}
+          originalChoices={q.choices}
+          loading={refineLoading}
+          result={refineResult}
+          error={refineError}
+          adopting={refineAdopting}
+          onAdopt={handleRefineAdopt}
+          onDismiss={() => {
+            setRefinePopupOpen(false);
+            setRefineResult(null);
+            setRefineError(null);
+          }}
         />
       )}
     </div>

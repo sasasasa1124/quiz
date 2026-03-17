@@ -1,20 +1,28 @@
 "use client";
 
-import { ChevronRight, CheckCircle2 } from "lucide-react";
+import { ChevronRight, CheckCircle2, Sparkles } from "lucide-react";
 import type { Question } from "@/lib/types";
 
 interface Props {
   question: Question;
   onNext: () => void;
   isLast: boolean;
+  onAiExplain?: () => void;
 }
 
-export default function ReviewReveal({ question, onNext, isLast }: Props) {
+export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: Props) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Answer</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Answer</p>
+          {onAiExplain && (
+            <button onClick={onAiExplain} className="text-gray-300 hover:text-violet-500 transition-colors" title="AI Explain">
+              <Sparkles size={12} />
+            </button>
+          )}
+        </div>
         <div className="flex flex-col gap-2 mb-6">
           {question.choices
             .filter((c) => question.answers.includes(c.label))
