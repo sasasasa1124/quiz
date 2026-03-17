@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import type { ExamMeta } from "@/lib/types";
 
@@ -20,8 +21,14 @@ export default function ExamCard({ exam, stats, mode }: Props) {
 
   const hasWrong = stats && stats.answered > 0;
 
+  const [barWidth, setBarWidth] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setBarWidth(pct ?? 0));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
+
   return (
-    <div className="border border-gray-200 rounded-xl p-4 bg-white">
+    <div className="border border-gray-200 rounded-xl p-4 bg-white transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-gray-300">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
           <h2 className="font-semibold text-gray-900 text-sm leading-snug">{exam.name}</h2>
@@ -40,8 +47,8 @@ export default function ExamCard({ exam, stats, mode }: Props) {
       {stats && stats.answered > 0 && (
         <div className="h-1 bg-gray-100 rounded-full overflow-hidden mb-3">
           <div
-            className={`h-full rounded-full ${pct! >= 80 ? "bg-green-500" : pct! >= 60 ? "bg-yellow-400" : "bg-red-400"}`}
-            style={{ width: `${pct}%` }}
+            className={`h-full rounded-full transition-[width] duration-700 ease-out ${pct! >= 80 ? "bg-green-500" : pct! >= 60 ? "bg-yellow-400" : "bg-red-400"}`}
+            style={{ width: `${barWidth}%` }}
           />
         </div>
       )}

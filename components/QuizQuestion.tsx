@@ -81,7 +81,8 @@ export default function QuizQuestion({
               key={choice.label}
               onClick={() => onToggle(choice.label)}
               disabled={submitted}
-              className={`w-full text-left border rounded-xl px-4 py-3 transition-all duration-100 ${ring} ${submitted ? "cursor-default" : "cursor-pointer"}`}
+              className={`w-full text-left border rounded-xl px-4 py-3 transition-all duration-100 active:scale-[0.97] ${ring} ${submitted ? "cursor-default option-reveal" : "cursor-pointer"}`}
+              style={submitted ? { animationDelay: `${i * 50}ms`, animationFillMode: "both" } : undefined}
             >
               <div className="flex items-start gap-3">
                 <span className={`shrink-0 w-6 h-6 rounded-lg border text-xs font-bold flex items-center justify-center transition-all ${badge}`}>
