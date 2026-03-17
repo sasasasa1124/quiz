@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Sparkles, X, CheckCheck } from "lucide-react";
+import { Loader2, Sparkles, X, CheckCheck, ExternalLink } from "lucide-react";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
 import { useSettings } from "@/lib/settings-context";
 
@@ -83,6 +83,29 @@ export default function AiExplainPopup({ loading, result, error, adopting, onAdo
                 {result.reasoning}
               </p>
             </div>
+
+            {/* Sources */}
+            {result.sources && result.sources.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                  Sources
+                </p>
+                <div className="flex flex-col gap-1">
+                  {result.sources.map((s) => (
+                    <a
+                      key={s.uri}
+                      href={s.uri}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-violet-500 hover:text-violet-700 hover:underline"
+                    >
+                      <ExternalLink size={10} className="shrink-0" />
+                      <span className="truncate">{s.title}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
