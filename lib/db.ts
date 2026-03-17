@@ -148,6 +148,7 @@ export interface QuestionUpdate {
   options: Choice[];
   answers: string[];
   explanation: string;
+  change_reason: string;
 }
 
 export async function updateQuestion(
@@ -172,10 +173,10 @@ export async function updateQuestion(
 
   await db
     .prepare(
-      `INSERT INTO question_history (question_id, question_text, options, answers, explanation, version, changed_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO question_history (question_id, question_text, options, answers, explanation, version, changed_by, change_reason)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .bind(id, current.question_text, current.options, current.answers, current.explanation, current.version, changedBy)
+    .bind(id, current.question_text, current.options, current.answers, current.explanation, current.version, changedBy, data.change_reason)
     .run();
 
   await db
@@ -195,14 +196,14 @@ export async function getQuestionHistory(questionId: string): Promise<QuestionHi
 
   const result = await db
     .prepare(
-      `SELECT id, question_id, question_text, options, answers, explanation, version, changed_at, changed_by
+      `SELECT id, question_id, question_text, options, answers, explanation, version, changed_at, changed_by, change_reason
        FROM question_history WHERE question_id = ? ORDER BY version DESC`
     )
     .bind(questionId)
     .all<{
       id: number; question_id: string; question_text: string; options: string;
       answers: string; explanation: string; version: number;
-      changed_at: string; changed_by: string | null;
+      changed_at: string; changed_by: string | null; change_reason: string | null;
     }>();
 
   return (result.results ?? []).map((row) => ({
@@ -215,6 +216,7 @@ export async function getQuestionHistory(questionId: string): Promise<QuestionHi
     version: row.version,
     changedAt: row.changed_at,
     changedBy: row.changed_by,
+    changeReason: row.change_reason ?? null,
   }));
 }
 

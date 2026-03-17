@@ -16,9 +16,10 @@ export async function PUT(
     options: Choice[];
     answers: string[];
     explanation: string;
+    change_reason: string;
   };
 
-  if (!body.question_text || !body.options || !body.answers) {
+  if (!body.question_text || !body.options || !body.answers || !body.change_reason?.trim()) {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }
 

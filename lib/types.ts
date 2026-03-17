@@ -42,6 +42,7 @@ export interface QuestionHistoryEntry {
   version: number;
   changedAt: string;
   changedBy: string | null;
+  changeReason: string | null;
 }
 
 // 0 = last answer wrong, 1 = last answer correct, undefined = never answered

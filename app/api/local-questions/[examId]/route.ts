@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { getQuestions } from "@/lib/csv";
 
-// Node.js runtime — reads CSV files for local dev fallback
+export const runtime = "edge";
+
+// Node.js compat (nodejs_compat flag) — reads CSV files for local dev fallback
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ examId: string }> }

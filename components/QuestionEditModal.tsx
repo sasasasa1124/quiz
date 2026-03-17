@@ -15,6 +15,7 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
   const [choices, setChoices] = useState<Choice[]>(question.choices.map((c) => ({ ...c })));
   const [answers, setAnswers] = useState<string[]>([...question.answers]);
   const [explanation, setExplanation] = useState(question.explanation);
+  const [changeReason, setChangeReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,13 +58,14 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
   async function handleSave() {
     if (!questionText.trim()) { setError("Enter question text"); return; }
     if (answers.length === 0) { setError("Select at least one correct answer"); return; }
+    if (!changeReason.trim()) { setError("Enter reason for change"); return; }
     setSaving(true);
     setError(null);
     try {
       const res = await fetch(`/api/admin/questions/${encodeURIComponent(question.dbId)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question_text: questionText, options: choices, answers, explanation }),
+        body: JSON.stringify({ question_text: questionText, options: choices, answers, explanation, change_reason: changeReason }),
       });
       if (!res.ok) throw new Error(await res.text());
       const updated = await res.json() as Question;
@@ -164,6 +166,21 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
             />
           </div>
 
+          {/* Change reason */}
+          <div>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+              Reason for change
+              <span className="ml-1 text-rose-400">*</span>
+            </label>
+            <textarea
+              value={changeReason}
+              onChange={(e) => setChangeReason(e.target.value)}
+              rows={2}
+              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+              placeholder="e.g. 正解が誤っていたため修正"
+            />
+          </div>
+
           {/* History */}
           <div>
             <button
@@ -190,6 +207,9 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
                       <span className="text-xs font-semibold text-gray-500">v{h.version}</span>
                       <span className="text-xs text-gray-300">{new Date(h.changedAt).toLocaleString()} · {h.changedBy ?? "unknown"}</span>
                     </div>
+                    {h.changeReason && (
+                      <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">{h.changeReason}</p>
+                    )}
                     <p className="text-xs text-gray-600 whitespace-pre-wrap line-clamp-3">{h.questionText}</p>
                   </div>
                 ))}
