@@ -707,6 +707,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             handleQuestionSave(created);
             setCreateMode(false);
           }}
+          onBulkImport={() => {
+            setCreateMode(false);
+            router.refresh();
+          }}
         />
       )}
 
