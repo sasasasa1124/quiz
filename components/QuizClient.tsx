@@ -475,12 +475,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                     <div className="card-front">
                       <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4">
                         <div className="max-w-3xl mx-auto w-full">
-                          <div className="flex justify-end gap-1 mb-1.5">
-                            <button onClick={handleAiRefine} className="p-1 text-gray-300 hover:text-amber-500 transition-colors" title="AI Refine">
-                              <Wand2 size={15} />
+                          <div className="flex justify-end gap-2 mb-2">
+                            <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Refine">
+                              <Wand2 size={12} />
+                              AI Refine
                             </button>
-                            <button onClick={() => setEditingQuestion(q)} className="p-1 text-gray-300 hover:text-blue-500 transition-colors" title="Edit question">
-                              <Pencil size={15} />
+                            <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit question">
+                              <Pencil size={12} />
+                              Edit
                             </button>
                           </div>
                           <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4">
@@ -525,12 +527,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                   className={`flex-1 overflow-y-auto px-4 sm:px-8 pb-4 ${direction === "forward" ? "question-slide-forward" : "question-slide-backward"}`}
                 >
                   <div className="max-w-3xl mx-auto w-full h-full">
-                    <div className="flex justify-end gap-1 mb-1.5">
-                      <button onClick={handleAiRefine} className="p-1 text-gray-300 hover:text-amber-500 transition-colors" title="AI Refine">
-                        <Wand2 size={15} />
+                    <div className="flex justify-end gap-2 mb-2">
+                      <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Refine">
+                        <Wand2 size={12} />
+                        AI Refine
                       </button>
-                      <button onClick={() => setEditingQuestion(q)} className="p-1 text-gray-300 hover:text-blue-500 transition-colors" title="Edit question">
-                        <Pencil size={15} />
+                      <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit question">
+                        <Pencil size={12} />
+                        Edit
                       </button>
                     </div>
                     <QuizQuestion

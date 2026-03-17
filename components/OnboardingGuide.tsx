@@ -1,12 +1,31 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Upload, BookOpen, Settings } from "lucide-react";
+import { X, ChevronRight, Plus, User } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 
 const STORAGE_KEY = "onboarding-done";
 
-const STEP_ICONS = [Upload, BookOpen, Settings];
+const STEP_ICONS = [Plus, ChevronRight, User];
+
+// Per-step bubble position and tail position
+const STEP_POSITIONS = [
+  // Step 0: Add exam → bubble bottom-right, tail points up toward Add card
+  {
+    bubbleClass: "fixed bottom-8 right-4 sm:right-8 w-72",
+    tailClass: "absolute top-[-8px] right-6 w-4 h-4 bg-white rotate-45 border-t border-l border-gray-200 shadow-sm",
+  },
+  // Step 1: Start practicing → bubble bottom-left, tail points up toward exam cards
+  {
+    bubbleClass: "fixed bottom-8 left-4 sm:left-8 w-72",
+    tailClass: "absolute top-[-8px] left-6 w-4 h-4 bg-white rotate-45 border-t border-l border-gray-200 shadow-sm",
+  },
+  // Step 2: Customize → bubble top-right below header, tail points up toward profile icon
+  {
+    bubbleClass: "fixed top-14 right-4 sm:right-8 w-64",
+    tailClass: "absolute top-[-8px] right-3 w-4 h-4 bg-white rotate-45 border-t border-l border-gray-200 shadow-sm",
+  },
+];
 
 export default function OnboardingGuide() {
   const { t } = useSettings();
@@ -49,10 +68,11 @@ export default function OnboardingGuide() {
   ];
 
   const Icon = STEP_ICONS[step];
+  const pos = STEP_POSITIONS[step];
   const isLast = step === 2;
 
   return (
-    <div className="fixed inset-0 z-40 flex items-end justify-center pb-8 px-4 pointer-events-none">
+    <div className="fixed inset-0 z-40 pointer-events-none">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/20 pointer-events-auto"
@@ -60,9 +80,9 @@ export default function OnboardingGuide() {
       />
 
       {/* Bubble */}
-      <div className="relative pointer-events-auto w-full max-w-sm">
-        {/* Tail pointing down */}
-        <div className="absolute bottom-[-8px] left-1/2 -translate-x-1/2 w-4 h-4 bg-white rotate-45 border-b border-r border-gray-200 shadow-sm" />
+      <div className={`${pos.bubbleClass} relative pointer-events-auto`}>
+        {/* Tail */}
+        <div className={pos.tailClass} />
 
         <div className="bg-white rounded-2xl border border-gray-200 shadow-xl p-5">
           {/* Header */}

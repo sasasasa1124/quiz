@@ -144,7 +144,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative">
-      {exams.length === 0 && <OnboardingGuide />}
+      <OnboardingGuide />
       {/* Drag & drop overlay */}
       {isDragging && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
