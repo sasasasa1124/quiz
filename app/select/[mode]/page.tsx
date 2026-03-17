@@ -2,6 +2,8 @@ import { getExamList } from "@/lib/db";
 import { notFound } from "next/navigation";
 import ExamSelectClient from "@/components/ExamSelectClient";
 
+export const runtime = "edge";
+
 interface Props {
   params: Promise<{ mode: string }>;
 }

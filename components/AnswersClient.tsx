@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { ArrowLeft, BookOpenCheck, ChevronLeft, ChevronRight, Pencil } from "lucide-react";
 import type { Question } from "@/lib/types";
@@ -32,6 +32,26 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [questions.length, editingQuestion]);
+
+  // Touch swipe
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  }, []);
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - touchStartY.current;
+    // Ignore if mostly vertical (scrolling)
+    if (Math.abs(dy) > Math.abs(dx)) return;
+    if (Math.abs(dx) < 50) return;
+    if (dx < 0) setCurrentIndex((i) => Math.min(i + 1, questions.length - 1));
+    else setCurrentIndex((i) => Math.max(i - 1, 0));
+    touchStartX.current = null;
+    touchStartY.current = null;
+  }, [questions.length]);
 
   const q = questions[currentIndex];
   const isFirst = currentIndex === 0;
@@ -68,7 +88,11 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
       </header>
 
       {/* Main */}
-      <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
+      <div
+        className="flex-1 overflow-y-auto px-4 sm:px-8 py-5"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
+      >
         <div className="max-w-2xl mx-auto flex flex-col gap-4">
           {/* Question */}
           <div className="bg-gray-50 rounded-xl px-5 py-4">
