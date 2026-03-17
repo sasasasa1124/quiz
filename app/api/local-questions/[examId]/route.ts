@@ -1,12 +1,19 @@
-import { NextResponse } from "next/server";
-import { getQuestions } from "@/lib/csv";
+export const runtime = "edge";
 
-// Node.js runtime required — reads CSV files via fs/process.cwd()
+import { NextResponse } from "next/server";
+
+// This route is for local development only.
+// On Cloudflare Pages, filesystem access is unavailable — returns empty array.
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ examId: string }> }
 ) {
-  const { examId } = await params;
-  const questions = await getQuestions(examId);
-  return NextResponse.json(questions);
+  try {
+    const { examId } = await params;
+    const { getQuestions } = await import("@/lib/csv");
+    const questions = await getQuestions(examId);
+    return NextResponse.json(questions);
+  } catch {
+    return NextResponse.json([]);
+  }
 }

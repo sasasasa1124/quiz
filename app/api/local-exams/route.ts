@@ -1,8 +1,15 @@
-import { NextResponse } from "next/server";
-import { getExamList } from "@/lib/csv";
+export const runtime = "edge";
 
-// Node.js runtime required — reads CSV files via fs/process.cwd()
+import { NextResponse } from "next/server";
+
+// This route is for local development only.
+// On Cloudflare Pages, filesystem access is unavailable — returns empty array.
 export async function GET() {
-  const exams = await getExamList();
-  return NextResponse.json(exams);
+  try {
+    const { getExamList } = await import("@/lib/csv");
+    const exams = await getExamList();
+    return NextResponse.json(exams);
+  } catch {
+    return NextResponse.json([]);
+  }
 }
