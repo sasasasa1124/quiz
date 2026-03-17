@@ -15,7 +15,10 @@ import ReviewReveal from "./ReviewReveal";
 import QuestionEditModal from "./QuestionEditModal";
 import AiExplainPopup from "./AiExplainPopup";
 import AiRefinePopup from "./AiRefinePopup";
+import AnswerRevealModal from "./AnswerRevealModal";
+import KeyboardHintToast from "./KeyboardHintToast";
 import { useSettings } from "@/lib/settings-context";
+import { recordDailySnapshot } from "@/lib/snapshots";
 
 interface Props {
   questions: Question[];
@@ -114,6 +117,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     setStats((prev) => {
       const next = { ...prev, [String(questionId)]: correct ? 1 : 0 } as QuizStats;
       saveLocalStats(examId, next);
+      recordDailySnapshot(examId, next, questions.length);
       return next;
     });
     // Fire-and-forget sync to DB
@@ -344,6 +348,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (editingQuestion || aiPopupOpen || refinePopupOpen) return;
+      if (mode === "quiz" && submitted) return; // modal handles keys
 
       if (mode === "review") {
         if (!revealed) {
@@ -372,7 +377,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     ? `${(currentIndex / (filteredQuestions.length - 1)) * 100}%`
     : "0%";
 
-  const showRightPanel = mode === "quiz" && submitted && isCorrect === false;
+  const showAnswerModal = mode === "quiz" && submitted;
 
   if (filteredQuestions.length === 0) {
     return (
@@ -591,38 +596,6 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           }
         </div>
 
-        {/* Right panel: explanation (quiz wrong answer) */}
-        <div className={`
-          flex flex-col overflow-hidden bg-white
-          ${!showRightPanel
-            ? "hidden"
-            : "shrink-0 w-full lg:w-[420px] border-t lg:border-t-0 lg:border-l border-gray-200 h-[40vh] lg:h-auto"
-          }
-        `}>
-          <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 border-b border-gray-100">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <XCircle size={15} className="text-rose-400 shrink-0" />
-                <span className="text-xs text-gray-500">Explanation</span>
-              </div>
-              <button
-                onClick={handleAiExplain}
-                className="text-gray-300 hover:text-violet-500 transition-colors"
-                title="AI Explain"
-              >
-                <Sparkles size={15} />
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4">
-            {q.explanation ? (
-              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{q.explanation}</p>
-            ) : (
-              <p className="text-sm text-gray-300">—</p>
-            )}
-            {q.source && <p className="text-xs text-gray-300 mt-4">Source: {q.source}</p>}
-          </div>
-        </div>
       </div>
 
       {/* ── Footer ── */}
@@ -723,6 +696,20 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           }}
         />
       )}
+
+      {/* Answer reveal modal */}
+      {showAnswerModal && (
+        <AnswerRevealModal
+          question={q}
+          isCorrect={isCorrect === true}
+          isLast={isLast}
+          onNext={goNext}
+          onAiExplain={handleAiExplain}
+        />
+      )}
+
+      {/* Keyboard hint toast (first quiz session only) */}
+      {mode === "quiz" && <KeyboardHintToast />}
     </div>
   );
 }

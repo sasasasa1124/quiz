@@ -51,6 +51,13 @@ export type QuizStat = 0 | 1;
 
 export type QuizStats = Record<string, QuizStat>; // key: String(question.id)
 
+export interface ExamSnapshot {
+  ts: number;       // Unix ms
+  correct: number;
+  total: number;
+  accuracy: number; // 0–100
+}
+
 export interface UserSettings {
   language: "en" | "ja" | "zh" | "ko";
   aiPrompt: string;

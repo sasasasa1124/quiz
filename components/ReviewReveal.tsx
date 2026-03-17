@@ -18,8 +18,9 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: 
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Answer</p>
           {onAiExplain && (
-            <button onClick={onAiExplain} className="text-gray-300 hover:text-violet-500 transition-colors" title="AI Explain">
-              <Sparkles size={12} />
+            <button onClick={onAiExplain} className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-400 hover:text-violet-500 hover:border-violet-200 transition-colors">
+              <Sparkles size={11} />
+              AI Explain
             </button>
           )}
         </div>
