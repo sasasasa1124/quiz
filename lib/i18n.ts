@@ -30,7 +30,16 @@ export type TranslationKey =
   | "aiRefineQuestion"
   | "aiRefineChoices"
   | "aiRefineChanges"
-  | "aiRefineNoChanges";
+  | "aiRefineNoChanges"
+  | "onboardingTitle"
+  | "onboardingStep1Title"
+  | "onboardingStep1Desc"
+  | "onboardingStep2Title"
+  | "onboardingStep2Desc"
+  | "onboardingStep3Title"
+  | "onboardingStep3Desc"
+  | "onboardingNext"
+  | "onboardingDone";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -64,6 +73,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiRefineChoices: "Choices",
     aiRefineChanges: "Changes",
     aiRefineNoChanges: "No changes suggested",
+    onboardingTitle: "Welcome to Quiz",
+    onboardingStep1Title: "Add an exam",
+    onboardingStep1Desc: "Click the Add card or drag & drop a CSV file to load your first exam.",
+    onboardingStep2Title: "Start practicing",
+    onboardingStep2Desc: "Tap any exam card to begin. Wrong answers are tracked so you can focus on what matters.",
+    onboardingStep3Title: "Customize",
+    onboardingStep3Desc: "Open Settings to change the display language or configure the AI explanation prompt.",
+    onboardingNext: "Next",
+    onboardingDone: "Got it",
   },
   ja: {
     settings: "設定",
@@ -96,6 +114,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiRefineChoices: "選択肢",
     aiRefineChanges: "変更箇所",
     aiRefineNoChanges: "修正箇所なし",
+    onboardingTitle: "Quizへようこそ",
+    onboardingStep1Title: "試験を追加する",
+    onboardingStep1Desc: "「Add」カードをクリックするか、CSVファイルをドラッグ＆ドロップして試験を読み込みましょう。",
+    onboardingStep2Title: "練習を始める",
+    onboardingStep2Desc: "試験カードをタップしてスタート。不正解の問題は記録され、苦手克服に集中できます。",
+    onboardingStep3Title: "カスタマイズ",
+    onboardingStep3Desc: "設定を開いて表示言語の変更やAI解説プロンプトの設定ができます。",
+    onboardingNext: "次へ",
+    onboardingDone: "はじめる",
   },
   zh: {
     settings: "设置",
@@ -128,6 +155,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiRefineChoices: "选项",
     aiRefineChanges: "修改内容",
     aiRefineNoChanges: "无修改建议",
+    onboardingTitle: "欢迎使用 Quiz",
+    onboardingStep1Title: "添加考试",
+    onboardingStep1Desc: "点击「Add」卡片或拖放 CSV 文件来加载你的第一个考试。",
+    onboardingStep2Title: "开始练习",
+    onboardingStep2Desc: "点击任意考试卡片即可开始。答错的题目会被记录，方便你专项突破。",
+    onboardingStep3Title: "个性化设置",
+    onboardingStep3Desc: "打开设置可以更改显示语言或配置 AI 解释提示词。",
+    onboardingNext: "下一步",
+    onboardingDone: "开始吧",
   },
   ko: {
     settings: "설정",
@@ -160,6 +196,15 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiRefineChoices: "선택지",
     aiRefineChanges: "변경 사항",
     aiRefineNoChanges: "수정 사항 없음",
+    onboardingTitle: "Quiz에 오신 것을 환영합니다",
+    onboardingStep1Title: "시험 추가",
+    onboardingStep1Desc: "「Add」카드를 클릭하거나 CSV 파일을 드래그 & 드롭하여 시험을 불러오세요.",
+    onboardingStep2Title: "연습 시작",
+    onboardingStep2Desc: "시험 카드를 탭하여 시작하세요. 틀린 문제는 기록되어 취약 부분에 집중할 수 있습니다.",
+    onboardingStep3Title: "커스터마이즈",
+    onboardingStep3Desc: "설정을 열어 표시 언어를 변경하거나 AI 해설 프롬프트를 설정할 수 있습니다.",
+    onboardingNext: "다음",
+    onboardingDone: "시작하기",
   },
 };
 
