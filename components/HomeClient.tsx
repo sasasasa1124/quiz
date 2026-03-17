@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Download, Upload, Plus, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { Download, Upload, Plus, CheckCircle2, XCircle, Loader2, FilePlus } from "lucide-react";
 import type { ExamMeta, QuizStats } from "@/lib/types";
 import ExamCard from "./ExamCard";
 
@@ -35,13 +35,13 @@ function loadAllStats(examId: string): QuizStats {
   }
 }
 
-async function uploadFile(file: File): Promise<ExamMeta> {
+async function uploadFile(file: File, appendTo?: string): Promise<{ exam: ExamMeta; appended?: number }> {
   const formData = new FormData();
   formData.append("file", file);
+  if (appendTo) formData.append("appendTo", appendTo);
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   if (!res.ok) throw new Error(await res.text());
-  const { exam } = await res.json() as { exam: ExamMeta };
-  return exam;
+  return res.json() as Promise<{ exam: ExamMeta; appended?: number }>;
 }
 
 export default function HomeClient({ exams: initialExams }: Props) {
@@ -51,7 +51,11 @@ export default function HomeClient({ exams: initialExams }: Props) {
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
   const [isDragging, setIsDragging] = useState(false);
+  const [appendOpen, setAppendOpen] = useState(false);
+  const [appendTarget, setAppendTarget] = useState("");
+  const [appendStatus, setAppendStatus] = useState<UploadStatus>("idle");
   const fileRef = useRef<HTMLInputElement>(null);
+  const appendFileRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
 
   useEffect(() => {
@@ -78,7 +82,7 @@ export default function HomeClient({ exams: initialExams }: Props) {
     let hasError = false;
     for (let i = 0; i < csvFiles.length; i++) {
       try {
-        const exam = await uploadFile(csvFiles[i]);
+        const { exam } = await uploadFile(csvFiles[i]);
         setExams((prev) => {
           const exists = prev.find((e) => e.id === exam.id);
           return exists ? prev.map((e) => (e.id === exam.id ? exam : e)) : [...prev, exam];
@@ -94,6 +98,22 @@ export default function HomeClient({ exams: initialExams }: Props) {
     setTimeout(() => setUploadStatus("idle"), 2000);
     if (fileRef.current) fileRef.current.value = "";
   }, []);
+
+  const handleAppendFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !appendTarget) return;
+    setAppendStatus("uploading");
+    try {
+      const { exam } = await uploadFile(file, appendTarget);
+      setExams((prev) => prev.map((ex) => (ex.id === exam.id ? exam : ex)));
+      setAppendStatus("done");
+      setTimeout(() => { setAppendStatus("idle"); setAppendOpen(false); }, 1500);
+    } catch {
+      setAppendStatus("error");
+      setTimeout(() => setAppendStatus("idle"), 2000);
+    }
+    if (appendFileRef.current) appendFileRef.current.value = "";
+  }, [appendTarget]);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -179,47 +199,82 @@ export default function HomeClient({ exams: initialExams }: Props) {
       </div>
 
       {/* Upload row */}
-      <div className="flex items-center gap-2 mb-5">
-        <div className="ml-auto flex items-center gap-1.5">
-          <button
-            onClick={downloadTemplate}
-            title="Download CSV template"
-            className="text-xs px-2.5 py-1.5 rounded-full border border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center justify-center"
-          >
-            <Download size={11} />
-          </button>
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".csv"
-            multiple
-            className="hidden"
-            onChange={handleInputChange}
-          />
-          <button
-            onClick={() => fileRef.current?.click()}
-            disabled={uploadStatus === "uploading"}
-            title="Add CSV"
-            className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors flex items-center justify-center gap-1 ${
-              uploadStatus === "done"
-                ? "border-green-400 text-green-600 bg-green-50"
-                : uploadStatus === "error"
-                ? "border-red-400 text-red-600 bg-red-50"
+      <div className="mb-5">
+        <div className="flex items-center gap-2">
+          <div className="ml-auto flex items-center gap-1.5">
+            <button
+              onClick={downloadTemplate}
+              title="Download CSV template"
+              className="text-xs px-2.5 py-1.5 rounded-full border border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center justify-center"
+            >
+              <Download size={11} />
+            </button>
+            <input ref={fileRef} type="file" accept=".csv" multiple className="hidden" onChange={handleInputChange} />
+            <button
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadStatus === "uploading"}
+              title="New exam from CSV"
+              className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors flex items-center justify-center gap-1 ${
+                uploadStatus === "done" ? "border-green-400 text-green-600 bg-green-50"
+                : uploadStatus === "error" ? "border-red-400 text-red-600 bg-red-50"
                 : "border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
-            }`}
-          >
-            {uploadStatus === "uploading"
-              ? uploadProgress && uploadProgress.total > 1
-                ? <><Loader2 size={11} className="animate-spin" />{uploadProgress.done}/{uploadProgress.total}</>
-                : <Loader2 size={11} className="animate-spin" />
-              : uploadStatus === "done"
-              ? <CheckCircle2 size={11} />
-              : uploadStatus === "error"
-              ? <XCircle size={11} />
-              : <><Plus size={11} />CSV</>
-            }
-          </button>
+              }`}
+            >
+              {uploadStatus === "uploading"
+                ? uploadProgress && uploadProgress.total > 1
+                  ? <><Loader2 size={11} className="animate-spin" />{uploadProgress.done}/{uploadProgress.total}</>
+                  : <Loader2 size={11} className="animate-spin" />
+                : uploadStatus === "done" ? <CheckCircle2 size={11} />
+                : uploadStatus === "error" ? <XCircle size={11} />
+                : <><Plus size={11} />CSV</>
+              }
+            </button>
+            {exams.length > 0 && (
+              <button
+                onClick={() => { setAppendOpen((v) => !v); setAppendTarget(exams[0]?.id ?? ""); }}
+                title="Append CSV to existing exam"
+                className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors flex items-center justify-center gap-1 ${
+                  appendOpen
+                    ? "border-amber-400 text-amber-600 bg-amber-50"
+                    : "border-gray-300 text-gray-600 hover:border-amber-400 hover:text-amber-600"
+                }`}
+              >
+                <FilePlus size={11} />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Append inline UI */}
+        {appendOpen && (
+          <div className="mt-2 flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl">
+            <select
+              value={appendTarget}
+              onChange={(e) => setAppendTarget(e.target.value)}
+              className="flex-1 text-xs border border-amber-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-amber-400"
+            >
+              {exams.map((ex) => (
+                <option key={ex.id} value={ex.id}>{ex.name} ({ex.questionCount})</option>
+              ))}
+            </select>
+            <input ref={appendFileRef} type="file" accept=".csv" className="hidden" onChange={handleAppendFile} />
+            <button
+              onClick={() => appendFileRef.current?.click()}
+              disabled={appendStatus === "uploading" || !appendTarget}
+              className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors flex items-center gap-1 ${
+                appendStatus === "done" ? "border-green-400 text-green-600 bg-green-50"
+                : appendStatus === "error" ? "border-red-400 text-red-600 bg-red-50"
+                : "border-amber-400 text-amber-700 bg-white hover:bg-amber-100"
+              }`}
+            >
+              {appendStatus === "uploading" ? <Loader2 size={11} className="animate-spin" />
+                : appendStatus === "done" ? <CheckCircle2 size={11} />
+                : appendStatus === "error" ? <XCircle size={11} />
+                : <><Upload size={11} />Append</>
+              }
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Exam list */}

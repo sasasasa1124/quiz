@@ -99,9 +99,8 @@ export async function POST(req: NextRequest) {
     }, { status: 400 });
   }
 
-  const examId = name.replace(".csv", "");
-  const language = detectLanguage(records);
-  const displayName = examId.replace(/_en$/, "").replace(/_/g, " ");
+  // appendTo: if set, append questions to this existing exam instead of creating/replacing
+  const appendTo = (formData.get("appendTo") as string | null)?.trim() || null;
 
   // Get D1 binding
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -113,6 +112,61 @@ export async function POST(req: NextRequest) {
   } catch {
     // local dev: no D1
   }
+
+  if (appendTo) {
+    // ── Append mode ────────────────────────────────────────────────────────
+    if (!db) return NextResponse.json({ error: "DB not available" }, { status: 500 });
+
+    const examRow = await db
+      .prepare("SELECT id, name, lang FROM exams WHERE id = ?")
+      .bind(appendTo)
+      .first() as { id: string; name: string; lang: string } | null;
+    if (!examRow) return NextResponse.json({ error: `Exam not found: ${appendTo}` }, { status: 404 });
+
+    const maxRow = await db
+      .prepare("SELECT COALESCE(MAX(num), 0) AS max_num FROM questions WHERE exam_id = ?")
+      .bind(appendTo)
+      .first() as { max_num: number } | null;
+    let nextNum = (maxRow?.max_num ?? 0) + 1;
+
+    for (const row of records) {
+      const num = nextNum++;
+      const id = `${appendTo}__${num}`;
+      const questionText = esc(row["question"] ?? "");
+      const choices = parseChoices(row["choices"] ?? "");
+      const answers = parseAnswers(row["answer"] ?? row["answers"] ?? "");
+      const explanation = esc(row["explanation"] ?? "");
+      const source = esc(row["source"] ?? "");
+      const isDuplicate = !!(row["duplicate"] ?? "").trim() ? 1 : 0;
+      const optionsJson = esc(JSON.stringify(choices));
+      const answersJson = esc(JSON.stringify(answers));
+
+      await db.prepare(
+        `INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source, is_duplicate) ` +
+        `VALUES ('${id}', '${esc(appendTo)}', ${num}, '${questionText}', '${optionsJson}', '${answersJson}', '${explanation}', '${source}', ${isDuplicate})`
+      ).run();
+    }
+
+    const countRow = await db
+      .prepare("SELECT COUNT(*) AS cnt FROM questions WHERE exam_id = ?")
+      .bind(appendTo)
+      .first() as { cnt: number } | null;
+
+    return NextResponse.json({
+      exam: {
+        id: examRow.id,
+        name: examRow.name,
+        language: examRow.lang as "ja" | "en",
+        questionCount: countRow?.cnt ?? 0,
+      },
+      appended: records.length,
+    });
+  }
+
+  // ── New exam mode ─────────────────────────────────────────────────────────
+  const examId = name.replace(".csv", "");
+  const language = detectLanguage(records);
+  const displayName = examId.replace(/_en$/, "").replace(/_/g, " ");
 
   if (db) {
     await db.prepare(
