@@ -17,7 +17,7 @@ export default function AiExplainPopup({ loading, result, error, adopting, onAdo
   const { t } = useSettings();
 
   return (
-    <div className="fixed bottom-20 right-4 sm:right-8 z-40 w-80 sm:w-[22rem] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
+    <div className="fixed bottom-20 right-4 sm:right-8 z-60 w-80 sm:w-[22rem] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-white shrink-0">
         <div className="flex items-center gap-2">
