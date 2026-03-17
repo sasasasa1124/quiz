@@ -134,15 +134,15 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
     };
   }, [processFiles]);
 
-  const modeLabel = mode === "quiz" ? "クイズ" : mode === "review" ? "フラッシュカード" : "解答集";
+  const modeLabel = mode === "quiz" ? "Quiz" : mode === "review" ? "Flashcard" : "Answers";
 
   const uploadStatusText =
     uploadStatus === "uploading"
       ? uploadProgress && uploadProgress.total > 1
-        ? `${uploadProgress.done}/${uploadProgress.total} 件...`
-        : "アップロード中..."
-      : uploadStatus === "done" ? "追加しました"
-      : uploadStatus === "error" ? "エラーが発生しました"
+        ? `${uploadProgress.done}/${uploadProgress.total}...`
+        : "Uploading..."
+      : uploadStatus === "done" ? "Added"
+      : uploadStatus === "error" ? "Error"
       : null;
 
   return (
@@ -152,8 +152,8 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
           <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-blue-400 rounded-2xl px-10 py-8 shadow-xl">
             <Upload size={32} className="text-blue-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-blue-700">CSVをドロップして追加</p>
-            <p className="text-xs text-blue-400">複数ファイル対応</p>
+            <p className="text-sm font-semibold text-blue-700">Drop CSV here</p>
+            <p className="text-xs text-blue-400">Multiple files supported</p>
           </div>
         </div>
       )}
@@ -175,9 +175,9 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm leading-snug">{exam.name}</p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {exam.questionCount} 問
+                      {exam.questionCount} Q
                       {s && s.answered > 0 && (
-                        <span className="ml-2 text-gray-300">· {s.answered}/{s.total} 回答済</span>
+                        <span className="ml-2 text-gray-300">· {s.answered}/{s.total}</span>
                       )}
                     </p>
                     {s && s.answered > 0 && pct !== null && (
@@ -201,7 +201,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
                 {s && s.wrongCount > 0 && (
                   <div className="px-5 py-2.5 flex items-center gap-2 border-t border-gray-100">
                     <RotateCcw size={12} className="text-rose-300 shrink-0" />
-                    <span className="text-xs text-rose-400">誤答 {s.wrongCount} 問</span>
+                    <span className="text-xs text-rose-400">{s.wrongCount}</span>
                   </div>
                 )}
               </div>
@@ -217,12 +217,12 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
               <div className="w-8 h-8 rounded-lg border border-dashed border-gray-300 group-hover:border-gray-400 flex items-center justify-center transition-colors">
                 <Plus size={16} />
               </div>
-              <span className="text-sm font-medium">問題集を追加</span>
+              <span className="text-sm font-medium">Add</span>
             </button>
           ) : (
             <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">問題集を追加</p>
+                <p className="text-sm font-semibold text-gray-700">Add Exam</p>
                 <button onClick={() => setShowAdd(false)} className="text-gray-300 hover:text-gray-500 transition-colors">
                   <X size={15} />
                 </button>
@@ -230,18 +230,18 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
 
               {/* Template download */}
               <div>
-                <p className="text-xs text-gray-400 mb-2">テンプレートをダウンロード</p>
+                <p className="text-xs text-gray-400 mb-2">Template</p>
                 <button
                   onClick={() => downloadTemplate()}
                   className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all"
                 >
-                  <Download size={12} /> CSV テンプレート
+                  <Download size={12} /> CSV Template
                 </button>
               </div>
 
               {/* Drop zone */}
               <div>
-                <p className="text-xs text-gray-400 mb-2">CSVをアップロード</p>
+                <p className="text-xs text-gray-400 mb-2">Upload</p>
                 <input ref={fileRef} type="file" accept=".csv" multiple className="hidden" onChange={(e) => processFiles(Array.from(e.target.files ?? []))} />
                 <button
                   onClick={() => fileRef.current?.click()}
@@ -255,8 +255,8 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
                 >
                   <div className="flex flex-col items-center gap-1.5">
                     <Upload size={18} strokeWidth={1.5} />
-                    <span>{uploadStatusText ?? "クリックまたはドラッグ&ドロップ"}</span>
-                    {uploadStatus === "idle" && <span className="text-xs text-gray-300">複数ファイル対応</span>}
+                    <span>{uploadStatusText ?? "Click or drag & drop"}</span>
+                    {uploadStatus === "idle" && <span className="text-xs text-gray-300">Multiple files</span>}
                   </div>
                 </button>
               </div>

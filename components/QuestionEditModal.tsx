@@ -55,8 +55,8 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
   }
 
   async function handleSave() {
-    if (!questionText.trim()) { setError("問題文を入力してください"); return; }
-    if (answers.length === 0) { setError("正解を1つ以上選択してください"); return; }
+    if (!questionText.trim()) { setError("Enter question text"); return; }
+    if (answers.length === 0) { setError("Select at least one correct answer"); return; }
     setSaving(true);
     setError(null);
     try {
@@ -70,7 +70,7 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
       onSave(updated);
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "保存に失敗しました");
+      setError(e instanceof Error ? e.message : "Failed to save");
     } finally {
       setSaving(false);
     }
@@ -83,7 +83,7 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <p className="font-semibold text-gray-900 text-sm">問題を編集</p>
+            <p className="font-semibold text-gray-900 text-sm">Edit Question</p>
             <p className="text-xs text-gray-400 mt-0.5">v{question.version} · {question.dbId}</p>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
@@ -96,7 +96,7 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
 
           {/* Question text */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">問題文</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Question</label>
             <textarea
               value={questionText}
               onChange={(e) => setQuestionText(e.target.value)}
@@ -108,8 +108,8 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
           {/* Choices */}
           <div>
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              選択肢
-              <span className="ml-2 font-normal text-gray-400 normal-case">正解をクリックしてチェック</span>
+              Options
+              <span className="ml-2 font-normal text-gray-400 normal-case">Click to mark correct</span>
             </label>
             <div className="space-y-2">
               {choices.map((c, i) => (
@@ -129,7 +129,7 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
                     value={c.text}
                     onChange={(e) => updateChoiceText(i, e.target.value)}
                     className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
-                    placeholder={`選択肢 ${c.label}`}
+                    placeholder={`Option ${c.label}`}
                   />
                   {choices.length > 2 && (
                     <button
@@ -147,20 +147,20 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
                 onClick={addChoice}
                 className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-500 transition-colors"
               >
-                <Plus size={13} /> 選択肢を追加
+                <Plus size={13} /> Add option
               </button>
             )}
           </div>
 
           {/* Explanation */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">解説</label>
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Explanation</label>
             <textarea
               value={explanation}
               onChange={(e) => setExplanation(e.target.value)}
               rows={3}
               className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
-              placeholder="解説（任意）"
+              placeholder="Explanation (optional)"
             />
           </div>
 
@@ -171,24 +171,24 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
               className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
             >
               <Clock size={13} />
-              変更履歴
+              History
               {historyOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
             {historyOpen && (
               <div className="mt-3 space-y-3">
                 {historyLoading && (
                   <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Loader2 size={12} className="animate-spin" /> 読み込み中...
+                    <Loader2 size={12} className="animate-spin" />
                   </div>
                 )}
                 {!historyLoading && history.length === 0 && (
-                  <p className="text-xs text-gray-300">変更履歴なし</p>
+                  <p className="text-xs text-gray-300">No history</p>
                 )}
                 {history.map((h) => (
                   <div key={h.id} className="border border-gray-100 rounded-xl p-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-semibold text-gray-500">v{h.version}</span>
-                      <span className="text-xs text-gray-300">{new Date(h.changedAt).toLocaleString("ja-JP")} · {h.changedBy ?? "不明"}</span>
+                      <span className="text-xs text-gray-300">{new Date(h.changedAt).toLocaleString()} · {h.changedBy ?? "unknown"}</span>
                     </div>
                     <p className="text-xs text-gray-600 whitespace-pre-wrap line-clamp-3">{h.questionText}</p>
                   </div>
@@ -205,9 +205,9 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
           <div className="flex gap-2">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors"
+              className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors flex items-center justify-center"
             >
-              キャンセル
+              <X size={14} />
             </button>
             <button
               onClick={handleSave}
@@ -215,7 +215,6 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
               className="flex items-center gap-2 px-4 py-2 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-40 transition-colors"
             >
               {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              保存
             </button>
           </div>
         </div>

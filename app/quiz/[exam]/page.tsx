@@ -4,6 +4,8 @@ import QuizClient from "@/components/QuizClient";
 import AnswersClient from "@/components/AnswersClient";
 import { notFound } from "next/navigation";
 
+export const runtime = 'edge';
+
 interface Props {
   params: Promise<{ exam: string }>;
   searchParams: Promise<{ mode?: string; category?: string }>;

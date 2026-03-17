@@ -121,7 +121,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const q = filteredQuestions[currentIndex];
     if (!q || selected.size === 0) return;
     if (q.isMultiple && selected.size !== q.answers.length) {
-      alert(`${q.answers.length}つ選択してください`);
+      alert(`Please select ${q.answers.length}`);
       return;
     }
     const correct = q.answers.length === selected.size && q.answers.every((a) => selected.has(a));
@@ -217,15 +217,15 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       <div className="h-screen flex flex-col items-center justify-center gap-4 px-4">
         <AlertCircle size={32} className="text-gray-300" />
         <p className="font-semibold text-gray-700">
-          {filter === "wrong" ? "誤答問題がありません" : "問題がありません"}
+          {filter === "wrong" ? "No wrong answers" : "No questions"}
         </p>
         {filter === "wrong" && (
           <button onClick={() => setFilter("all")} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
-            全問に切り替え
+            Show all
           </button>
         )}
         <Link href={backHref} className="text-sm text-gray-400 hover:text-gray-700 flex items-center gap-1.5">
-          <ArrowLeft size={14} /> 戻る
+          <ArrowLeft size={14} />
         </Link>
       </div>
     );
@@ -239,7 +239,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-12 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <Link href={backHref} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0">
-            <ArrowLeft size={14} /> 戻る
+            <ArrowLeft size={14} />
           </Link>
           <div className="flex items-center gap-1.5 text-xs text-gray-400 min-w-0">
             <ModeIcon size={13} strokeWidth={1.75} className="shrink-0" />
@@ -267,10 +267,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           )}
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
             <button onClick={() => setFilter("all")} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-              <Layers size={11} /> <span className="hidden sm:inline">全問</span> {questions.length}
+              <Layers size={11} /> <span className="hidden sm:inline">All</span> {questions.length}
             </button>
             <button onClick={() => setFilter("wrong")} disabled={wrongCount === 0} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-              <AlertCircle size={11} /> <span className="hidden sm:inline">誤答</span> {wrongCount}
+              <AlertCircle size={11} /> <span className="hidden sm:inline">Wrong</span> {wrongCount}
             </button>
           </div>
         </div>
@@ -292,13 +292,13 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
         `}>
           {/* Position indicator + edit button */}
           <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 flex items-center justify-between">
-            <span className="text-xs tabular-nums text-gray-400">問 {currentIndex + 1} / {filteredQuestions.length}</span>
+            <span className="text-xs tabular-nums text-gray-400">Q{currentIndex + 1}/{filteredQuestions.length}</span>
             <button
               onClick={() => setEditingQuestion(q)}
               className="flex items-center gap-1 text-xs text-gray-300 hover:text-blue-500 transition-colors"
-              title="問題を編集"
+              title="Edit question"
             >
-              <Pencil size={12} /> 編集
+              <Pencil size={12} />
             </button>
           </div>
 
@@ -327,10 +327,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                   <div className="shrink-0 px-4 sm:px-8 py-4 border-t border-gray-100">
                     <div className="flex gap-2">
                       <button onClick={handleDontKnow} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
-                        <ChevronLeft size={15} /> 知らなかった
+                        <ChevronLeft size={15} />
                       </button>
                       <button onClick={handleKnow} className="flex-1 h-10 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
-                        知っていた <ChevronRight size={15} />
+                        <ChevronRight size={15} />
                       </button>
                     </div>
                   </div>
@@ -352,7 +352,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       disabled={selected.size === 0}
                       className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-25 hover:bg-gray-700 transition-colors"
                     >
-                      回答する
+                      Submit
                       <span className="ml-2 text-xs font-normal opacity-40 hidden sm:inline">Enter</span>
                     </button>
                   )}
@@ -360,8 +360,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                     <div className="flex flex-col gap-3">
                       <div className={`flex items-center gap-2 ${isCorrect ? "text-emerald-600" : "text-rose-600"}`}>
                         {isCorrect
-                          ? <><CheckCircle2 size={17} strokeWidth={2.5} /><span className="font-semibold text-sm">正解!</span>{streak > 1 && <span className="text-xs text-emerald-400 ml-1">{streak}連続</span>}</>
-                          : <><XCircle size={17} strokeWidth={2.5} /><span className="font-semibold text-sm">不正解</span><span className="text-xs text-gray-400 ml-1">正答: {q.answers.map(a => q.choices.findIndex(c => c.label === a) + 1).join(", ")}</span></>
+                          ? <><CheckCircle2 size={17} strokeWidth={2.5} />{streak > 1 && <span className="text-xs text-emerald-400 ml-1">{streak}</span>}</>
+                          : <><XCircle size={17} strokeWidth={2.5} /><span className="text-xs text-gray-400 ml-1">{q.answers.map(a => q.choices.findIndex(c => c.label === a) + 1).join(", ")}</span></>
                         }
                       </div>
                       <div className="flex gap-2">
@@ -369,7 +369,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                           <ChevronLeft size={17} />
                         </button>
                         <button onClick={goNext} disabled={isLast} className="flex-1 h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5">
-                          {isLast ? "完了" : <>次へ <ChevronRight size={15} /><span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
+                          {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /><span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
                         </button>
                       </div>
                     </div>
@@ -390,16 +390,16 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 border-b border-gray-100">
             <div className="flex items-center gap-2">
               <XCircle size={15} className="text-rose-400 shrink-0" />
-              <span className="text-xs text-gray-500">解説</span>
+              <span className="text-xs text-gray-500">Explanation</span>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4">
             {q.explanation ? (
               <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{q.explanation}</p>
             ) : (
-              <p className="text-sm text-gray-300">解説なし</p>
+              <p className="text-sm text-gray-300">—</p>
             )}
-            {q.source && <p className="text-xs text-gray-300 mt-4">出典: {q.source}</p>}
+            {q.source && <p className="text-xs text-gray-300 mt-4">Source: {q.source}</p>}
           </div>
         </div>
       </div>
@@ -410,12 +410,12 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           {filteredQuestions.map((fq, i) => {
             const s = stats[String(fq.id)];
             const isCurrent = i === currentIndex;
-            const statusLabel = s === 1 ? "正解" : s === 0 ? "誤答" : "未回答";
+            const statusLabel = s === 1 ? "correct" : s === 0 ? "wrong" : "—";
             return (
               <button
                 key={fq.id}
                 onClick={() => setCurrentIndex(i)}
-                title={`問 ${i + 1} · ${statusLabel}`}
+                title={`Q${i + 1} · ${statusLabel}`}
                 className={`flex-1 rounded-full transition-all duration-150 cursor-pointer ${
                   isCurrent
                     ? "h-3 bg-gray-800"
@@ -441,8 +441,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           <span className="text-xs text-gray-300 tabular-nums w-4 shrink-0">{filteredQuestions.length}</span>
           <span className="text-xs text-gray-300 ml-2 shrink-0 hidden lg:block">
             {mode === "review"
-              ? (revealed ? "→ 次へ  ⌫ 前へ" : "→ 知っていた  ← 知らなかった  ⌫ 前へ")
-              : "1–9 選択  Enter 回答/次へ  ←→ 前後"}
+              ? (revealed ? "→ next  ⌫ prev" : "→ knew  ← didn't  ⌫ prev")
+              : "1–9 select  Enter submit/next  ←→ nav"}
           </span>
         </div>
       </footer>

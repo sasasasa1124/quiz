@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, X } from "lucide-react";
 import type { Question, QuizStat } from "@/lib/types";
 
 interface Props {
@@ -27,14 +28,14 @@ export default function QuizQuestion({
       <div className="flex items-center gap-2 mb-4 shrink-0">
         {question.isMultiple && (
           <span className="text-xs font-medium text-violet-600 bg-violet-50 px-2 py-0.5 rounded-full">
-            {question.answers.length}つ選択
+            Select {question.answers.length}
           </span>
         )}
         {!reviewMode && lastResult !== undefined && (
-          <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+          <span className={`flex items-center justify-center w-5 h-5 rounded-full ${
             lastResult === 1 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-500"
           }`}>
-            {lastResult === 1 ? "前回 ○" : "前回 ✕"}
+            {lastResult === 1 ? <Check size={11} strokeWidth={2.5} /> : <X size={11} strokeWidth={2.5} />}
           </span>
         )}
       </div>

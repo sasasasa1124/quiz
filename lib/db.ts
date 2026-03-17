@@ -24,15 +24,24 @@ function getDB(): D1Database | null {
 }
 
 // ── CSV fallback (local dev only) ─────────────────────────────────────────
+// Edge runtime can't use fs/process.cwd(), so we call a Node.js API route
+// that reads CSV files. In production on Cloudflare, getDB() returns D1 so
+// these functions are never reached.
+
+const LOCAL_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 
 async function csvExamList(): Promise<ExamMeta[]> {
-  const { getExamList } = await import("./csv");
-  return getExamList();
+  try {
+    const res = await fetch(`${LOCAL_BASE}/api/local-exams`);
+    return res.json() as Promise<ExamMeta[]>;
+  } catch { return []; }
 }
 
 async function csvQuestions(examId: string): Promise<Question[]> {
-  const { getQuestions } = await import("./csv");
-  return getQuestions(examId); // csv.ts now includes dbId and version
+  try {
+    const res = await fetch(`${LOCAL_BASE}/api/local-questions/${encodeURIComponent(examId)}`);
+    return res.json() as Promise<Question[]>;
+  } catch { return []; }
 }
 
 // ── Exam list ──────────────────────────────────────────────────────────────

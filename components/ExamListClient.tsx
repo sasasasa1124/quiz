@@ -211,27 +211,27 @@ export default function ExamListClient({ exams: initialExams }: Props) {
               <div className="w-8 h-8 rounded-lg border border-dashed border-gray-300 group-hover:border-gray-400 flex items-center justify-center transition-colors">
                 <Plus size={16} />
               </div>
-              <span className="text-sm font-medium">問題集を追加</span>
+              <span className="text-sm font-medium">Add</span>
             </button>
           ) : (
             <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">問題集を追加</p>
+                <p className="text-sm font-semibold text-gray-700">Add Exam</p>
                 <button onClick={() => setShowAdd(false)} className="text-gray-300 hover:text-gray-500 transition-colors">
                   <X size={15} />
                 </button>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-2">テンプレートをダウンロード</p>
+                <p className="text-xs text-gray-400 mb-2">Template</p>
                 <button
                   onClick={() => downloadTemplate()}
                   className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all"
                 >
-                  <Download size={12} /> CSV テンプレート
+                  <Download size={12} /> CSV Template
                 </button>
               </div>
               <div>
-                <p className="text-xs text-gray-400 mb-2">CSVをアップロード</p>
+                <p className="text-xs text-gray-400 mb-2">Upload</p>
                 <input ref={fileRef} type="file" accept=".csv" multiple className="hidden" onChange={(e) => processFiles(Array.from(e.target.files ?? []))} />
                 <button
                   onClick={() => fileRef.current?.click()}
@@ -245,8 +245,8 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                 >
                   <div className="flex flex-col items-center gap-1.5">
                     <Upload size={18} strokeWidth={1.5} />
-                    <span>{uploadStatusText ?? "クリックまたはドラッグ&ドロップ"}</span>
-                    {uploadStatus === "idle" && <span className="text-xs text-gray-300">複数ファイル対応</span>}
+                    <span>{uploadStatusText ?? "Click or drag & drop"}</span>
+                    {uploadStatus === "idle" && <span className="text-xs text-gray-300">Multiple files</span>}
                   </div>
                 </button>
               </div>

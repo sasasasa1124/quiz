@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, CheckCircle2 } from "lucide-react";
 import type { Question } from "@/lib/types";
 
 interface Props {
@@ -14,7 +14,7 @@ export default function ReviewReveal({ question, onNext, isLast }: Props) {
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
-        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">正答</p>
+        <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Answer</p>
         <div className="flex flex-col gap-2 mb-6">
           {question.choices
             .filter((c) => question.answers.includes(c.label))
@@ -31,11 +31,11 @@ export default function ReviewReveal({ question, onNext, isLast }: Props) {
 
         {question.explanation && (
           <>
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">解説</p>
+            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Explanation</p>
             <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{question.explanation}</p>
           </>
         )}
-        {question.source && <p className="text-xs text-gray-300 mt-4">出典: {question.source}</p>}
+        {question.source && <p className="text-xs text-gray-300 mt-4">Source: {question.source}</p>}
       </div>
 
       {/* Next */}
@@ -44,7 +44,7 @@ export default function ReviewReveal({ question, onNext, isLast }: Props) {
           onClick={onNext}
           className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5"
         >
-          {isLast ? "完了" : <>次へ <ChevronRight size={15} /> <span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
+          {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /> <span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
         </button>
       </div>
     </div>

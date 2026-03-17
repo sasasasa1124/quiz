@@ -66,7 +66,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
       <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-12 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <Link href={`/exam/${encodeURIComponent(examId)}`} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0">
-            <ArrowLeft size={14} /> 戻る
+            <ArrowLeft size={14} />
           </Link>
           <div className="flex items-center gap-1.5 text-xs text-gray-400 min-w-0">
             <BookOpenCheck size={13} strokeWidth={1.75} className="shrink-0" />
@@ -77,9 +77,9 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           <button
             onClick={() => setEditingQuestion(q)}
             className="flex items-center gap-1 text-xs text-gray-300 hover:text-blue-500 transition-colors"
-            title="問題を編集"
+            title="Edit question"
           >
-            <Pencil size={12} /> 編集
+            <Pencil size={12} />
           </button>
           <span className="text-xs tabular-nums text-gray-400">
             {currentIndex + 1} / {questions.length}
@@ -97,8 +97,8 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           {/* Question */}
           <div className="bg-gray-50 rounded-xl px-5 py-4">
             <p className="text-[11px] text-gray-400 mb-2">
-              問 {currentIndex + 1}
-              {q.isMultiple && <span className="ml-2 text-violet-500 font-semibold">複数選択</span>}
+              Q{currentIndex + 1}
+              {q.isMultiple && <span className="ml-2 text-violet-500 font-semibold">Multi</span>}
               <span className="ml-2 text-gray-300">v{q.version}</span>
             </p>
             <div
@@ -138,9 +138,9 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           {/* Explanation */}
           {q.explanation && (
             <div className="bg-white rounded-xl border border-gray-100 px-5 py-4">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">解説</p>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Explanation</p>
               <p className="text-sm leading-relaxed text-gray-600 whitespace-pre-wrap">{q.explanation}</p>
-              {q.source && <p className="text-xs text-gray-300 mt-3">出典: {q.source}</p>}
+              {q.source && <p className="text-xs text-gray-300 mt-3">Source: {q.source}</p>}
             </div>
           )}
         </div>
@@ -183,7 +183,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           >
             <ChevronRight size={15} />
           </button>
-          <span className="text-xs text-gray-300 ml-1 shrink-0 hidden lg:block">Enter 次へ  ⌫ 前へ</span>
+          <span className="text-xs text-gray-300 ml-1 shrink-0 hidden lg:block">Enter →  ⌫ ←</span>
         </div>
       </footer>
 
