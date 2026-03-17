@@ -467,13 +467,6 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                 <Wand2 size={12} />
               </button>
               <button
-                onClick={handleAiExplain}
-                className="flex items-center gap-1 text-xs text-gray-300 hover:text-violet-500 transition-colors"
-                title="AI Explain"
-              >
-                <Sparkles size={12} />
-              </button>
-              <button
                 onClick={() => setEditingQuestion(q)}
                 className="flex items-center gap-1 text-xs text-gray-300 hover:text-blue-500 transition-colors"
                 title="Edit question"
@@ -497,25 +490,27 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                     {/* Front: question */}
                     <div className="card-front">
                       <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4">
-                        <div className="bg-gray-50 rounded-xl px-5 py-4 mb-4">
-                          <div
-                            className="text-gray-900 text-sm leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
-                            dangerouslySetInnerHTML={{ __html: q.question }}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          {q.choices.map((c, i) => (
-                            <div key={c.label} className="border rounded-xl px-4 py-3 border-gray-100 bg-gray-50">
-                              <div className="flex items-start gap-3">
-                                <span className="shrink-0 w-6 h-6 rounded-lg border border-gray-200 bg-white text-xs font-bold flex items-center justify-center text-gray-400">{i + 1}</span>
-                                <span className="text-sm leading-relaxed pt-0.5 whitespace-pre-wrap text-gray-600">{c.text}</span>
+                        <div className="max-w-3xl mx-auto w-full">
+                          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4">
+                            <div
+                              className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
+                              dangerouslySetInnerHTML={{ __html: q.question }}
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            {q.choices.map((c, i) => (
+                              <div key={c.label} className="border rounded-xl px-4 py-3 lg:px-5 lg:py-4 border-gray-100 bg-gray-50">
+                                <div className="flex items-start gap-3">
+                                  <span className="shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg border border-gray-200 bg-white text-xs lg:text-sm font-bold flex items-center justify-center text-gray-400">{i + 1}</span>
+                                  <span className="text-sm lg:text-base leading-relaxed pt-0.5 whitespace-pre-wrap text-gray-600">{c.text}</span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
                       </div>
                       <div className="shrink-0 px-4 sm:px-8 py-4 border-t border-gray-100">
-                        <div className="flex gap-2">
+                        <div className="max-w-3xl mx-auto w-full flex gap-2">
                           <button onClick={handleDontKnow} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
                             <ChevronLeft size={15} />
                           </button>
@@ -527,7 +522,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                     </div>
                     {/* Back: answer reveal */}
                     <div className="card-back">
-                      <ReviewReveal question={q} onNext={handleRevealNext} isLast={isLast} />
+                      <ReviewReveal question={q} onNext={handleRevealNext} isLast={isLast} onAiExplain={handleAiExplain} />
                     </div>
                   </div>
                 </div>
@@ -537,43 +532,56 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                   key={currentIndex}
                   className={`flex-1 overflow-y-auto px-4 sm:px-8 pb-4 ${direction === "forward" ? "question-slide-forward" : "question-slide-backward"}`}
                 >
-                  <QuizQuestion
-                    question={q}
-                    selected={selected}
-                    onToggle={handleToggle}
-                    submitted={submitted}
-                    stat={stats[String(q.id)]}
-                  />
+                  <div className="max-w-3xl mx-auto w-full h-full">
+                    <QuizQuestion
+                      question={q}
+                      selected={selected}
+                      onToggle={handleToggle}
+                      submitted={submitted}
+                      stat={stats[String(q.id)]}
+                    />
+                  </div>
                 </div>
                 <div className="shrink-0 px-4 sm:px-8 py-4 border-t border-gray-100">
-                  {!submitted && (
-                    <button
-                      onClick={handleSubmit}
-                      disabled={selected.size === 0}
-                      className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-25 hover:bg-gray-700 transition-colors"
-                    >
-                      Submit
-                      <span className="ml-2 text-xs font-normal opacity-40 hidden sm:inline">Enter</span>
-                    </button>
-                  )}
-                  {submitted && (
-                    <div className="flex flex-col gap-3">
-                      <div className={`flex items-center gap-2 ${isCorrect ? "text-emerald-600" : "text-rose-600"}`}>
-                        {isCorrect
-                          ? <><CheckCircle2 size={17} strokeWidth={2.5} />{streak > 1 && <span className="text-xs text-emerald-400 ml-1">{streak}</span>}</>
-                          : <><XCircle size={17} strokeWidth={2.5} /><span className="text-xs text-gray-400 ml-1">{q.answers.map(a => q.choices.findIndex(c => c.label === a) + 1).join(", ")}</span></>
-                        }
+                  <div className="max-w-3xl mx-auto w-full">
+                    {!submitted && (
+                      <button
+                        onClick={handleSubmit}
+                        disabled={selected.size === 0}
+                        className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-25 hover:bg-gray-700 transition-colors"
+                      >
+                        Submit
+                        <span className="ml-2 text-xs font-normal opacity-40 hidden sm:inline">Enter</span>
+                      </button>
+                    )}
+                    {submitted && (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div className={`flex items-center gap-2 ${isCorrect ? "text-emerald-600" : "text-rose-600"}`}>
+                            {isCorrect
+                              ? <><CheckCircle2 size={17} strokeWidth={2.5} />{streak > 1 && <span className="text-xs text-emerald-400 ml-1">{streak}</span>}</>
+                              : <><XCircle size={17} strokeWidth={2.5} /><span className="text-xs text-gray-400 ml-1">{q.answers.map(a => q.choices.findIndex(c => c.label === a) + 1).join(", ")}</span></>
+                            }
+                          </div>
+                          <button
+                            onClick={handleAiExplain}
+                            className="text-gray-300 hover:text-violet-500 transition-colors"
+                            title="AI Explain"
+                          >
+                            <Sparkles size={12} />
+                          </button>
+                        </div>
+                        <div className="flex gap-2">
+                          <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-20 transition-all">
+                            <ChevronLeft size={17} />
+                          </button>
+                          <button onClick={goNext} disabled={isLast} className="flex-1 h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5">
+                            {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /><span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex gap-2">
-                        <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-20 transition-all">
-                          <ChevronLeft size={17} />
-                        </button>
-                        <button onClick={goNext} disabled={isLast} className="flex-1 h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5">
-                          {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /><span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
-                        </button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </>
           }
@@ -588,9 +596,18 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           }
         `}>
           <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 border-b border-gray-100">
-            <div className="flex items-center gap-2">
-              <XCircle size={15} className="text-rose-400 shrink-0" />
-              <span className="text-xs text-gray-500">Explanation</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <XCircle size={15} className="text-rose-400 shrink-0" />
+                <span className="text-xs text-gray-500">Explanation</span>
+              </div>
+              <button
+                onClick={handleAiExplain}
+                className="text-gray-300 hover:text-violet-500 transition-colors"
+                title="AI Explain"
+              >
+                <Sparkles size={12} />
+              </button>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-4">

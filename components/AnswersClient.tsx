@@ -93,16 +93,16 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
         onTouchStart={onTouchStart}
         onTouchEnd={onTouchEnd}
       >
-        <div className="max-w-2xl mx-auto flex flex-col gap-4">
+        <div className="max-w-3xl mx-auto flex flex-col gap-4">
           {/* Question */}
-          <div className="bg-gray-50 rounded-xl px-5 py-4">
+          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5">
             <p className="text-[11px] text-gray-400 mb-2">
               Q{currentIndex + 1}
               {q.isMultiple && <span className="ml-2 text-violet-500 font-semibold">Multi</span>}
               <span className="ml-2 text-gray-300">v{q.version}</span>
             </p>
             <div
-              className="text-sm leading-relaxed text-gray-900 font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
+              className="text-sm lg:text-base leading-relaxed text-gray-900 font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
               dangerouslySetInnerHTML={{ __html: q.question }}
             />
           </div>
@@ -114,18 +114,18 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
               return (
                 <div
                   key={c.label}
-                  className={`flex items-start gap-3 px-4 py-3 rounded-xl border ${
+                  className={`flex items-start gap-3 px-4 py-3 lg:px-5 lg:py-4 rounded-xl border ${
                     isAnswer
                       ? "bg-emerald-50 border-emerald-200"
                       : "bg-white border-gray-100"
                   }`}
                 >
-                  <span className={`shrink-0 w-6 h-6 rounded-md text-xs font-bold flex items-center justify-center mt-0.5 ${
+                  <span className={`shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-md text-xs lg:text-sm font-bold flex items-center justify-center mt-0.5 ${
                     isAnswer ? "bg-emerald-500 text-white" : "bg-gray-100 text-gray-400"
                   }`}>
                     {q.choices.indexOf(c) + 1}
                   </span>
-                  <span className={`text-sm leading-snug pt-0.5 whitespace-pre-wrap ${
+                  <span className={`text-sm lg:text-base leading-snug pt-0.5 whitespace-pre-wrap ${
                     isAnswer ? "text-emerald-900 font-medium" : "text-gray-500"
                   }`}>
                     {c.text}
@@ -139,7 +139,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           {q.explanation && (
             <div className="bg-white rounded-xl border border-gray-100 px-5 py-4">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Explanation</p>
-              <p className="text-sm leading-relaxed text-gray-600 whitespace-pre-wrap">{q.explanation}</p>
+              <p className="text-sm lg:text-base leading-relaxed text-gray-600 whitespace-pre-wrap">{q.explanation}</p>
               {q.source && <p className="text-xs text-gray-300 mt-3">Source: {q.source}</p>}
             </div>
           )}
