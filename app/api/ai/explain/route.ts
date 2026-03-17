@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   };
 
   const { getEnv } = await import("@/lib/env");
-  const apiKey = await getEnv("GEMINI_API_KEY");
+  const apiKey = getEnv("GEMINI_API_KEY");
   if (!apiKey) {
     return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
   }
