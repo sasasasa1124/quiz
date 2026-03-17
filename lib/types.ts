@@ -57,8 +57,43 @@ export interface UserSettings {
   aiRefinePrompt: string;
 }
 
+export const DEFAULT_EXPLAIN_PROMPT = `You are a Salesforce/MuleSoft certification exam expert.
+
+Question:
+{question}
+
+Choices:
+{choices}
+
+Currently recorded answer(s): {answers}
+{explanation}
+
+Please verify the correct answer(s) using your knowledge and web search if needed.
+Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
+{ "explanation": "...", "answers": ["A"], "reasoning": "..." }
+- explanation: concise explanation of why the correct answer(s) are correct
+- answers: array of correct choice labels (e.g. ["A"] or ["A", "C"])
+- reasoning: brief reasoning for why you chose those answers`;
+
+export const DEFAULT_REFINE_PROMPT = `You are an expert editor for Salesforce/MuleSoft certification exam questions.
+Your task is to fix ONLY typos, grammatical errors, spelling mistakes, and awkward phrasing in the question text and answer choices.
+Do NOT change the meaning, technical content, correct answers, or add/remove choices.
+Do NOT rewrite or rephrase if there is no error — preserve the original wording as much as possible.
+
+Question:
+{question}
+
+Choices:
+{choices}
+
+Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
+{ "question": "...", "choices": [{"label": "A", "text": "..."}], "changesSummary": "..." }
+- question: the corrected question text (identical to input if no errors found)
+- choices: array of corrected choices in the same order (identical to input if no errors found)
+- changesSummary: a brief human-readable summary of what was changed, or empty string if nothing changed`;
+
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   language: "en",
-  aiPrompt: "",
-  aiRefinePrompt: "",
+  aiPrompt: DEFAULT_EXPLAIN_PROMPT,
+  aiRefinePrompt: DEFAULT_REFINE_PROMPT,
 };
