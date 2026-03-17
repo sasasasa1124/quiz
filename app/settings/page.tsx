@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
@@ -28,6 +28,7 @@ function SettingsInner() {
   const [modelList, setModelList] = useState<string[]>([]);
   const [fetchingModels, setFetchingModels] = useState(false);
   const [modelListError, setModelListError] = useState<string | null>(null);
+  const modelBeforeFocus = useRef<string>("");
 
   // Sync local state when settings load from localStorage
   useEffect(() => {
@@ -145,8 +146,10 @@ function SettingsInner() {
               list="gemini-model-list"
               value={geminiModel}
               onChange={(e) => setGeminiModel(e.target.value)}
+              onFocus={() => { modelBeforeFocus.current = geminiModel; setGeminiModel(""); }}
+              onBlur={() => { if (!geminiModel) setGeminiModel(modelBeforeFocus.current); }}
               className="flex-1 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
-              placeholder="gemini-2.5-flash-preview-04-17"
+              placeholder="gemini-2.5-flash"
             />
             <button
               type="button"
