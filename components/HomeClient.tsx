@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
-import { Download, Upload } from "lucide-react";
+import { Download, Upload, Plus, CheckCircle2, XCircle, Loader2 } from "lucide-react";
 import type { ExamMeta, QuizStats } from "@/lib/types";
 import ExamCard from "./ExamCard";
 
@@ -133,15 +133,6 @@ export default function HomeClient({ exams: initialExams }: Props) {
   }, [processFiles]);
 
 
-  const uploadLabel =
-    uploadStatus === "uploading"
-      ? uploadProgress && uploadProgress.total > 1
-        ? `${uploadProgress.done}/${uploadProgress.total} 件...`
-        : "アップロード中..."
-      : uploadStatus === "done" ? "✓ 完了"
-      : uploadStatus === "error" ? "✗ エラー"
-      : "+ CSV追加";
-
   return (
     <div className="relative">
       {/* Drag & drop overlay */}
@@ -149,15 +140,15 @@ export default function HomeClient({ exams: initialExams }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
           <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-blue-400 rounded-2xl px-10 py-8 shadow-xl">
             <Upload size={32} className="text-blue-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-blue-700">CSVをドロップして追加</p>
-            <p className="text-xs text-blue-400">複数ファイル対応</p>
+            <p className="text-sm font-semibold text-blue-700">Drop CSV here</p>
+            <p className="text-xs text-blue-400">Multiple files supported</p>
           </div>
         </div>
       )}
 
       {/* Mode toggle — topmost choice */}
       <div className="mb-6">
-        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">モード</p>
+        <p className="text-xs text-gray-400 font-medium uppercase tracking-wider mb-2">Mode</p>
         <div className="flex gap-2">
           <button
             onClick={() => setMode("quiz")}
@@ -167,8 +158,7 @@ export default function HomeClient({ exams: initialExams }: Props) {
                 : "border-gray-200 text-gray-500 hover:border-gray-300"
             }`}
           >
-            <span className="block text-lg mb-0.5">🧠</span>
-            クイズ
+            Quiz
           </button>
           <button
             onClick={() => setMode("review")}
@@ -178,14 +168,13 @@ export default function HomeClient({ exams: initialExams }: Props) {
                 : "border-gray-200 text-gray-500 hover:border-gray-300"
             }`}
           >
-            <span className="block text-lg mb-0.5">📖</span>
-            フラッシュカード
+            Flashcard
           </button>
         </div>
         <p className="text-xs text-gray-400 mt-2">
           {mode === "quiz"
-            ? "選択肢を選んで回答 — 正誤判定と正答率を記録"
-            : "答えを最初から表示して読み込みながら進む"}
+            ? "Choose answers — track score & accuracy"
+            : "Read answers from the start"}
         </p>
       </div>
 
@@ -194,11 +183,10 @@ export default function HomeClient({ exams: initialExams }: Props) {
         <div className="ml-auto flex items-center gap-1.5">
           <button
             onClick={downloadTemplate}
-            title="CSVテンプレートをダウンロード"
-            className="text-xs px-3 py-1.5 rounded-full border border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center gap-1.5"
+            title="Download CSV template"
+            className="text-xs px-2.5 py-1.5 rounded-full border border-gray-300 text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors flex items-center justify-center"
           >
             <Download size={11} />
-            テンプレート
           </button>
           <input
             ref={fileRef}
@@ -211,7 +199,8 @@ export default function HomeClient({ exams: initialExams }: Props) {
           <button
             onClick={() => fileRef.current?.click()}
             disabled={uploadStatus === "uploading"}
-            className={`text-xs px-3 py-1.5 rounded-full border transition-colors flex items-center gap-1.5 ${
+            title="Add CSV"
+            className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors flex items-center justify-center gap-1 ${
               uploadStatus === "done"
                 ? "border-green-400 text-green-600 bg-green-50"
                 : uploadStatus === "error"
@@ -219,7 +208,16 @@ export default function HomeClient({ exams: initialExams }: Props) {
                 : "border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
             }`}
           >
-            {uploadLabel}
+            {uploadStatus === "uploading"
+              ? uploadProgress && uploadProgress.total > 1
+                ? <><Loader2 size={11} className="animate-spin" />{uploadProgress.done}/{uploadProgress.total}</>
+                : <Loader2 size={11} className="animate-spin" />
+              : uploadStatus === "done"
+              ? <CheckCircle2 size={11} />
+              : uploadStatus === "error"
+              ? <XCircle size={11} />
+              : <><Plus size={11} />CSV</>
+            }
           </button>
         </div>
       </div>

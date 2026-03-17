@@ -134,10 +134,10 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const uploadStatusText =
     uploadStatus === "uploading"
       ? uploadProgress && uploadProgress.total > 1
-        ? `${uploadProgress.done}/${uploadProgress.total} 件...`
-        : "アップロード中..."
-      : uploadStatus === "done" ? "追加しました"
-      : uploadStatus === "error" ? "エラーが発生しました"
+        ? `${uploadProgress.done}/${uploadProgress.total}...`
+        : "Uploading..."
+      : uploadStatus === "done" ? "Added"
+      : uploadStatus === "error" ? "Error"
       : null;
 
   return (
@@ -147,13 +147,13 @@ export default function ExamListClient({ exams: initialExams }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
           <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-blue-400 rounded-2xl px-10 py-8 shadow-xl">
             <Upload size={32} className="text-blue-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-blue-700">CSVをドロップして追加</p>
-            <p className="text-xs text-blue-400">複数ファイル対応</p>
+            <p className="text-sm font-semibold text-blue-700">Drop CSV here</p>
+            <p className="text-xs text-blue-400">Multiple files supported</p>
           </div>
         </div>
       )}
 
-      <PageHeader title="試験を選択" />
+      <PageHeader title="Exams" />
 
       <div className="flex-1 px-4 sm:px-8 py-6 overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
@@ -169,9 +169,9 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm leading-snug mb-1">{exam.name}</p>
                     <p className="text-xs text-gray-400">
-                      {exam.questionCount} 問
+                      {exam.questionCount} Q
                       {s && s.answered > 0 && (
-                        <span className="ml-2 text-gray-300">· {s.answered}/{s.total} 回答済</span>
+                        <span className="ml-2 text-gray-300">· {s.answered}/{s.total}</span>
                       )}
                     </p>
                     {s && s.answered > 0 && pct !== null && (
@@ -195,7 +195,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                 {s && s.wrongCount > 0 && (
                   <div className="px-5 py-2.5 flex items-center gap-2 border-t border-gray-100">
                     <RotateCcw size={12} className="text-rose-300 shrink-0" />
-                    <span className="text-xs text-rose-400">誤答 {s.wrongCount} 問</span>
+                    <span className="text-xs text-rose-400">{s.wrongCount}</span>
                   </div>
                 )}
               </div>

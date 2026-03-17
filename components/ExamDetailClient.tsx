@@ -74,7 +74,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <TrendingUp size={15} className="text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">全体の進捗</span>
+                <span className="text-sm font-medium text-gray-700">Progress</span>
               </div>
               <span className={`text-2xl font-bold tabular-nums ${pctTextColor(overallPct)}`}>
                 {overallPct}%
@@ -87,7 +87,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
               />
             </div>
             <p className="text-xs text-gray-400 mt-2">
-              {totalCorrect}/{totalQuestions} 問正解 · {totalAttempted} 問回答済
+              {totalCorrect}/{totalQuestions} correct · {totalAttempted} answered
             </p>
           </div>
         )}
@@ -97,7 +97,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
           <div className="bg-rose-50 border border-rose-100 rounded-2xl p-4 mb-4">
             <div className="flex items-center gap-2 mb-2">
               <AlertCircle size={14} className="text-rose-400" />
-              <span className="text-sm font-semibold text-rose-700">苦手カテゴリ</span>
+              <span className="text-sm font-semibold text-rose-700">Weak Areas</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {weakCategories.map((c) => (
@@ -106,7 +106,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
                   href={modeHref(c.category)}
                   className="text-xs bg-white border border-rose-200 text-rose-600 px-3 py-1.5 rounded-lg hover:bg-rose-50 transition-colors flex items-center gap-1.5"
                 >
-                  {c.category ?? "未分類"}
+                  {c.category ?? "Uncategorized"}
                   <span className="text-rose-400">
                     {Math.round((c.correct / c.total) * 100)}%
                   </span>
@@ -122,14 +122,14 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden mb-4">
             <div className="px-5 py-3.5 border-b border-gray-100 flex items-center gap-2">
               <Tag size={14} className="text-gray-400" />
-              <span className="text-sm font-semibold text-gray-700">カテゴリ別正答率</span>
+              <span className="text-sm font-semibold text-gray-700">Score by Category</span>
             </div>
             <div className="divide-y divide-gray-50">
               {stats.map((cat) => {
                 const pct = cat.attempted > 0
                   ? Math.round((cat.correct / cat.total) * 100)
                   : null;
-                const catName = cat.category ?? "未分類";
+                const catName = cat.category ?? "Uncategorized";
                 return (
                   <Link
                     key={catName}
@@ -141,7 +141,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
                         <span className="text-sm text-gray-700 truncate pr-2">{catName}</span>
                         <div className="flex items-center gap-2 shrink-0">
                           <span className="text-xs text-gray-400 tabular-nums">
-                            {cat.attempted}/{cat.total}問
+                            {cat.attempted}/{cat.total}
                           </span>
                           {pct !== null && (
                             <span className={`text-sm font-bold tabular-nums w-10 text-right ${pctTextColor(pct)}`}>
@@ -172,7 +172,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
         {/* ── Study modes ── */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="px-5 py-3.5 border-b border-gray-100">
-            <span className="text-sm font-semibold text-gray-700">学習を始める</span>
+            <span className="text-sm font-semibold text-gray-700">Start</span>
           </div>
 
           {/* Mode selector */}
@@ -184,7 +184,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
                   selectedMode === "quiz" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                <Brain size={14} strokeWidth={1.75} /> クイズ
+                <Brain size={14} strokeWidth={1.75} /> Quiz
               </button>
               <button
                 onClick={() => setSelectedMode("review")}
@@ -192,7 +192,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
                   selectedMode === "review" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
                 }`}
               >
-                <BookOpen size={14} strokeWidth={1.75} /> フラッシュカード
+                <BookOpen size={14} strokeWidth={1.75} /> Flashcard
               </button>
             </div>
           </div>
@@ -203,7 +203,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
               href={modeHref(null)}
               className="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
             >
-              全 {exam.questionCount} 問を開始
+              Start all {exam.questionCount}
               <ChevronRight size={15} />
             </Link>
 
@@ -211,14 +211,14 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
               href={`${modeHref(null)}&filter=wrong`}
               className="w-full py-3 rounded-xl border-2 border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
             >
-              <AlertCircle size={14} /> 誤答問題のみ
+              <AlertCircle size={14} /> Wrong only
             </Link>
 
             <Link
               href={answersHref(null)}
               className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
             >
-              <BookOpenCheck size={14} /> 解答集を見る
+              <BookOpenCheck size={14} /> Answer Sheet
             </Link>
           </div>
         </div>

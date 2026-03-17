@@ -19,10 +19,9 @@ export default function PageHeader({ back, title, right }: Props) {
             className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors"
           >
             <ArrowLeft size={14} />
-            {back.label ?? "戻る"}
           </Link>
         ) : (
-          <span className="text-sm font-semibold text-gray-900">資格試験 練習</span>
+          <span className="text-sm font-semibold text-gray-900">Cert Practice</span>
         )}
         {title && (
           <>
