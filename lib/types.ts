@@ -16,6 +16,7 @@ export interface Question {
   isMultiple: boolean; // true if answers.length > 1
   version: number;
   category: string | null;
+  createdBy: string;
 }
 
 export interface ExamMeta {

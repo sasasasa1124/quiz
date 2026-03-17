@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, BookOpen, Brain, Layers, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
@@ -57,6 +57,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [streak, setStreak] = useState(0);
   const [revealed, setRevealed] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+  const [createMode, setCreateMode] = useState(false);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   const [aiPopupOpen, setAiPopupOpen] = useState(false);
@@ -192,7 +193,16 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   }, [currentIndex, filteredQuestions.length, goNext, router, backHref]);
 
   const handleQuestionSave = useCallback((updated: Question) => {
-    setQuestions((prev) => prev.map((q) => (q.dbId === updated.dbId ? updated : q)));
+    setQuestions((prev) => {
+      const exists = prev.some((q) => q.dbId === updated.dbId);
+      return exists
+        ? prev.map((q) => (q.dbId === updated.dbId ? updated : q))
+        : [...prev, updated];
+    });
+  }, []);
+
+  const handleQuestionDelete = useCallback((dbId: string) => {
+    setQuestions((prev) => prev.filter((q) => q.dbId !== dbId));
   }, []);
 
   const handleAiExplain = useCallback(async () => {
@@ -470,6 +480,13 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
               >
                 <Pencil size={12} />
               </button>
+              <button
+                onClick={() => setCreateMode(true)}
+                className="flex items-center gap-1 text-xs text-gray-300 hover:text-emerald-500 transition-colors"
+                title="New question"
+              >
+                <Plus size={12} />
+              </button>
             </div>
           </div>
 
@@ -636,6 +653,19 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           question={editingQuestion}
           onClose={() => setEditingQuestion(null)}
           onSave={handleQuestionSave}
+          onDelete={handleQuestionDelete}
+        />
+      )}
+
+      {/* Create modal */}
+      {createMode && (
+        <QuestionEditModal
+          examId={examId}
+          onClose={() => setCreateMode(false)}
+          onSave={(created) => {
+            handleQuestionSave(created);
+            setCreateMode(false);
+          }}
         />
       )}
 

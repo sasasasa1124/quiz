@@ -76,7 +76,7 @@ export async function getQuestions(examId: string): Promise<Question[]> {
 
   const result = await db
     .prepare(
-      `SELECT id, num, question_text, options, answers, explanation, source, is_duplicate, version, category
+      `SELECT id, num, question_text, options, answers, explanation, source, is_duplicate, version, category, created_by
        FROM questions WHERE exam_id = ? ORDER BY num ASC`
     )
     .bind(examId)
@@ -84,6 +84,7 @@ export async function getQuestions(examId: string): Promise<Question[]> {
       id: string; num: number; question_text: string; options: string;
       answers: string; explanation: string; source: string;
       is_duplicate: number; version: number; category: string | null;
+      created_by: string;
     }>();
 
   return (result.results ?? []).map((row) => {
@@ -102,6 +103,7 @@ export async function getQuestions(examId: string): Promise<Question[]> {
       isMultiple: answers.length > 1,
       version: row.version,
       category: row.category ?? null,
+      createdBy: row.created_by ?? "",
     };
   });
 }
@@ -112,7 +114,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
 
   const row = await db
     .prepare(
-      `SELECT id, num, question_text, options, answers, explanation, source, is_duplicate, version, category
+      `SELECT id, num, question_text, options, answers, explanation, source, is_duplicate, version, category, created_by
        FROM questions WHERE id = ?`
     )
     .bind(id)
@@ -120,6 +122,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
       id: string; num: number; question_text: string; options: string;
       answers: string; explanation: string; source: string;
       is_duplicate: number; version: number; category: string | null;
+      created_by: string;
     }>();
 
   if (!row) return null;
@@ -138,6 +141,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
     isMultiple: answers.length > 1,
     version: row.version,
     category: row.category ?? null,
+    createdBy: row.created_by ?? "",
   };
 }
 
@@ -148,6 +152,7 @@ export interface QuestionUpdate {
   options: Choice[];
   answers: string[];
   explanation: string;
+  source: string;
   change_reason: string;
 }
 
@@ -182,11 +187,11 @@ export async function updateQuestion(
   await db
     .prepare(
       `UPDATE questions
-       SET question_text = ?, options = ?, answers = ?, explanation = ?,
+       SET question_text = ?, options = ?, answers = ?, explanation = ?, source = ?,
            version = version + 1, updated_at = datetime('now')
        WHERE id = ?`
     )
-    .bind(data.question_text, JSON.stringify(data.options), JSON.stringify(data.answers), data.explanation, id)
+    .bind(data.question_text, JSON.stringify(data.options), JSON.stringify(data.answers), data.explanation, data.source ?? "", id)
     .run();
 }
 
@@ -275,6 +280,56 @@ export async function getCategoryStats(
     correct: row.correct_count,
   }));
 }
+
+// ── Question create / delete ────────────────────────────────────────────────
+
+export interface QuestionCreate {
+  question_text: string;
+  options: Choice[];
+  answers: string[];
+  explanation: string;
+  source: string;
+}
+
+export async function createQuestion(
+  examId: string,
+  data: QuestionCreate,
+  createdBy: string
+): Promise<Question> {
+  const db = getDB();
+  if (!db) throw new Error("DB not available in local dev");
+
+  // Determine next num
+  const maxRow = await db
+    .prepare("SELECT COALESCE(MAX(num), 0) AS max_num FROM questions WHERE exam_id = ?")
+    .bind(examId)
+    .first<{ max_num: number }>();
+  const num = (maxRow?.max_num ?? 0) + 1;
+  const id = `${examId}__${num}`;
+
+  await db
+    .prepare(
+      `INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source, created_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(id, examId, num, data.question_text, JSON.stringify(data.options), JSON.stringify(data.answers), data.explanation, data.source, createdBy)
+    .run();
+
+  const created = await getQuestionById(id);
+  if (!created) throw new Error("Failed to retrieve created question");
+  return created;
+}
+
+export async function deleteQuestion(id: string): Promise<void> {
+  const db = getDB();
+  if (!db) throw new Error("DB not available in local dev");
+
+  await db.prepare("DELETE FROM question_history WHERE question_id = ?").bind(id).run();
+  await db.prepare("DELETE FROM scores WHERE question_id = ?").bind(id).run();
+  await db.prepare("DELETE FROM questions WHERE id = ?").bind(id).run();
+}
+
+// ── Scores ─────────────────────────────────────────────────────────────────
 
 export async function saveScore(
   userEmail: string,

@@ -7,19 +7,19 @@ function getCSVDir(): string { return path.join(process.cwd(), ".."); }
 
 const EXAM_NAMES: Record<string, string> = {
   // ── 日本語版 ──────────────────────────────────────────────────────────────
-  experience_cloud_consultant_exam:    "Salesforce 認定 Experience Cloud コンサルタント",
-  mule_dev_201_exam:                   "Salesforce 認定 MuleSoft デベロッパー",
-  plat_arch_202_exam:                  "Salesforce 認定 Platform Development Lifecycle and Deployment アーキテクト",
-  platform_iam_architect_exam:         "Salesforce 認定 Identity and Access Management アーキテクト",
-  service_cloud_consultant_exam:       "Salesforce 認定 Service Cloud コンサルタント",
-  ux_designer_exam:                    "Salesforce 認定 User Experience デザイナー",
+  experience_cloud_consultant_exam:                "Salesforce 認定 Experience Cloud コンサルタント",
+  mulesoft_developer_exam:                         "Salesforce 認定 MuleSoft デベロッパー",
+  mulesoft_platform_integration_architect_exam:    "Salesforce 認定 MuleSoft Platform Integration アーキテクト",
+  platform_iam_architect_exam:                     "Salesforce 認定 Platform Identity and Access Management アーキテクト",
+  service_cloud_consultant_exam:                   "Salesforce 認定 Service Cloud コンサルタント",
+  ux_designer_exam:                                "Salesforce 認定 User Experience (UX) デザイナー",
   // ── 英語版 ────────────────────────────────────────────────────────────────
-  experience_cloud_consultant_exam_en: "Salesforce Certified Experience Cloud Consultant",
-  mule_dev_201_exam_en:                "Salesforce Certified MuleSoft Developer",
-  plat_arch_202_exam_en:               "Salesforce Certified Platform Development Lifecycle and Deployment Architect",
-  platform_iam_architect_exam_en:      "Salesforce Certified Platform Identity and Access Management Architect",
-  service_cloud_consultant_exam_en:    "Salesforce Certified Service Cloud Consultant",
-  ux_designer_exam_en:                 "Salesforce Certified Platform User Experience Designer",
+  experience_cloud_consultant_exam_en:               "Salesforce Certified Experience Cloud Consultant",
+  mulesoft_developer_exam_en:                        "Salesforce Certified MuleSoft Developer",
+  mulesoft_platform_integration_architect_exam_en:   "Salesforce Certified MuleSoft Platform Integration Architect",
+  platform_iam_architect_exam_en:                    "Salesforce Certified Platform Identity and Access Management Architect",
+  service_cloud_consultant_exam_en:                  "Salesforce Certified Service Cloud Consultant",
+  ux_designer_exam_en:                               "Salesforce Certified Platform User Experience Designer",
 };
 
 // Detect language from parsed CSV records via character-code majority vote.
@@ -124,6 +124,7 @@ export function getQuestions(examId: string): Question[] {
       isMultiple: answers.length > 1,
       version: 1,
       category: null,
+      createdBy: "",
     };
   });
 }

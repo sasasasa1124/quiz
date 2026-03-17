@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateQuestion, getQuestionById } from "@/lib/db";
+import { updateQuestion, getQuestionById, deleteQuestion } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import type { Choice } from "@/lib/types";
 
@@ -16,6 +16,7 @@ export async function PUT(
     options: Choice[];
     answers: string[];
     explanation: string;
+    source: string;
     change_reason: string;
   };
 
@@ -26,10 +27,19 @@ export async function PUT(
   const userEmail = await getUserEmail();
   await updateQuestion(
     id,
-    { ...body, change_reason: body.change_reason ?? "manual edit" },
+    { ...body, source: body.source ?? "", change_reason: body.change_reason ?? "manual edit" },
     userEmail
   );
 
   const updated = await getQuestionById(id);
   return NextResponse.json(updated);
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  await deleteQuestion(id);
+  return NextResponse.json({ ok: true });
 }

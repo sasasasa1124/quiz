@@ -5,41 +5,57 @@ import { X, Plus, Trash2, Clock, ChevronDown, ChevronUp, Save, Loader2 } from "l
 import type { Choice, Question, QuestionHistoryEntry } from "@/lib/types";
 
 interface Props {
-  question: Question;
+  question?: Question;           // undefined = create mode
+  examId?: string;               // required in create mode
   onClose: () => void;
   onSave: (updated: Question) => void;
+  onDelete?: (id: string) => void;
 }
 
-export default function QuestionEditModal({ question, onClose, onSave }: Props) {
-  const [questionText, setQuestionText] = useState(question.question);
-  const [choices, setChoices] = useState<Choice[]>(question.choices.map((c) => ({ ...c })));
-  const [answers, setAnswers] = useState<string[]>([...question.answers]);
-  const [explanation, setExplanation] = useState(question.explanation);
+const DEFAULT_CHOICES: Choice[] = [
+  { label: "A", text: "" },
+  { label: "B", text: "" },
+  { label: "C", text: "" },
+  { label: "D", text: "" },
+];
+
+export default function QuestionEditModal({ question, examId, onClose, onSave, onDelete }: Props) {
+  const isCreate = !question;
+
+  const [questionText, setQuestionText] = useState(question?.question ?? "");
+  const [choices, setChoices] = useState<Choice[]>(
+    question ? question.choices.map((c) => ({ ...c })) : DEFAULT_CHOICES
+  );
+  const [answers, setAnswers] = useState<string[]>(question ? [...question.answers] : []);
+  const [explanation, setExplanation] = useState(question?.explanation ?? "");
+  const [source, setSource] = useState(question?.source ?? "");
   const [changeReason, setChangeReason] = useState("");
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [history, setHistory] = useState<QuestionHistoryEntry[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  // Load history when panel opens
+  // Load history when panel opens (edit mode only)
   useEffect(() => {
-    if (!historyOpen || history.length > 0) return;
+    if (isCreate || !historyOpen || history.length > 0) return;
     setHistoryLoading(true);
-    fetch(`/api/admin/questions/${encodeURIComponent(question.dbId)}/history`)
+    fetch(`/api/admin/questions/${encodeURIComponent(question!.dbId)}/history`)
       .then((r) => r.json())
       .then((data) => setHistory(data as QuestionHistoryEntry[]))
       .catch(() => {})
       .finally(() => setHistoryLoading(false));
-  }, [historyOpen, question.dbId, history.length]);
+  }, [historyOpen, question, isCreate, history.length]);
 
   function updateChoiceText(index: number, text: string) {
     setChoices((prev) => prev.map((c, i) => (i === index ? { ...c, text } : c)));
   }
 
   function addChoice() {
-    const label = String.fromCharCode(65 + choices.length); // A, B, C, ...
+    const label = String.fromCharCode(65 + choices.length);
     setChoices((prev) => [...prev, { label, text: "" }]);
   }
 
@@ -58,15 +74,38 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
   async function handleSave() {
     if (!questionText.trim()) { setError("Enter question text"); return; }
     if (answers.length === 0) { setError("Select at least one correct answer"); return; }
-    if (!changeReason.trim()) { setError("Enter reason for change"); return; }
+    if (!isCreate && !changeReason.trim()) { setError("Enter reason for change"); return; }
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/admin/questions/${encodeURIComponent(question.dbId)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question_text: questionText, options: choices, answers, explanation, change_reason: changeReason }),
-      });
+      let res: Response;
+      if (isCreate) {
+        res = await fetch("/api/admin/questions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            exam_id: examId,
+            question_text: questionText,
+            options: choices,
+            answers,
+            explanation,
+            source,
+          }),
+        });
+      } else {
+        res = await fetch(`/api/admin/questions/${encodeURIComponent(question!.dbId)}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question_text: questionText,
+            options: choices,
+            answers,
+            explanation,
+            source,
+            change_reason: changeReason,
+          }),
+        });
+      }
       if (!res.ok) throw new Error(await res.text());
       const updated = await res.json() as Question;
       onSave(updated);
@@ -78,6 +117,25 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
     }
   }
 
+  async function handleDelete() {
+    if (!question) return;
+    setDeleting(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(question.dbId)}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) throw new Error(await res.text());
+      onDelete?.(question.dbId);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to delete");
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
@@ -85,8 +143,17 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
         {/* Header */}
         <div className="shrink-0 flex items-center justify-between px-6 py-4 border-b border-gray-100">
           <div>
-            <p className="font-semibold text-gray-900 text-sm">Edit Question</p>
-            <p className="text-xs text-gray-400 mt-0.5">v{question.version} · {question.dbId}</p>
+            <p className="font-semibold text-gray-900 text-sm">
+              {isCreate ? "New Question" : "Edit Question"}
+            </p>
+            {!isCreate && (
+              <p className="text-xs text-gray-400 mt-0.5">
+                v{question!.version} · {question!.dbId}
+                {question!.createdBy && (
+                  <span className="ml-2">· created by {question!.createdBy}</span>
+                )}
+              </p>
+            )}
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition-colors">
             <X size={16} />
@@ -166,56 +233,71 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
             />
           </div>
 
-          {/* Change reason */}
+          {/* Source */}
           <div>
-            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
-              Reason for change
-              <span className="ml-1 text-rose-400">*</span>
-            </label>
-            <textarea
-              value={changeReason}
-              onChange={(e) => setChangeReason(e.target.value)}
-              rows={2}
-              className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
-              placeholder="e.g. 正解が誤っていたため修正"
+            <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">Source</label>
+            <input
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+              placeholder="e.g. Official practice exam #3 Q12"
             />
           </div>
 
-          {/* History */}
-          <div>
-            <button
-              onClick={() => setHistoryOpen((v) => !v)}
-              className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <Clock size={13} />
-              History
-              {historyOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-            </button>
-            {historyOpen && (
-              <div className="mt-3 space-y-3">
-                {historyLoading && (
-                  <div className="flex items-center gap-2 text-xs text-gray-400">
-                    <Loader2 size={12} className="animate-spin" />
-                  </div>
-                )}
-                {!historyLoading && history.length === 0 && (
-                  <p className="text-xs text-gray-300">No history</p>
-                )}
-                {history.map((h) => (
-                  <div key={h.id} className="border border-gray-100 rounded-xl p-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-semibold text-gray-500">v{h.version}</span>
-                      <span className="text-xs text-gray-300">{new Date(h.changedAt).toLocaleString()} · {h.changedBy ?? "unknown"}</span>
+          {/* Change reason (edit mode only) */}
+          {!isCreate && (
+            <div>
+              <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1.5">
+                Reason for change
+                <span className="ml-1 text-rose-400">*</span>
+              </label>
+              <textarea
+                value={changeReason}
+                onChange={(e) => setChangeReason(e.target.value)}
+                rows={2}
+                className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                placeholder="e.g. 正解が誤っていたため修正"
+              />
+            </div>
+          )}
+
+          {/* History (edit mode only) */}
+          {!isCreate && (
+            <div>
+              <button
+                onClick={() => setHistoryOpen((v) => !v)}
+                className="flex items-center gap-2 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Clock size={13} />
+                History
+                {historyOpen ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+              </button>
+              {historyOpen && (
+                <div className="mt-3 space-y-3">
+                  {historyLoading && (
+                    <div className="flex items-center gap-2 text-xs text-gray-400">
+                      <Loader2 size={12} className="animate-spin" />
                     </div>
-                    {h.changeReason && (
-                      <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">{h.changeReason}</p>
-                    )}
-                    <p className="text-xs text-gray-600 whitespace-pre-wrap line-clamp-3">{h.questionText}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  )}
+                  {!historyLoading && history.length === 0 && (
+                    <p className="text-xs text-gray-300">No history</p>
+                  )}
+                  {history.map((h) => (
+                    <div key={h.id} className="border border-gray-100 rounded-xl p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-semibold text-gray-500">v{h.version}</span>
+                        <span className="text-xs text-gray-300">{new Date(h.changedAt).toLocaleString()} · {h.changedBy ?? "unknown"}</span>
+                      </div>
+                      {h.changeReason && (
+                        <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">{h.changeReason}</p>
+                      )}
+                      <p className="text-xs text-gray-600 whitespace-pre-wrap line-clamp-3">{h.questionText}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -223,6 +305,36 @@ export default function QuestionEditModal({ question, onClose, onSave }: Props) 
           {error && <p className="text-xs text-rose-500 flex-1">{error}</p>}
           {!error && <div className="flex-1" />}
           <div className="flex gap-2">
+            {/* Delete (edit mode only) */}
+            {!isCreate && onDelete && (
+              confirmDelete ? (
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-rose-500">Delete?</span>
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    className="px-3 py-2 text-xs font-semibold bg-rose-500 text-white rounded-xl hover:bg-rose-600 disabled:opacity-40 transition-colors flex items-center gap-1"
+                  >
+                    {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                    Yes
+                  </button>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-2 text-xs text-gray-500 hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors"
+                  >
+                    No
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="p-2 rounded-xl hover:bg-rose-50 text-gray-300 hover:text-rose-400 border border-gray-200 transition-colors"
+                  title="Delete question"
+                >
+                  <Trash2 size={14} />
+                </button>
+              )
+            )}
             <button
               onClick={onClose}
               className="px-3 py-2 text-sm text-gray-500 hover:bg-gray-50 rounded-xl border border-gray-200 transition-colors flex items-center justify-center"
