@@ -754,7 +754,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           question={q}
           isCorrect={isCorrect === true}
           isLast={isLast}
-          onNext={goNext}
+          onNext={handleRevealNext}
           onAiExplain={handleAiExplain}
         />
       )}
