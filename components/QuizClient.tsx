@@ -684,7 +684,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
         `}>
           {/* Position indicator */}
           <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 flex items-center justify-between">
-            <span className="text-xs tabular-nums text-gray-400">Q{currentIndex + 1}/{filteredQuestions.length}</span>
+            <span className="text-xs tabular-nums text-gray-400">
+              Q{currentIndex + 1}/{filteredQuestions.length}
+              <span className="ml-2 text-gray-300">v{q.version}</span>
+            </span>
             <button
               onClick={() => setCreateMode(true)}
               className="p-1 text-gray-300 hover:text-emerald-500 transition-colors"
