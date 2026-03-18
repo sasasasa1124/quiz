@@ -124,7 +124,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const { speak, stop } = useAudio();
 
   // Auto-play question + choices when question changes or audio is toggled on
+  // Skip if answer is already revealed/submitted to avoid overlap with reveal effect
   useEffect(() => {
+    if (revealed || submitted) return;
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
