@@ -5,14 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import PageHeader from "@/components/PageHeader";
-import type { Locale } from "@/lib/i18n";
-
-const LANGUAGES: { value: Locale; label: string; native: string }[] = [
-  { value: "en", label: "English", native: "English" },
-  { value: "ja", label: "Japanese", native: "日本語" },
-  { value: "zh", label: "Chinese (Simplified)", native: "中文（简体）" },
-  { value: "ko", label: "Korean", native: "한국어" },
-];
 
 function SettingsInner() {
   const searchParams = useSearchParams();
@@ -20,7 +12,6 @@ function SettingsInner() {
   const returnTo = raw.startsWith("/") ? raw : "/";
 
   const { settings, updateSettings, t } = useSettings();
-  const [language, setLanguage] = useState<Locale>(settings.language);
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
   const [aiRefinePrompt, setAiRefinePrompt] = useState(settings.aiRefinePrompt);
   const [saved, setSaved] = useState(false);
@@ -32,10 +23,9 @@ function SettingsInner() {
 
   // Sync local state when settings load from localStorage
   useEffect(() => {
-    setLanguage(settings.language);
     setAiPrompt(settings.aiPrompt);
     setAiRefinePrompt(settings.aiRefinePrompt);
-  }, [settings.language, settings.aiPrompt, settings.aiRefinePrompt]);
+  }, [settings.aiPrompt, settings.aiRefinePrompt]);
 
   // Load current gemini model from DB
   useEffect(() => {
@@ -61,7 +51,7 @@ function SettingsInner() {
   }
 
   async function handleSave() {
-    updateSettings({ language, aiPrompt, aiRefinePrompt });
+    updateSettings({ aiPrompt, aiRefinePrompt });
     if (geminiModel) {
       await fetch("/api/app-settings", {
         method: "POST",
@@ -77,30 +67,6 @@ function SettingsInner() {
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
       <PageHeader back={{ href: returnTo }} title={t("settings")} hideSettingsIcon />
       <main className="flex-1 px-4 sm:px-8 py-8 max-w-xl mx-auto w-full space-y-8">
-
-        {/* Language */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            {t("languageLabel")}
-          </h2>
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
-            {LANGUAGES.map((lang) => (
-              <button
-                key={lang.value}
-                onClick={() => setLanguage(lang.value)}
-                className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors text-left"
-              >
-                <div>
-                  <span className="text-sm font-medium text-gray-900">{lang.native}</span>
-                  <span className="ml-2 text-xs text-gray-400">{lang.label}</span>
-                </div>
-                {language === lang.value && (
-                  <Check size={15} className="text-blue-500 shrink-0" strokeWidth={2.5} />
-                )}
-              </button>
-            ))}
-          </div>
-        </section>
 
         {/* AI Explain Prompt */}
         <section>
