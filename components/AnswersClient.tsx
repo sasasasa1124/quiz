@@ -176,7 +176,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
     const handler = (e: KeyboardEvent) => {
       if (editingQuestion || aiPopupOpen || refinePopupOpen) return;
       if (e.key === "ArrowRight" || e.key === "Enter") setCurrentIndex((i) => Math.min(i + 1, questions.length - 1));
-      else if (e.key === "ArrowLeft" || e.key === "Backspace") setCurrentIndex((i) => Math.max(i - 1, 0));
+      else if (e.key === "ArrowLeft") setCurrentIndex((i) => Math.max(i - 1, 0));
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -212,7 +212,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-[#f8f9fb]">
       {/* Header */}
-      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-12 border-b border-gray-200 bg-white">
+      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-14 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <Link href={`/exam/${encodeURIComponent(examId)}`} className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-700 transition-colors shrink-0">
             <ArrowLeft size={14} />
@@ -306,7 +306,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
               </button>
             </div>
             {q.explanation ? (
-              <p className="text-sm lg:text-base leading-relaxed text-gray-600 whitespace-pre-wrap">{q.explanation}</p>
+              <p className="text-sm lg:text-base leading-relaxed text-gray-700 whitespace-pre-wrap">{q.explanation}</p>
             ) : (
               <p className="text-sm text-gray-300">—</p>
             )}
@@ -352,7 +352,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           >
             <ChevronRight size={15} />
           </button>
-          <span className="text-xs text-gray-300 ml-1 shrink-0 hidden lg:block">Enter →  ⌫ ←</span>
+          <span className="text-xs text-gray-300 ml-1 shrink-0 hidden lg:block">Enter →  ← </span>
         </div>
       </footer>
 

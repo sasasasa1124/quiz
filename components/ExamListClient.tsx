@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame } from "lucide-react";
+import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame, Globe } from "lucide-react";
 import Link from "next/link";
 import type { ExamMeta } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
@@ -45,10 +45,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const { settings, updateSettings } = useSettings();
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
   const [statsMap, setStatsMap] = useState<Record<string, { pct: number | null; answered: number; total: number; wrongCount: number }>>({});
-  const langFilter: "ja" | "en" | "all" =
-    settings.language === "ja" ? "ja"
-    : settings.language === "en" ? "en"
-    : "all";
+  const langFilter = settings.language;
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
@@ -58,8 +55,19 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const [isDragging, setIsDragging] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [dailyProgress, setDailyProgress] = useState<{ todayCount: number; streak: number } | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [langOpen, setLangOpen] = useState(false);
+  const langRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
+
+  useEffect(() => {
+    function handleOutside(e: MouseEvent) {
+      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
 
   useEffect(() => {
     fetch("/api/sessions/summary")
@@ -86,6 +94,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           };
         }
         setStatsMap(map);
+        setStatsLoading(false);
       })
       .catch(() => {
         // Fallback: localStorage
@@ -105,6 +114,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           } catch { map[exam.id] = { pct: null, answered: 0, total: exam.questionCount, wrongCount: 0 }; }
         }
         setStatsMap(map);
+        setStatsLoading(false);
       });
   }, [exams]);
 
@@ -174,7 +184,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       : null;
 
   const filteredExams = exams.filter((e) => {
-    if (langFilter !== "all" && e.language !== langFilter) return false;
+    if (e.language !== langFilter) return false;
     if (search.trim()) return e.name.toLowerCase().includes(search.trim().toLowerCase());
     return true;
   });
@@ -223,18 +233,32 @@ export default function ExamListClient({ exams: initialExams }: Props) {
             </button>
           )}
         </div>
-        <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
-          {(["ja", "en", "zh", "ko"] as const).map((lang) => (
-            <button
-              key={lang}
-              onClick={() => updateSettings({ language: lang })}
-              className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
-                settings.language === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {lang === "ja" ? "JP" : lang === "en" ? "EN" : lang === "zh" ? "ZH" : "KO"}
-            </button>
-          ))}
+        <div ref={langRef} className="relative shrink-0">
+          <button
+            onClick={() => setLangOpen((o) => !o)}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title="Language"
+          >
+            <Globe size={15} />
+          </button>
+          {langOpen && (
+            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[100px]">
+              {([
+                { value: "en" as const, label: "EN" },
+                { value: "ja" as const, label: "日本語" },
+                { value: "zh" as const, label: "中文" },
+                { value: "ko" as const, label: "한국어" },
+              ]).map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => { updateSettings({ language: opt.value }); setLangOpen(false); }}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${settings.language === opt.value ? "font-semibold text-blue-600" : "text-gray-700"}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -273,7 +297,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       })()}
 
       <div className="flex-1 px-4 sm:px-8 pb-6 overflow-y-auto">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
+        <div className={`grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto transition-opacity duration-300 ${statsLoading ? "opacity-60" : "opacity-100"}`}>
           {filteredExams.length === 0 && (
             <div className="col-span-full flex flex-col items-center gap-2 py-12 text-gray-300">
               <Search size={24} strokeWidth={1.5} />

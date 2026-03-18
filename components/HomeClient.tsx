@@ -39,6 +39,7 @@ async function uploadFile(file: File, appendTo?: string): Promise<{ exam: ExamMe
 export default function HomeClient({ exams: initialExams }: Props) {
   const [mode, setMode] = useState<Mode>("quiz");
   const [statsMap, setStatsMap] = useState<Record<string, { correct: number; answered: number; total: number }>>({});
+  const [statsLoading, setStatsLoading] = useState(true);
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
@@ -65,6 +66,7 @@ export default function HomeClient({ exams: initialExams }: Props) {
           };
         }
         setStatsMap(map);
+        setStatsLoading(false);
       })
       .catch(() => {
         // Fallback: localStorage
@@ -81,6 +83,7 @@ export default function HomeClient({ exams: initialExams }: Props) {
           } catch { map[exam.id] = { answered: 0, total: exam.questionCount, correct: 0 }; }
         }
         setStatsMap(map);
+        setStatsLoading(false);
       });
   }, [exams]);
 
@@ -290,7 +293,7 @@ export default function HomeClient({ exams: initialExams }: Props) {
       </div>
 
       {/* Exam list */}
-      <div className="grid gap-3">
+      <div className={`grid gap-3 transition-opacity duration-300 ${statsLoading ? "opacity-60" : "opacity-100"}`}>
         {exams.map((exam) => (
           <ExamCard key={exam.id} exam={exam} stats={statsMap[exam.id]} mode={mode} />
         ))}

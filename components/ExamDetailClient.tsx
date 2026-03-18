@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Brain, BookOpen, BookOpenCheck,
-  ChevronRight, AlertCircle, TrendingUp, Tag, Timer,
+  ChevronRight, AlertCircle, TrendingUp, Tag, Timer, History,
 } from "lucide-react";
 import type { CategoryStat, ExamMeta } from "@/lib/types";
 import PageHeader from "./PageHeader";
@@ -29,7 +29,16 @@ function pctTextColor(pct: number) {
 
 export default function ExamDetailClient({ exam, categoryStats: initialStats }: Props) {
   const [stats, setStats] = useState<CategoryStat[]>(initialStats);
+  const [statsLoading, setStatsLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<"quiz" | "review">("quiz");
+  const [selectedScope, setSelectedScope] = useState<"all" | "continue" | "wrong">("all");
+  const [hasContinue, setHasContinue] = useState(false);
+
+  // Check for saved position in localStorage
+  useEffect(() => {
+    const savedId = localStorage.getItem(`quiz-last-index-${exam.id}`);
+    setHasContinue(savedId !== null && Number.isFinite(Number(savedId)));
+  }, [exam.id]);
 
   // Refresh category stats from API when page loads (picks up any in-flight score updates)
   useEffect(() => {
@@ -37,14 +46,34 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
       .then((r) => r.json() as Promise<CategoryStat[]>)
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) setStats(data);
+        setStatsLoading(false);
       })
-      .catch(() => {});
+      .catch(() => { setStatsLoading(false); });
   }, [exam.id]);
 
   const totalQuestions = stats.reduce((s, c) => s + c.total, 0);
   const totalAttempted = stats.reduce((s, c) => s + c.attempted, 0);
   const totalCorrect = stats.reduce((s, c) => s + c.correct, 0);
   const overallPct = totalAttempted > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : null;
+
+  const wrongCount = stats.reduce((s, c) => s + (c.attempted - c.correct), 0);
+
+  // Reset scope if the selected option becomes unavailable
+  useEffect(() => {
+    if (selectedScope === "wrong" && wrongCount === 0) setSelectedScope("all");
+    if (selectedScope === "continue" && !hasContinue) setSelectedScope("all");
+  }, [wrongCount, hasContinue, selectedScope]);
+
+  const startHref = (() => {
+    const params = new URLSearchParams({ mode: selectedMode });
+    if (selectedScope !== "all") params.set("filter", selectedScope);
+    return `/quiz/${encodeURIComponent(exam.id)}?${params.toString()}`;
+  })();
+
+  const startLabel =
+    selectedScope === "wrong" ? `Start ${wrongCount} wrong` :
+    selectedScope === "continue" ? "Continue" :
+    `Start all ${exam.questionCount}`;
 
   const weakCategories = stats.filter(
     (c) => c.attempted > 0 && c.attempted > 0 && Math.round((c.correct / c.total) * 100) < 60
@@ -66,7 +95,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
       <PageHeader back={{ href: "/" }} title={exam.name} />
 
-      <main className="flex-1 px-4 sm:px-8 py-6 max-w-2xl mx-auto w-full">
+      <main className={`flex-1 px-4 sm:px-8 py-6 max-w-2xl mx-auto w-full transition-opacity duration-300 ${statsLoading ? "opacity-60" : "opacity-100"}`}>
 
         {/* ── Overall progress ── */}
         {overallPct !== null && (
@@ -175,58 +204,93 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
             <span className="text-sm font-semibold text-gray-700">Start</span>
           </div>
 
-          {/* Mode selector */}
-          <div className="px-5 pt-4 pb-2">
-            <div className="flex gap-1.5 p-1 bg-gray-100 rounded-xl">
-              <button
-                onClick={() => setSelectedMode("quiz")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                  selectedMode === "quiz" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                <Brain size={14} strokeWidth={1.75} /> Quiz
-              </button>
-              <button
-                onClick={() => setSelectedMode("review")}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium transition-all ${
-                  selectedMode === "review" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                <BookOpen size={14} strokeWidth={1.75} /> Flashcard
-              </button>
-            </div>
-          </div>
+          <div className="px-5 pt-4 pb-5 flex flex-col gap-4">
 
-          {/* Start buttons */}
-          <div className="px-5 pb-5 pt-3 flex flex-col gap-2.5">
+            {/* Questions — scope */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Questions</span>
+              <div className="flex gap-1.5 p-1 bg-gray-100 rounded-xl">
+                <button
+                  onClick={() => setSelectedScope("all")}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium transition-all ${
+                    selectedScope === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  All {exam.questionCount}
+                </button>
+                <button
+                  onClick={() => hasContinue && setSelectedScope("continue")}
+                  disabled={!hasContinue}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                    selectedScope === "continue" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <History size={13} /> 続きから
+                </button>
+                <button
+                  onClick={() => wrongCount > 0 && setSelectedScope("wrong")}
+                  disabled={wrongCount === 0}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
+                    selectedScope === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  <AlertCircle size={13} /> {wrongCount > 0 ? wrongCount : "Wrong"}
+                </button>
+              </div>
+            </div>
+
+            {/* Mode */}
+            <div className="flex flex-col gap-2">
+              <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Mode</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSelectedMode("quiz")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                    selectedMode === "quiz"
+                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  <Brain size={14} strokeWidth={1.75} /> Quiz
+                </button>
+                <button
+                  onClick={() => setSelectedMode("review")}
+                  className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
+                    selectedMode === "review"
+                      ? "border-purple-500 bg-purple-50 text-purple-700"
+                      : "border-gray-200 text-gray-500 hover:border-gray-300"
+                  }`}
+                >
+                  <BookOpen size={14} strokeWidth={1.75} /> Flashcard
+                </button>
+              </div>
+            </div>
+
+            {/* Primary CTA */}
             <Link
-              href={modeHref(null)}
-              className="w-full py-3 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+              href={startHref}
+              className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
             >
-              Start all {exam.questionCount}
+              {startLabel}
               <ChevronRight size={15} />
             </Link>
 
-            <Link
-              href={`${modeHref(null)}&filter=wrong`}
-              className="w-full py-3 rounded-xl border-2 border-rose-200 text-rose-600 bg-rose-50 hover:bg-rose-100 text-sm font-semibold transition-colors flex items-center justify-center gap-2"
-            >
-              <AlertCircle size={14} /> Wrong only
-            </Link>
+            {/* Secondary — Answer Sheet + Mock Exam */}
+            <div className="border-t border-gray-100 pt-3 flex gap-2">
+              <Link
+                href={answersHref(null)}
+                className="flex-1 h-10 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <BookOpenCheck size={14} /> Answer Sheet
+              </Link>
+              <Link
+                href={`/quiz/${encodeURIComponent(exam.id)}?mode=mock`}
+                className="flex-1 h-10 rounded-xl border border-gray-200 text-gray-500 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+              >
+                <Timer size={14} /> Mock Exam
+              </Link>
+            </div>
 
-            <Link
-              href={answersHref(null)}
-              className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-            >
-              <BookOpenCheck size={14} /> Answer Sheet
-            </Link>
-
-            <Link
-              href={`/quiz/${encodeURIComponent(exam.id)}?mode=mock`}
-              className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
-            >
-              <Timer size={14} /> Mock Exam
-            </Link>
           </div>
         </div>
       </main>

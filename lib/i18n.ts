@@ -39,7 +39,12 @@ export type TranslationKey =
   | "onboardingStep3Title"
   | "onboardingStep3Desc"
   | "onboardingNext"
-  | "onboardingDone";
+  | "onboardingDone"
+  | "startAll"
+  | "showAll"
+  | "noWrongAnswers"
+  | "noQuestions"
+  | "allWrongCleared";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -82,6 +87,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     onboardingStep3Desc: "Open Settings to change the display language or configure the AI explanation prompt.",
     onboardingNext: "Next",
     onboardingDone: "Got it",
+    startAll: "Start All",
+    showAll: "Show all",
+    noWrongAnswers: "No wrong answers",
+    noQuestions: "No questions",
+    allWrongCleared: "All wrong answers cleared",
   },
   ja: {
     settings: "設定",
@@ -123,6 +133,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     onboardingStep3Desc: "設定を開いて表示言語の変更やAIファクトチェックプロンプトの設定ができます。",
     onboardingNext: "次へ",
     onboardingDone: "はじめる",
+    startAll: "全問スタート",
+    showAll: "全問表示",
+    noWrongAnswers: "不正解なし",
+    noQuestions: "問題なし",
+    allWrongCleared: "不正解が全てクリアされました",
   },
   zh: {
     settings: "设置",
@@ -164,6 +179,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     onboardingStep3Desc: "打开设置可以更改显示语言或配置 AI 事实核查提示词。",
     onboardingNext: "下一步",
     onboardingDone: "开始吧",
+    startAll: "全部开始",
+    showAll: "显示全部",
+    noWrongAnswers: "无错误答案",
+    noQuestions: "无题目",
+    allWrongCleared: "所有错误答案已清除",
   },
   ko: {
     settings: "설정",
@@ -205,6 +225,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     onboardingStep3Desc: "설정을 열어 표시 언어를 변경하거나 AI 팩트체크 프롬프트를 설정할 수 있습니다.",
     onboardingNext: "다음",
     onboardingDone: "시작하기",
+    startAll: "전체 시작",
+    showAll: "전체 보기",
+    noWrongAnswers: "오답 없음",
+    noQuestions: "문제 없음",
+    allWrongCleared: "모든 오답이 해결되었습니다",
   },
 };
 

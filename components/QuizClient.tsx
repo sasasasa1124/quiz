@@ -96,6 +96,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiAdopting, setAiAdopting] = useState(false);
 
+  // Reset AI popup when moving to a different question
+  useEffect(() => {
+    setAiPopupOpen(false);
+    setAiResult(null);
+    setAiLoading(false);
+    setAiError(null);
+  }, [currentIndex]);
+
   const [refinePopupOpen, setRefinePopupOpen] = useState(false);
   const [refineLoading, setRefineLoading] = useState(false);
   const [refineResult, setRefineResult] = useState<AiRefineResponse | null>(null);
@@ -104,6 +112,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
 
   const [sessionId] = useState<string>(() => crypto.randomUUID());
   const [sessionCorrectCount, setSessionCorrectCount] = useState(0);
+  const [filterResetToast, setFilterResetToast] = useState(false);
   const sessionCompletedRef = useRef(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -208,6 +217,18 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     : -1;
   const continueDisplayNum = continueIndex >= 0 ? continueIndex + 1 : null;
   const hasContinue = continueDisplayNum !== null;
+
+  // Auto-reset "wrong" filter when all wrong answers are cleared
+  useEffect(() => {
+    if (filter === "wrong" && wrongCount === 0) {
+      setFilter("all");
+      setCurrentIndex(0);
+      setFilterResetToast(true);
+      const timer = setTimeout(() => setFilterResetToast(false), 3000);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wrongCount]);
 
   const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string, srsQuality?: 1 | 4) => {
     setStats((prev) => {
@@ -537,11 +558,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       <div className="h-screen flex flex-col items-center justify-center gap-4 px-4">
         <AlertCircle size={32} className="text-gray-300" />
         <p className="font-semibold text-gray-700">
-          {filter === "wrong" ? "No wrong answers" : "No questions"}
+          {filter === "wrong" ? t("noWrongAnswers") : t("noQuestions")}
         </p>
         {(filter === "wrong" || excludeDuplicates) && (
           <button onClick={() => { setFilter("all"); setExcludeDuplicates(false); }} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
-            Show all
+            {t("showAll")}
           </button>
         )}
         <button onClick={() => { doCompleteSession(); router.push(backHref); }} className="text-sm text-gray-400 hover:text-gray-700 flex items-center gap-1.5">
@@ -555,8 +576,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
 
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#f8f9fb]">
+      {/* Filter reset toast */}
+      {filterResetToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-xs font-medium px-4 py-2 rounded-xl shadow-lg pointer-events-none">
+          {t("allWrongCleared")}
+        </div>
+      )}
       {/* ── Header ── */}
-      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-12 border-b border-gray-200 bg-white">
+      <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-14 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
           <button
             onClick={() => { doCompleteSession(); router.push(backHref); }}
@@ -751,7 +778,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       </button>
                       <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title={t("refine")}>
                         <Wand2 size={12} />
-                        AI Refine
+                        {t("refine")}
                       </button>
                       <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit question">
                         <Pencil size={12} />
@@ -792,7 +819,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                           <button
                             onClick={handleAiExplain}
                             className="text-gray-300 hover:text-violet-500 transition-colors"
-                            title="AI Explain"
+                            title={t("explain")}
                           >
                             <Sparkles size={15} />
                           </button>
@@ -902,6 +929,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             setAiResult(null);
             setAiError(null);
           }}
+          question={filteredQuestions[currentIndex]?.question}
+          choices={filteredQuestions[currentIndex]?.choices}
+          answers={filteredQuestions[currentIndex]?.answers}
         />
       )}
 
