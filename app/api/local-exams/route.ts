@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
 
-// Edge runtime required for Cloudflare Pages (@cloudflare/next-on-pages).
-// In production (Cloudflare), DEPLOY_TARGET is unset so returns [] immediately.
-// In local dev (Next.js edge simulation), dynamic import is caught and returns [].
-// With `wrangler dev` (nodejs_compat), the import succeeds and returns CSV data.
-export const runtime = "edge";
+// Node.js runtime. wrangler.jsonc has nodejs_compat so CF Pages handles this.
+// In production DEPLOY_TARGET is unset → returns [] immediately, never touches fs.
+// Locally (next dev), Node.js runtime allows direct lib/csv import.
+export const runtime = "nodejs";
 
 export async function GET() {
   if (process.env.DEPLOY_TARGET !== "local") {

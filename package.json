@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "build:cf": "npx @cloudflare/next-on-pages",
+    "build:cf": "next build && rm -rf .vercel/output/functions/api/local-exams.func .vercel/output/functions/api/local-exams.rsc.func .vercel/output/functions/api/local-questions && npx @cloudflare/next-on-pages --skip-build",
     "preview": "npm run build:cf && wrangler pages dev",
     "start": "next start",
     "cf:setup": "wrangler d1 create quiz-db",
