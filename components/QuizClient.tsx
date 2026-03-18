@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, BookOpen, Brain, Layers, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home, History,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import type { Locale } from "@/lib/i18n";
@@ -55,12 +55,29 @@ function saveLocalStats(examId: string, stats: QuizStats) {
   localStorage.setItem(statsKey(examId), JSON.stringify(stats));
 }
 
+const lastQKey = (id: string) => `quiz-last-index-${id}`;
+
+function loadLastQuestionId(examId: string): number | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(lastQKey(examId));
+    if (raw === null) return null;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) ? parsed : null;
+  } catch { return null; }
+}
+
+function saveLastQuestionId(examId: string, questionId: number) {
+  localStorage.setItem(lastQKey(examId), String(questionId));
+}
+
 export default function QuizClient({ questions: initialQuestions, examId, examName, mode, userEmail, activeCategory }: Props) {
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState<QuizStats>({});
-  const [filter, setFilter] = useState<"all" | "wrong">("all");
+  const [filter, setFilter] = useState<"all" | "continue" | "wrong">("all");
+  const [savedLastQuestionId, setSavedLastQuestionId] = useState<number | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
@@ -125,6 +142,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   useEffect(() => {
     const local = loadLocalStats(examId);
     setStats(local);
+    setSavedLastQuestionId(loadLastQuestionId(examId));
 
     fetch(`/api/scores?examId=${encodeURIComponent(examId)}`)
       .then((r) => r.json() as Promise<QuizStats>)
@@ -146,8 +164,19 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   }, [currentIndex, filter, mode]);
 
   useEffect(() => {
-    setCurrentIndex(0);
+    if (filter === "continue") {
+      const savedId = loadLastQuestionId(examId);
+      if (savedId !== null) {
+        const idx = questions.findIndex((q) => q.id === savedId);
+        setCurrentIndex(idx >= 0 ? idx : 0);
+      } else {
+        setCurrentIndex(0);
+      }
+    } else {
+      setCurrentIndex(0);
+    }
     setDirection("forward");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter]);
 
   const filteredQuestions = questions.filter((q) => {
@@ -155,10 +184,25 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     return true;
   });
 
+  // Save current question position whenever index changes
+  useEffect(() => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    saveLastQuestionId(examId, q.id);
+    setSavedLastQuestionId(q.id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, examId]);
+
   const totalAnswered = questions.filter((q) => stats[String(q.id)] !== undefined).length;
   const totalCorrect = questions.filter((q) => stats[String(q.id)] === 1).length;
   const overallRate = totalAnswered > 0 ? Math.round((totalCorrect / questions.length) * 100) : null;
   const wrongCount = questions.filter((q) => stats[String(q.id)] === 0).length;
+
+  const continueIndex = savedLastQuestionId !== null
+    ? questions.findIndex((q) => q.id === savedLastQuestionId)
+    : -1;
+  const continueDisplayNum = continueIndex >= 0 ? continueIndex + 1 : null;
+  const hasContinue = continueDisplayNum !== null;
 
   const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string) => {
     setStats((prev) => {
@@ -536,6 +580,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             <button onClick={() => setFilter("all")} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
               <Layers size={11} /> <span className="hidden sm:inline">All</span> {questions.length}
             </button>
+            {hasContinue && (
+              <button onClick={() => setFilter("continue")} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "continue" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+                <History size={11} /> <span className="hidden sm:inline">続きから</span><span className="hidden sm:inline text-gray-400 ml-0.5">Q{continueDisplayNum}</span>
+              </button>
+            )}
             <button onClick={() => setFilter("wrong")} disabled={wrongCount === 0} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
               <AlertCircle size={11} /> <span className="hidden sm:inline">Wrong</span> {wrongCount}
             </button>

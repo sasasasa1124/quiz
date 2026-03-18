@@ -65,6 +65,7 @@ export interface UserSettings {
   language: "en" | "ja" | "zh" | "ko";
   aiPrompt: string;
   aiRefinePrompt: string;
+  dailyGoal: number; // questions per day target
 }
 
 export const DEFAULT_EXPLAIN_PROMPT = `You are a Salesforce/MuleSoft certification exam expert.
@@ -108,7 +109,7 @@ export interface SessionRecord {
   userEmail: string;
   examId: string;
   mode: "quiz" | "review";
-  filter: "all" | "wrong";
+  filter: "all" | "continue" | "wrong";
   startedAt: string;
   completedAt: string | null;
   questionCount: number;
@@ -119,4 +120,5 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   language: "en",
   aiPrompt: DEFAULT_EXPLAIN_PROMPT,
   aiRefinePrompt: DEFAULT_REFINE_PROMPT,
+  dailyGoal: 20,
 };

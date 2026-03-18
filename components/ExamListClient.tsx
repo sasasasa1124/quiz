@@ -7,6 +7,7 @@ import Link from "next/link";
 import type { ExamMeta, QuizStats } from "@/lib/types";
 import PageHeader from "./PageHeader";
 import OnboardingGuide from "./OnboardingGuide";
+import { useSettings } from "@/lib/settings-context";
 
 interface Props {
   exams: ExamMeta[];
@@ -40,9 +41,10 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
-async function uploadFile(file: File): Promise<ExamMeta> {
+async function uploadFile(file: File, language: "ja" | "en"): Promise<ExamMeta> {
   const formData = new FormData();
   formData.append("file", file);
+  formData.append("language", language);
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   if (!res.ok) throw new Error(await res.text());
   const { exam } = await res.json() as { exam: ExamMeta };
@@ -51,12 +53,19 @@ async function uploadFile(file: File): Promise<ExamMeta> {
 
 export default function ExamListClient({ exams: initialExams }: Props) {
   const router = useRouter();
+  const { settings, updateSettings } = useSettings();
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
   const [statsMap, setStatsMap] = useState<Record<string, { pct: number | null; answered: number; total: number; wrongCount: number }>>({});
-  const [langFilter, setLangFilter] = useState<"all" | "ja" | "en">("all");
+  const langFilter: "ja" | "en" | "all" =
+    settings.language === "ja" ? "ja"
+    : settings.language === "en" ? "en"
+    : "all";
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [uploadLang, setUploadLang] = useState<"ja" | "en">(
+    settings.language === "ja" ? "ja" : "en"
+  );
   const [isDragging, setIsDragging] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -90,7 +99,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
     let hasError = false;
     for (let i = 0; i < csvFiles.length; i++) {
       try {
-        const exam = await uploadFile(csvFiles[i]);
+        const exam = await uploadFile(csvFiles[i], uploadLang);
         setExams((prev) => {
           const exists = prev.find((e) => e.id === exam.id);
           return exists ? prev.map((e) => (e.id === exam.id ? exam : e)) : [...prev, exam];
@@ -103,7 +112,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
     setUploadProgress(null);
     setTimeout(() => setUploadStatus("idle"), 2000);
     if (fileRef.current) fileRef.current.value = "";
-  }, []);
+  }, [uploadLang]);
 
   // Global drag & drop
   useEffect(() => {
@@ -195,15 +204,15 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           )}
         </div>
         <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
-          {(["all", "ja", "en"] as const).map((lang) => (
+          {(["ja", "en"] as const).map((lang) => (
             <button
               key={lang}
-              onClick={() => setLangFilter(lang)}
+              onClick={() => updateSettings({ language: lang })}
               className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
                 langFilter === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              {lang === "all" ? "All" : lang === "ja" ? "JP" : "EN"}
+              {lang === "ja" ? "JP" : "EN"}
             </button>
           ))}
         </div>
@@ -215,7 +224,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
             <div className="col-span-full flex flex-col items-center gap-2 py-12 text-gray-300">
               <Search size={24} strokeWidth={1.5} />
               <p className="text-sm">No exams found</p>
-              <button onClick={() => { setSearch(""); setLangFilter("all"); }} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
+              <button onClick={() => { setSearch(""); }} className="text-xs text-gray-400 hover:text-gray-600 transition-colors">
                 Clear filters
               </button>
             </div>
@@ -292,6 +301,22 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                 >
                   <Download size={12} /> CSV Template
                 </button>
+              </div>
+              <div>
+                <p className="text-xs text-gray-400 mb-2">Language</p>
+                <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 mb-3">
+                  {(["ja", "en"] as const).map((lang) => (
+                    <button
+                      key={lang}
+                      onClick={() => setUploadLang(lang)}
+                      className={`flex-1 text-xs font-medium py-1 rounded-md transition-colors ${
+                        uploadLang === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                      }`}
+                    >
+                      {lang === "ja" ? "JP" : "EN"}
+                    </button>
+                  ))}
+                </div>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-2">Upload</p>

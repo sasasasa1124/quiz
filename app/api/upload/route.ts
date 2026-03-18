@@ -170,7 +170,10 @@ export async function POST(req: NextRequest) {
 
   // ── New exam mode ─────────────────────────────────────────────────────────
   const examId = name.replace(".csv", "");
-  const language = detectLanguage(records);
+  const explicitLang = formData.get("language");
+  const language: "ja" | "en" = (explicitLang === "ja" || explicitLang === "en")
+    ? explicitLang
+    : (examId.endsWith("_en") ? "en" : "ja");
   const displayName = examId.replace(/_en$/, "").replace(/_/g, " ");
 
   if (db) {
