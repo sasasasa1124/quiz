@@ -59,10 +59,14 @@ export function useAudio() {
       const token = Symbol();
       speakingTokenRef.current = token;
 
-      for (const text of texts) {
+      // Kick off all chunk fetches in parallel upfront so that by the time
+      // chunk N finishes playing, chunk N+1 is already in cache (no gap).
+      const fetchPromises = texts.map((t) => fetchAudio(t).catch(() => null));
+
+      for (let i = 0; i < texts.length; i++) {
         if (speakingTokenRef.current !== token) break;
 
-        const objectUrl = await fetchAudio(text);
+        const objectUrl = await fetchPromises[i];
         if (!objectUrl || speakingTokenRef.current !== token) break;
 
         // Play this chunk and wait for it to finish

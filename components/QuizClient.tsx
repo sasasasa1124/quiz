@@ -131,9 +131,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
-    // Pre-warm first chunk of next question
+    // Pre-warm all chunks (question + choices) of the next question
     const next = filteredQuestions[currentIndex + 1];
-    if (next) prefetch(buildQuestionText(next)[0]);
+    if (next) buildQuestionText(next).forEach((chunk) => prefetch(chunk));
     return () => { stop(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted]);

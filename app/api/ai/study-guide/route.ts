@@ -11,6 +11,26 @@ interface QuestionSummary {
   category: string | null;
 }
 
+interface UserStats {
+  totalAttempted: number;
+  totalCorrect: number;
+  accuracy: number;
+  perCategory: Record<string, { attempted: number; correct: number; accuracy: number }>;
+  wrongQuestions: {
+    question: string;
+    answers: string[];
+    correctAnswers: string[];
+    category: string | null;
+  }[];
+}
+
+const langInstruction: Record<string, string> = {
+  ja: "Write the entire output in Japanese.",
+  en: "Write the entire output in English.",
+  zh: "Write the entire output in Chinese (Simplified).",
+  ko: "Write the entire output in Korean.",
+};
+
 export async function GET(req: NextRequest) {
   const examId = req.nextUrl.searchParams.get("examId");
   if (!examId) {
@@ -27,7 +47,9 @@ export async function POST(req: NextRequest) {
   const body = (await req.json()) as {
     examId: string | null;
     examName: string;
+    language?: string;
     questions: QuestionSummary[];
+    userStats?: UserStats;
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -41,8 +63,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { examId, examName, questions } = body;
-  const saveToDb = examId !== null && examId !== undefined && examId !== "";
+  const { examId, examName, questions, userStats } = body;
+  const lang = body.language ?? "en";
+
+  // Personalized guides (with userStats) are never cached
+  const saveToDb = examId !== null && examId !== undefined && examId !== "" && !userStats;
 
   // Group questions by category
   const byCategory = new Map<string, QuestionSummary[]>();
@@ -52,43 +77,72 @@ export async function POST(req: NextRequest) {
     byCategory.get(cat)!.push(q);
   }
 
-  // Build condensed question list grouped by category
-  const questionLines: string[] = [];
+  // Build per-category Q&A data (2–3 sample questions per category)
+  const categoryLines: string[] = [];
   for (const [cat, qs] of byCategory) {
-    questionLines.push(`\n### Category: ${cat} (${qs.length} questions)`);
-    for (const q of qs) {
+    categoryLines.push(`\n### Category: ${cat} (${qs.length} questions total)`);
+    const samples = qs.slice(0, 3);
+    for (const q of samples) {
       const stripped = q.question.replace(/<[^>]+>/g, "").trim();
-      questionLines.push(`- Q: ${stripped} → Answers: ${q.answers.join(", ")}`);
+      categoryLines.push(`- Q: ${stripped}`);
+      categoryLines.push(`  Answers/Choices: ${q.answers.join(" | ")}`);
     }
   }
 
-  const prompt = `あなたは「${examName}」認定試験の専門家です。
-以下の${questions.length}問の試験問題（カテゴリ別）を分析し、Web検索で最新情報を補完しながら、受験者向けの包括的なStudy Guideを**日本語のMarkdown形式**で作成してください。
+  // Build user stats section if provided
+  let userStatsSection = "";
+  if (userStats) {
+    const categoryRows = Object.entries(userStats.perCategory)
+      .sort((a, b) => a[1].accuracy - b[1].accuracy)
+      .map(([cat, s]) => `  - ${cat}: ${s.correct}/${s.attempted} (${s.accuracy}%)`)
+      .join("\n");
 
-## 出力フォーマット
+    const wrongLines = userStats.wrongQuestions.slice(0, 10).map((wq) => {
+      const stripped = wq.question.replace(/<[^>]+>/g, "").trim();
+      return `  - Q: ${stripped}\n    Correct: ${wq.correctAnswers.join(", ")} | Choices: ${wq.answers.join(" | ")}`;
+    }).join("\n");
+
+    userStatsSection = `
+
+## User Performance Data (include a personalized analysis section based on this)
+- Total answered: ${userStats.totalAttempted} questions
+- Correct: ${userStats.totalCorrect} (${userStats.accuracy}%)
+- Per-category accuracy (sorted ascending — weakest first):
+${categoryRows}
+- Wrong questions sample (up to 10):
+${wrongLines}`;
+  }
+
+  const prompt = `You are an expert on the "${examName}" certification exam.
+Analyze the ${questions.length} exam questions below (grouped by category) and use Google Search to find the latest official exam guide information. Then produce a comprehensive Study Guide in Markdown format.
+
+## Required output structure
 
 # Study Guide: ${examName}
 
-## 試験全体の要件
-- 試験の概要（出題数・制限時間・合格ライン）
-- 試験ドメインと出題比率（わかる範囲で）
-- 重点的に学習すべき領域
+## Overall Overview
+- Exam overview: number of questions, time limit, passing score, domain weights (use Google Search for the official exam guide)
+- Key topics and recommended study priorities
 
-## カテゴリ別 出題ポイント
+## Per-Category Questions & Answers
+For each category, write:
+### {Category Name} ({N} questions)
+- Brief summary of what this category tests
+- 2–3 representative Q&As drawn from the question data below (show the question, all answer choices, and highlight the correct answer(s))
 
-各カテゴリについて以下を記述：
-### {カテゴリ名}
-- このカテゴリで問われるコアコンセプト
-- 暗記すべき重要事項・数値・定義
-- よく出る引っかけや注意ポイント
-- 参考になる公式ドキュメントのURL（知っている場合）
+${userStats ? `## Your Learning Trends & Wrong Answer Patterns
+- Overall accuracy: ${userStats.totalCorrect}/${userStats.totalAttempted} (${userStats.accuracy}%)
+- Per-category breakdown (weakest first)
+- Analysis of wrong answer patterns: which categories/question types need focus
+- Key wrong questions with explanation of the correct answer
+` : ""}---
 
----
+## Question Data
+${categoryLines.join("\n")}
+${userStatsSection}
 
-以下が試験問題データです：
-${questionLines.join("\n")}
-
-重要: 問題データの分析に加え、Google Search で「${examName} 試験ガイド」「${examName} exam guide」を検索して最新の公式試験情報も参照してください。`;
+Important: Use Google Search to look up "${examName} exam guide" and "${examName} certification" for the latest official information.
+${langInstruction[lang] ?? langInstruction["en"]}`;
 
   const ai = new GoogleGenAI({ apiKey });
   const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash";

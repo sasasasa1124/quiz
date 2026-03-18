@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Loader2, RefreshCw, AlertCircle, Lightbulb } from "lucide-react";
 import type { Question } from "@/lib/types";
 import PageHeader from "./PageHeader";
+import { useSettings } from "@/lib/settings-context";
 
 interface Props {
   questions: Question[];
@@ -11,7 +12,18 @@ interface Props {
   examName: string;
 }
 
-type Scope = "all" | "wrong";
+interface UserStats {
+  totalAttempted: number;
+  totalCorrect: number;
+  accuracy: number;
+  perCategory: Record<string, { attempted: number; correct: number; accuracy: number }>;
+  wrongQuestions: {
+    question: string;
+    answers: string[];
+    correctAnswers: string[];
+    category: string | null;
+  }[];
+}
 
 // Minimal markdown renderer — handles h1-h4, bullets, bold, hr, paragraphs
 function MarkdownBlock({ text }: { text: string }) {
@@ -97,37 +109,54 @@ function MarkdownBlock({ text }: { text: string }) {
 }
 
 export default function StudyGuideClient({ questions, examId, examName }: Props) {
-  const [scope, setScope] = useState<Scope>("all");
+  const { settings } = useSettings();
   const [markdown, setMarkdown] = useState<string | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true); // true while checking DB on mount
+  const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
 
-  // Wrong questions from localStorage
-  const [wrongQuestions, setWrongQuestions] = useState<Question[]>([]);
-
+  // Compute user stats from localStorage
   useEffect(() => {
     const raw = localStorage.getItem(`quiz-stats-${examId}`);
-    if (raw) {
-      const stats = JSON.parse(raw) as Record<string, 0 | 1>;
-      setWrongQuestions(questions.filter((q) => stats[q.dbId] === 0));
+    if (!raw) return;
+    const statsMap = JSON.parse(raw) as Record<string, 0 | 1>;
+
+    const perCategory: Record<string, { attempted: number; correct: number; accuracy: number }> = {};
+    const wrongQs: UserStats["wrongQuestions"] = [];
+    let totalAttempted = 0, totalCorrect = 0;
+
+    for (const [idxStr, val] of Object.entries(statsMap)) {
+      const q = questions.find((q) => String(q.id) === idxStr);
+      if (!q) continue;
+      totalAttempted++;
+      if (val === 1) totalCorrect++;
+      const cat = q.category ?? "General";
+      if (!perCategory[cat]) perCategory[cat] = { attempted: 0, correct: 0, accuracy: 0 };
+      perCategory[cat].attempted++;
+      if (val === 1) perCategory[cat].correct++;
+      else wrongQs.push({
+        question: q.question,
+        answers: q.choices.map((c) => `${c.label}. ${c.text}`),
+        correctAnswers: q.answers,
+        category: q.category ?? null,
+      });
     }
+
+    for (const s of Object.values(perCategory)) {
+      s.accuracy = Math.round(s.correct / s.attempted * 100);
+    }
+
+    const accuracy = totalAttempted > 0 ? Math.round(totalCorrect / totalAttempted * 100) : 0;
+    setUserStats({ totalAttempted, totalCorrect, accuracy, perCategory, wrongQuestions: wrongQs });
   }, [examId, questions]);
 
-  // On mount or scope change: check DB (all only), reset content
+  // On mount: check DB cache for common guide
   useEffect(() => {
     setMarkdown(null);
     setGeneratedAt(null);
     setError(null);
-
-    if (scope === "wrong") {
-      // wrong scope is user-specific, not stored in DB
-      setLoading(false);
-      return;
-    }
-
-    // all scope: check DB
     setLoading(true);
     fetch(`/api/ai/study-guide?examId=${encodeURIComponent(examId)}`)
       .then((r) => r.json() as Promise<{ markdown: string | null; generatedAt: string | null }>)
@@ -139,9 +168,7 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
       })
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [scope, examId]);
-
-  const activeQuestions = scope === "wrong" ? wrongQuestions : questions;
+  }, [examId]);
 
   const generate = useCallback(async () => {
     setGenerating(true);
@@ -152,13 +179,16 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          examId: scope === "all" ? examId : null, // null = don't save to DB
+          // Personalized guides (with userStats) are not cached
+          examId: userStats ? null : examId,
           examName,
-          questions: activeQuestions.map((q) => ({
+          language: settings.language,
+          questions: questions.map((q) => ({
             question: q.question,
-            answers: q.answers,
+            answers: q.choices.map((c) => `${c.label}. ${c.text}`),
             category: q.category ?? null,
           })),
+          ...(userStats ? { userStats } : {}),
         }),
       });
 
@@ -175,12 +205,12 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
     } finally {
       setGenerating(false);
     }
-  }, [examId, examName, activeQuestions, scope]);
+  }, [examId, examName, questions, userStats, settings.language]);
 
   function formatDate(iso: string) {
     const d = new Date(iso);
     if (isNaN(d.getTime())) return iso;
-    return d.toLocaleString("ja-JP", {
+    return d.toLocaleString(settings.language === "ja" ? "ja-JP" : "en-US", {
       year: "numeric", month: "2-digit", day: "2-digit",
       hour: "2-digit", minute: "2-digit",
     });
@@ -209,27 +239,6 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
 
       <main className="flex-1 px-4 sm:px-8 py-6 max-w-3xl mx-auto w-full">
 
-        {/* Scope toggle */}
-        <div className="flex gap-1 p-1 bg-gray-100 rounded-xl mb-5">
-          <button
-            onClick={() => setScope("all")}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${
-              scope === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            All {questions.length}
-          </button>
-          <button
-            onClick={() => setScope("wrong")}
-            disabled={wrongQuestions.length === 0}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
-              scope === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"
-            }`}
-          >
-            Wrong {wrongQuestions.length > 0 ? wrongQuestions.length : ""}
-          </button>
-        </div>
-
         {/* DB check loading */}
         {loading && (
           <div className="flex items-center justify-center py-24">
@@ -243,7 +252,7 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
             <Loader2 size={28} className="animate-spin text-gray-400" />
             <div className="text-center">
               <p className="text-sm font-medium text-gray-600">
-                Analyzing {activeQuestions.length} questions...
+                Analyzing {questions.length} questions...
               </p>
               <p className="text-xs text-gray-400 mt-1">Web search included. This may take ~30 seconds.</p>
             </div>
@@ -269,16 +278,15 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
           <div className="flex flex-col items-center justify-center py-20 gap-4">
             <Lightbulb size={28} className="text-gray-300" />
             <p className="text-sm text-gray-400">
-              {scope === "wrong"
-                ? `${wrongQuestions.length} 問の間違い問題を分析します`
-                : "まだ Study Guide が生成されていません"}
+              {userStats
+                ? `${userStats.totalAttempted} questions answered · ${userStats.accuracy}% accuracy`
+                : "No study guide generated yet"}
             </p>
             <button
               onClick={generate}
-              disabled={activeQuestions.length === 0}
-              className="px-4 py-2 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 text-sm font-semibold bg-gray-900 text-white rounded-xl hover:bg-gray-700 transition-colors"
             >
-              Generate ({activeQuestions.length} questions)
+              Generate ({questions.length} questions)
             </button>
           </div>
         )}
@@ -288,8 +296,10 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
           <>
             {generatedAt && (
               <p className="text-xs text-gray-400 mb-3 text-right">
-                {scope === "wrong" && (
-                  <span className="mr-2 text-rose-400 font-medium">Wrong only</span>
+                {userStats && (
+                  <span className="mr-2 text-gray-500 font-medium">
+                    {userStats.totalAttempted} answered · {userStats.accuracy}%
+                  </span>
                 )}
                 Generated: {formatDate(generatedAt)}
               </p>
