@@ -49,11 +49,11 @@ export default function KeyboardHintToast() {
         <table className="w-full">
           <tbody className="text-xs">
             {([
-              ["1–9", "Choose answer"],
-              ["Enter", "Submit / Next"],
-              ["N", "Next question"],
-              ["← →", "Navigate"],
-            ] as const).map(([key, label]) => (
+              ["A-Z", "Select answer"],
+              ["Enter / →", "Submit / Next"],
+              ["←", "Prev question"],
+              ["⌫", "Don't Know (review)"],
+            ] as [string, string][]).map(([key, label]) => (
               <tr key={key}>
                 <td className="py-0.5 pr-2">
                   <kbd className="inline-block bg-gray-100 border border-gray-200 rounded px-1.5 py-0.5 font-mono text-[10px] text-gray-600 whitespace-nowrap">

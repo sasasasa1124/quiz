@@ -78,6 +78,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [sessionId] = useState<string>(() => crypto.randomUUID());
   const [sessionCorrectCount, setSessionCorrectCount] = useState(0);
   const sessionCompletedRef = useRef(false);
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
+  const touchZone = useRef<"top" | "bottom" | null>(null);
 
   const { settings } = useSettings();
 
@@ -237,6 +240,29 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
   }, [currentIndex, filteredQuestions.length, goNext, router, backHref, doCompleteSession]);
 
+  const onTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    touchZone.current = e.touches[0].clientY < window.innerHeight / 2 ? "top" : "bottom";
+  }, []);
+
+  const onTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - touchStartX.current;
+    const dy = e.changedTouches[0].clientY - (touchStartY.current ?? 0);
+    touchStartX.current = null;
+    touchStartY.current = null;
+    if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 50) { touchZone.current = null; return; }
+    if (mode === "review" && !revealed && touchZone.current === "bottom") {
+      if (dx < 0) handleKnow();
+      else handleDontKnow();
+    } else {
+      if (dx < 0) goNext();
+      else goPrev();
+    }
+    touchZone.current = null;
+  }, [mode, revealed, goNext, goPrev, handleKnow, handleDontKnow]);
+
   const handleQuestionSave = useCallback((updated: Question) => {
     setQuestions((prev) => {
       const exists = prev.some((q) => q.dbId === updated.dbId);
@@ -393,11 +419,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       if (mode === "review") {
         if (!revealed) {
           if (e.key === "ArrowRight" || e.key === "Enter") handleKnow();
-          else if (e.key === "ArrowLeft") handleDontKnow();
-          else if (e.key === "Backspace") goPrev();
+          else if (e.key === "Backspace") handleDontKnow();
+          else if (e.key === "ArrowLeft") goPrev();
         } else {
           if (e.key === "ArrowRight" || e.key === "Enter") handleRevealNext();
-          else if (e.key === "Backspace") goPrev();
+          else if (e.key === "ArrowLeft" || e.key === "Backspace") goPrev();
         }
         return;
       }
@@ -494,7 +520,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       </header>
 
       {/* ── Main ── */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
 
         {/* Left panel */}
         <div className={`
@@ -682,7 +708,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           <span className="text-xs text-gray-300 tabular-nums w-4 shrink-0">{filteredQuestions.length}</span>
           <span className="text-xs text-gray-300 ml-2 shrink-0 hidden lg:block">
             {mode === "review"
-              ? (revealed ? "→ next  ⌫ prev" : "→ knew  ← didn't  ⌫ prev")
+              ? (revealed ? "← → navigate" : "→ knew  ⌫ didn't  ← prev")
               : "1–9 select  Enter submit/next  ←→ nav"}
           </span>
         </div>

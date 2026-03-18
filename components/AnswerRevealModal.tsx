@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { CheckCircle2, XCircle, ChevronRight, Sparkles } from "lucide-react";
 import type { Question } from "@/lib/types";
 
@@ -19,7 +19,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
     const ready = Date.now();
     const handler = (e: KeyboardEvent) => {
       if (Date.now() - ready < 150) return;
-      if (e.key === "Escape" || e.key === "n" || e.key === "N" || e.key === "Enter") {
+      if (e.key === "Escape" || e.key === "n" || e.key === "N" || e.key === "Enter" || e.key === "ArrowRight") {
         e.preventDefault();
         onNext();
       }
@@ -30,12 +30,25 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
 
   const correctChoices = question.choices.filter((c) => question.answers.includes(c.label));
 
+  const swipeTouchStartX = useRef<number | null>(null);
+  const onSwipeTouchStart = useCallback((e: React.TouchEvent) => {
+    swipeTouchStartX.current = e.touches[0].clientX;
+  }, []);
+  const onSwipeTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (swipeTouchStartX.current === null) return;
+    const dx = e.changedTouches[0].clientX - swipeTouchStartX.current;
+    swipeTouchStartX.current = null;
+    if (Math.abs(dx) >= 50 && dx < 0) onNext(); // swipe left = next
+  }, [onNext]);
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center sm:p-4">
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-sm"
         onClick={onNext}
+        onTouchStart={onSwipeTouchStart}
+        onTouchEnd={onSwipeTouchEnd}
       />
 
       {/* Modal card — centered on sm+, bottom-sheet on mobile */}
