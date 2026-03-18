@@ -441,7 +441,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const q = filteredQuestions[currentIndex];
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden bg-[#f8f9fb]">
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#f8f9fb]">
       {/* ── Header ── */}
       <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-12 border-b border-gray-200 bg-white">
         <div className="flex items-center gap-3 sm:gap-4 min-w-0">
@@ -537,7 +537,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               Edit
                             </button>
                           </div>
-                          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4">
+                          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 max-h-[40vh] overflow-y-auto">
                             <div
                               className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
                               dangerouslySetInnerHTML={{ __html: q.question }}
