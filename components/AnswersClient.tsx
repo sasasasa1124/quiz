@@ -34,9 +34,9 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
     const q = questions[currentIndex];
     if (!q) return;
     speak(buildAnswerText(q, settings.language));
-    // Pre-warm next question's audio
+    // Pre-warm first chunk of next question
     const next = questions[currentIndex + 1];
-    if (next) prefetch(buildAnswerText(next, settings.language));
+    if (next) prefetch(buildAnswerText(next, settings.language)[0]);
     return () => { stop(); };
   }, [currentIndex, speak, stop, prefetch, settings.language, questions]);
 

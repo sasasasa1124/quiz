@@ -130,9 +130,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
-    // Pre-warm next question's audio while user reads current one
+    // Pre-warm first chunk of next question
     const next = filteredQuestions[currentIndex + 1];
-    if (next) prefetch(buildQuestionText(next));
+    if (next) prefetch(buildQuestionText(next)[0]);
     return () => { stop(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted]);

@@ -5,15 +5,17 @@ import { useSettings } from "@/lib/settings-context";
 
 // Session-scoped cache: text → Object URL (WAV blob)
 const audioCache = new Map<string, string>();
-// In-flight dedup: text → pending promise (avoids duplicate API calls)
+// In-flight dedup: text → pending promise
 const inFlight = new Map<string, Promise<string | null>>();
 
 export function useAudio() {
   const { settings } = useSettings();
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const speakingTokenRef = useRef<symbol | null>(null);
   const [playing, setPlaying] = useState(false);
 
   const stop = useCallback(() => {
+    speakingTokenRef.current = null; // cancel any in-progress sequence
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -25,7 +27,6 @@ export function useAudio() {
   const fetchAudio = useCallback(async (text: string): Promise<string | null> => {
     const cached = audioCache.get(text);
     if (cached) return cached;
-    // Reuse in-flight request to avoid duplicate API calls
     const existing = inFlight.get(text);
     if (existing) return existing;
     const promise = (async () => {
@@ -51,37 +52,45 @@ export function useAudio() {
   }, []);
 
   const speak = useCallback(
-    async (text: string) => {
+    async (texts: string[]) => {
       if (!settings.audioMode) return;
       stop();
 
-      try {
+      const token = Symbol();
+      speakingTokenRef.current = token;
+
+      for (const text of texts) {
+        if (speakingTokenRef.current !== token) break;
+
         const objectUrl = await fetchAudio(text);
-        if (!objectUrl) return;
+        if (!objectUrl || speakingTokenRef.current !== token) break;
 
-        const audio = new Audio(objectUrl);
-        audio.playbackRate = settings.audioSpeed;
-        audioRef.current = audio;
+        // Play this chunk and wait for it to finish
+        await new Promise<void>((resolve) => {
+          const audio = new Audio(objectUrl);
+          audio.playbackRate = settings.audioSpeed;
+          audioRef.current = audio;
+          audio.addEventListener("ended", () => resolve());
+          audio.addEventListener("error", () => resolve());
+          setPlaying(true);
+          audio.play().catch(() => resolve());
+        });
+      }
 
-        audio.addEventListener("ended", () => setPlaying(false));
-        audio.addEventListener("error", () => setPlaying(false));
-
-        setPlaying(true);
-        await audio.play();
-      } catch {
+      if (speakingTokenRef.current === token) {
         setPlaying(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.audioMode, settings.audioSpeed, fetchAudio],
+    [settings.audioMode, settings.audioSpeed, fetchAudio, stop],
   );
 
-  // Pre-warm the cache for a text without playing it
+  // Pre-warm the first chunk of the next question
   const prefetch = useCallback(
-    (text: string) => {
+    (firstChunk: string) => {
       if (!settings.audioMode) return;
-      if (audioCache.has(text)) return;
-      fetchAudio(text).catch(() => {});
+      if (audioCache.has(firstChunk) || inFlight.has(firstChunk)) return;
+      fetchAudio(firstChunk).catch(() => {});
     },
     [settings.audioMode, fetchAudio],
   );
