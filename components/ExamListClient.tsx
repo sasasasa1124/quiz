@@ -45,7 +45,18 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const { settings, updateSettings } = useSettings();
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
   const [statsMap, setStatsMap] = useState<Record<string, { pct: number | null; answered: number; total: number; wrongCount: number }>>({});
-  const langFilter = settings.language;
+  const availableLangs = Array.from(new Set(initialExams.map((e) => e.language)));
+  const langOptions = (
+    [
+      { value: "en" as const, label: "EN" },
+      { value: "ja" as const, label: "日本語" },
+      { value: "zh" as const, label: "中文" },
+      { value: "ko" as const, label: "한국어" },
+    ] as { value: "en" | "ja" | "zh" | "ko"; label: string }[]
+  ).filter((opt) => availableLangs.includes(opt.value));
+  const langFilter = availableLangs.includes(settings.language)
+    ? settings.language
+    : (availableLangs[0] ?? "en");
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
@@ -243,16 +254,11 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           </button>
           {langOpen && (
             <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[100px]">
-              {([
-                { value: "en" as const, label: "EN" },
-                { value: "ja" as const, label: "日本語" },
-                { value: "zh" as const, label: "中文" },
-                { value: "ko" as const, label: "한국어" },
-              ]).map((opt) => (
+              {langOptions.map((opt) => (
                 <button
                   key={opt.value}
                   onClick={() => { updateSettings({ language: opt.value }); setLangOpen(false); }}
-                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${settings.language === opt.value ? "font-semibold text-blue-600" : "text-gray-700"}`}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${langFilter === opt.value ? "font-semibold text-blue-600" : "text-gray-700"}`}
                 >
                   {opt.label}
                 </button>

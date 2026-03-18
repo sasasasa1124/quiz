@@ -25,7 +25,7 @@ export interface Question {
 export interface ExamMeta {
   id: string;           // exam id
   name: string;         // display name
-  language: "ja" | "en";
+  language: "ja" | "en" | "zh" | "ko";
   questionCount: number;
   duplicateCount?: number;
 }
@@ -91,7 +91,7 @@ Respond ONLY with a JSON object (no markdown, no code fences) with exactly these
 - sources: array of 1–3 URLs that directly support the answer. Use [] if none found.`;
 
 export const DEFAULT_REFINE_PROMPT = `You are an expert editor for Salesforce/MuleSoft certification exam questions.
-Your task is to fix ONLY typos, grammatical errors, spelling mistakes, and awkward phrasing, missing line breaks (either in list, bullets) in the question text and answer choices.
+Your task is to fix ONLY typos, grammatical errors, spelling mistakes, and awkward phrasing, missing line breaks (either in list, bullets; 1.xxx, 1).xxx, *xxx , - xxx, etc.) in the question text and answer choices.
 Do NOT change the meaning, technical content, correct answers, or add/remove choices.
 Do NOT rewrite or rephrase if there is no error — preserve the original wording as much as possible.
 

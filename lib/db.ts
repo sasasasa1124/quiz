@@ -25,24 +25,28 @@ export function getDB(): D1Database | null {
 }
 
 // ── CSV fallback (local dev only) ─────────────────────────────────────────
-// Edge runtime can't use fs/process.cwd(), so we call a Node.js API route
-// that reads CSV files. In production on Cloudflare, getDB() returns D1 so
-// these functions are never reached.
-
-const LOCAL_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
+// In Node.js context (Next.js dev server components), import lib/csv directly.
+// In edge context, process.cwd is not a function — fall back to empty arrays
+// (edge routes with D1 unavailable return [] anyway in production).
 
 async function csvExamList(): Promise<ExamMeta[]> {
   try {
-    const res = await fetch(`${LOCAL_BASE}/api/local-exams`);
-    return res.json() as Promise<ExamMeta[]>;
-  } catch { return []; }
+    if (typeof process !== "undefined" && typeof process.cwd === "function") {
+      const { getExamList } = await import("@/lib/csv");
+      return getExamList();
+    }
+  } catch { /* fall through */ }
+  return [];
 }
 
 async function csvQuestions(examId: string): Promise<Question[]> {
   try {
-    const res = await fetch(`${LOCAL_BASE}/api/local-questions/${encodeURIComponent(examId)}`);
-    return res.json() as Promise<Question[]>;
-  } catch { return []; }
+    if (typeof process !== "undefined" && typeof process.cwd === "function") {
+      const { getQuestions } = await import("@/lib/csv");
+      return getQuestions(examId);
+    }
+  } catch { /* fall through */ }
+  return [];
 }
 
 // ── Exam list ──────────────────────────────────────────────────────────────
@@ -65,7 +69,7 @@ export async function getExamList(): Promise<ExamMeta[]> {
   return (result.results ?? []).map((row) => ({
     id: row.id,
     name: row.name,
-    language: row.lang as "ja" | "en",
+    language: row.lang as "ja" | "en" | "zh" | "ko",
     questionCount: row.question_count,
     duplicateCount: row.duplicate_count ?? 0,
   }));
@@ -73,7 +77,7 @@ export async function getExamList(): Promise<ExamMeta[]> {
 
 export async function updateExamMeta(
   examId: string,
-  fields: { name?: string; language?: "ja" | "en" }
+  fields: { name?: string; language?: "ja" | "en" | "zh" | "ko" }
 ): Promise<void> {
   const db = getDB();
   if (!db) return; // CSV mode: no-op
@@ -83,6 +87,19 @@ export async function updateExamMeta(
   if (fields.language !== undefined) {
     await db.prepare("UPDATE exams SET lang = ? WHERE id = ?").bind(fields.language, examId).run();
   }
+}
+
+export async function renameCategory(
+  examId: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  const db = getDB();
+  if (!db) return;
+  await db
+    .prepare("UPDATE questions SET category = ? WHERE exam_id = ? AND category = ?")
+    .bind(newName.trim(), examId, oldName)
+    .run();
 }
 
 // ── Questions ──────────────────────────────────────────────────────────────
