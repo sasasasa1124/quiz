@@ -52,19 +52,21 @@ export async function getExamList(): Promise<ExamMeta[]> {
 
   const result = await db
     .prepare(
-      `SELECT e.id, e.name, e.lang, COUNT(q.id) AS question_count
+      `SELECT e.id, e.name, e.lang, COUNT(q.id) AS question_count,
+              SUM(CASE WHEN q.is_duplicate = 1 THEN 1 ELSE 0 END) AS duplicate_count
        FROM exams e
        LEFT JOIN questions q ON q.exam_id = e.id
        GROUP BY e.id
        ORDER BY e.lang ASC, e.name ASC`
     )
-    .all<{ id: string; name: string; lang: string; question_count: number }>();
+    .all<{ id: string; name: string; lang: string; question_count: number; duplicate_count: number }>();
 
   return (result.results ?? []).map((row) => ({
     id: row.id,
     name: row.name,
     language: row.lang as "ja" | "en",
     questionCount: row.question_count,
+    duplicateCount: row.duplicate_count ?? 0,
   }));
 }
 

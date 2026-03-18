@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Brain, BookOpen, BookOpenCheck,
-  ChevronRight, AlertCircle, TrendingUp, Tag,
+  ChevronRight, AlertCircle, TrendingUp, Tag, Timer,
 } from "lucide-react";
 import type { CategoryStat, ExamMeta } from "@/lib/types";
 import PageHeader from "./PageHeader";
@@ -219,6 +219,13 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
               className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
             >
               <BookOpenCheck size={14} /> Answer Sheet
+            </Link>
+
+            <Link
+              href={`/quiz/${encodeURIComponent(exam.id)}?mode=mock`}
+              className="w-full py-2.5 rounded-xl border border-gray-200 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-colors flex items-center justify-center gap-2"
+            >
+              <Timer size={14} /> Mock Exam
             </Link>
           </div>
         </div>

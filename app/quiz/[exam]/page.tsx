@@ -1,8 +1,25 @@
-import { getQuestions, getExamList } from "@/lib/db";
+import { getQuestions, getExamList, createSession } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import QuizClient from "@/components/QuizClient";
 import AnswersClient from "@/components/AnswersClient";
+import MockExamClient from "@/components/MockExamClient";
 import { notFound } from "next/navigation";
+
+// Salesforce exam configs: question count and time limit
+const MOCK_CONFIGS: Record<string, { questions: number; minutes: number }> = {};
+const DEFAULT_MOCK_CONFIG = { questions: 60, minutes: 105 };
+
+function getMockConfig(examId: string) {
+  for (const [key, val] of Object.entries(MOCK_CONFIGS)) {
+    if (examId.includes(key)) return val;
+  }
+  return DEFAULT_MOCK_CONFIG;
+}
+
+function selectRandomQuestions<T>(arr: T[], n: number): T[] {
+  const shuffled = [...arr].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(n, arr.length));
+}
 
 export const runtime = 'edge';
 
@@ -17,7 +34,7 @@ export default async function QuizPage({ params, searchParams }: Props) {
   const { exam } = await params;
   const { mode = "quiz", category } = await searchParams;
 
-  if (mode !== "quiz" && mode !== "review" && mode !== "answers") notFound();
+  if (mode !== "quiz" && mode !== "review" && mode !== "answers" && mode !== "mock") notFound();
 
   const examId = decodeURIComponent(exam);
   const exams = await getExamList();
@@ -30,6 +47,26 @@ export default async function QuizPage({ params, searchParams }: Props) {
     : allQuestions;
 
   const userEmail = await getUserEmail();
+
+  if (mode === "mock") {
+    const config = getMockConfig(examId);
+    const mockQuestions = selectRandomQuestions(
+      questions.filter((q) => !q.isDuplicate),
+      config.questions
+    );
+    const sessionId = crypto.randomUUID();
+    await createSession(userEmail, examId, "quiz", "all", mockQuestions.length, sessionId);
+    return (
+      <MockExamClient
+        questions={mockQuestions}
+        examId={examId}
+        examName={meta.name}
+        timeLimitMinutes={config.minutes}
+        sessionId={sessionId}
+        userEmail={userEmail}
+      />
+    );
+  }
 
   if (mode === "answers") {
     return (
