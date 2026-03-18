@@ -75,7 +75,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: 
         )}
         {/* Timestamps */}
         {(question.addedAt || question.createdAt) && (
-          <p className="text-xs text-gray-300 mt-2">
+          <p className="text-xs text-gray-400 mt-2">
             {question.addedAt && <>Added: {new Date(question.addedAt).toLocaleDateString()}</>}
             {question.createdAt && question.createdAt !== question.addedAt && (
               <> &middot; Created: {new Date(question.createdAt).toLocaleDateString()}</>

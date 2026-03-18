@@ -35,6 +35,7 @@ interface Props {
   mode: "quiz" | "review";
   userEmail: string;
   activeCategory: string | null;
+  initialFilter?: "all" | "continue" | "wrong";
 }
 
 const statsKey = (id: string) => `quiz-stats-${id}`;
@@ -71,12 +72,12 @@ function saveLastQuestionId(examId: string, questionId: number) {
   localStorage.setItem(lastQKey(examId), String(questionId));
 }
 
-export default function QuizClient({ questions: initialQuestions, examId, examName, mode, userEmail, activeCategory }: Props) {
+export default function QuizClient({ questions: initialQuestions, examId, examName, mode, userEmail, activeCategory, initialFilter }: Props) {
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState<QuizStats>({});
-  const [filter, setFilter] = useState<"all" | "continue" | "wrong">("all");
+  const [filter, setFilter] = useState<"all" | "continue" | "wrong">(initialFilter ?? "all");
   const [savedLastQuestionId, setSavedLastQuestionId] = useState<number | null>(null);
   const [excludeDuplicates, setExcludeDuplicates] = useState(true);
 
@@ -477,6 +478,20 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
   }, [filteredQuestions, currentIndex]);
 
+  const handleToggleDuplicate = useCallback(async () => {
+    const q = filteredQuestions[currentIndex];
+    if (!q?.dbId) return;
+    const newVal = !q.isDuplicate;
+    await fetch(`/api/admin/questions/${q.dbId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ is_duplicate: newVal }),
+    });
+    setQuestions((prev) =>
+      prev.map((pq) => pq.dbId === q.dbId ? { ...pq, isDuplicate: newVal } : pq)
+    );
+  }, [filteredQuestions, currentIndex]);
+
   // Keyboard
   useEffect(() => {
     const q = filteredQuestions[currentIndex];
@@ -669,6 +684,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4">
                         <div className="max-w-3xl mx-auto w-full">
                           <div className="flex justify-end gap-2 mb-2">
+                            <button onClick={handleToggleDuplicate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${q.isDuplicate ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={q.isDuplicate ? "Unmark duplicate" : "Mark as duplicate"}>
+                              <Copy size={12} />
+                              Dup
+                            </button>
                             <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title={t("refine")}>
                               <Wand2 size={12} />
                               {t("refine")}
@@ -726,6 +745,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                 >
                   <div className="max-w-3xl mx-auto w-full h-full">
                     <div className="flex justify-end gap-2 mb-2">
+                      <button onClick={handleToggleDuplicate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${q.isDuplicate ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={q.isDuplicate ? "Unmark duplicate" : "Mark as duplicate"}>
+                        <Copy size={12} />
+                        Dup
+                      </button>
                       <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title={t("refine")}>
                         <Wand2 size={12} />
                         AI Refine

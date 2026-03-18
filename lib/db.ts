@@ -213,6 +213,15 @@ export async function updateQuestion(
     .run();
 }
 
+export async function setDuplicate(id: string, isDuplicate: boolean): Promise<void> {
+  const db = getDB();
+  if (!db) throw new Error("DB not available in local dev");
+  await db
+    .prepare(`UPDATE questions SET is_duplicate = ? WHERE id = ?`)
+    .bind(isDuplicate ? 1 : 0, id)
+    .run();
+}
+
 export async function getQuestionHistory(questionId: string): Promise<QuestionHistoryEntry[]> {
   const db = getDB();
   if (!db) return [];

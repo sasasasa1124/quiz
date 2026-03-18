@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateQuestion, getQuestionById, deleteQuestion } from "@/lib/db";
+import { updateQuestion, getQuestionById, deleteQuestion, setDuplicate } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import type { Choice } from "@/lib/types";
 
@@ -39,6 +39,16 @@ export async function PUT(
 
   const updated = await getQuestionById(id);
   return NextResponse.json(updated);
+}
+
+export async function PATCH(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+  const { is_duplicate } = await req.json() as { is_duplicate: boolean };
+  await setDuplicate(id, is_duplicate);
+  return NextResponse.json({ ok: true });
 }
 
 export async function DELETE(

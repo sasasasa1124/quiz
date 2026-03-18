@@ -113,9 +113,12 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           )}
 
           {/* Sources */}
-          {question.explanationSources && question.explanationSources.length > 0 && (
+          {(question.source || (question.explanationSources && question.explanationSources.length > 0)) && (
             <div className="space-y-1">
-              {question.explanationSources.length > 0 && (
+              {question.source && (
+                <p className="text-xs text-gray-400">Question source: {question.source}</p>
+              )}
+              {question.explanationSources && question.explanationSources.length > 0 && (
                 <div>
                   <p className="text-xs text-gray-400 font-medium mb-1">References:</p>
                   <ul className="space-y-0.5">
@@ -138,7 +141,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           )}
           {/* Timestamps */}
           {(question.addedAt || question.createdAt) && (
-            <p className="text-xs text-gray-300">
+            <p className="text-xs text-gray-400">
               {question.addedAt && <>Added: {new Date(question.addedAt).toLocaleDateString()}</>}
               {question.createdAt && question.createdAt !== question.addedAt && (
                 <> &middot; Created: {new Date(question.createdAt).toLocaleDateString()}</>
