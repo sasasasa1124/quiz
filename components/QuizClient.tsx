@@ -96,6 +96,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiAdopting, setAiAdopting] = useState(false);
 
+  // Reset AI popup when moving to a different question
+  useEffect(() => {
+    setAiPopupOpen(false);
+    setAiResult(null);
+    setAiLoading(false);
+    setAiError(null);
+  }, [currentIndex]);
+
   const [refinePopupOpen, setRefinePopupOpen] = useState(false);
   const [refineLoading, setRefineLoading] = useState(false);
   const [refineResult, setRefineResult] = useState<AiRefineResponse | null>(null);
@@ -921,6 +929,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             setAiResult(null);
             setAiError(null);
           }}
+          question={filteredQuestions[currentIndex]?.question}
+          choices={filteredQuestions[currentIndex]?.choices}
+          answers={filteredQuestions[currentIndex]?.answers}
         />
       )}
 

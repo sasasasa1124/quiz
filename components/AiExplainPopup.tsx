@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Loader2, Sparkles, X, CheckCheck, ExternalLink } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Loader2, Sparkles, X, CheckCheck, ExternalLink, Send } from "lucide-react";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
+import type { AiChatRequest, AiChatResponse } from "@/app/api/ai/chat/route";
+import type { Choice } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
 
 interface Props {
@@ -12,21 +14,87 @@ interface Props {
   adopting: boolean;
   onAdopt: () => Promise<void>;
   onDismiss: () => void;
+  // context needed for follow-up chat
+  question?: string;
+  choices?: Choice[];
+  answers?: string[];
 }
 
-export default function AiExplainPopup({ loading, result, error, adopting, onAdopt, onDismiss }: Props) {
-  const { t } = useSettings();
+type ChatMessage = { role: "user" | "model"; text: string };
 
-  // Keyboard: Enter = Adopt, Backspace = Dismiss
+export default function AiExplainPopup({
+  loading,
+  result,
+  error,
+  adopting,
+  onAdopt,
+  onDismiss,
+  question = "",
+  choices = [],
+  answers = [],
+}: Props) {
+  const { t } = useSettings();
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Reset chat when result changes (new explain)
+  useEffect(() => {
+    setChatHistory([]);
+    setChatInput("");
+  }, [result]);
+
+  // Scroll to bottom of chat on new message
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatHistory]);
+
+  // Keyboard: Enter = Adopt, Backspace = Dismiss (only when not typing in chat)
   useEffect(() => {
     if (!result || loading) return;
     const handler = (e: KeyboardEvent) => {
+      if (e.target === inputRef.current) return; // don't intercept chat input
       if (e.key === "Enter" && !adopting) { e.preventDefault(); onAdopt(); }
       if (e.key === "Backspace" || e.key === "Escape") { e.preventDefault(); onDismiss(); }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, [result, loading, adopting, onAdopt, onDismiss]);
+
+  async function handleChatSend() {
+    if (!chatInput.trim() || chatLoading || !result) return;
+    const userMsg = chatInput.trim();
+    setChatInput("");
+    const newHistory: ChatMessage[] = [...chatHistory, { role: "user", text: userMsg }];
+    setChatHistory(newHistory);
+    setChatLoading(true);
+
+    try {
+      const body: AiChatRequest = {
+        context: {
+          question,
+          choices,
+          answers,
+          explanation: result.explanation,
+        },
+        history: chatHistory,
+        message: userMsg,
+      };
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = await res.json() as AiChatResponse;
+      setChatHistory([...newHistory, { role: "model", text: data.reply }]);
+    } catch {
+      setChatHistory([...newHistory, { role: "model", text: "Failed to get response." }]);
+    } finally {
+      setChatLoading(false);
+    }
+  }
 
   return (
     <div className="fixed bottom-20 right-4 sm:right-8 z-60 w-80 sm:w-[22rem] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
@@ -118,34 +186,92 @@ export default function AiExplainPopup({ loading, result, error, adopting, onAdo
                 </div>
               </div>
             )}
+
+            {/* Chat history */}
+            {chatHistory.length > 0 && (
+              <div className="border-t border-gray-100 pt-3 space-y-2">
+                {chatHistory.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                  >
+                    <div
+                      className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
+                        msg.role === "user"
+                          ? "bg-violet-600 text-white"
+                          : "bg-gray-100 text-gray-700"
+                      }`}
+                    >
+                      {msg.text}
+                    </div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-gray-100 rounded-xl px-3 py-2">
+                      <Loader2 size={12} className="animate-spin text-gray-400" />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+            )}
           </>
         )}
       </div>
 
       {/* Footer */}
       {result && (
-        <div className="px-4 pb-4 pt-2 flex gap-2 border-t border-gray-100 shrink-0">
-          <button
-            onClick={onDismiss}
-            className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
-          >
-            {t("dismiss")}
-            <kbd className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">⌫</kbd>
-          </button>
-          <button
-            onClick={onAdopt}
-            disabled={adopting}
-            className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
-          >
-            {adopting ? (
-              <Loader2 size={13} className="animate-spin" />
-            ) : (
-              <CheckCheck size={13} />
-            )}
-            {t("adopt")}
-            <kbd className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">↵</kbd>
-          </button>
-        </div>
+        <>
+          {/* Chat input */}
+          <div className="px-3 pb-2 pt-2 border-t border-gray-100 flex gap-2 items-end shrink-0">
+            <textarea
+              ref={inputRef}
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  handleChatSend();
+                }
+              }}
+              placeholder="Ask a follow-up question..."
+              rows={1}
+              className="flex-1 text-xs text-gray-700 placeholder-gray-300 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 resize-none outline-none focus:border-violet-300 focus:ring-1 focus:ring-violet-200 transition-colors"
+            />
+            <button
+              onClick={handleChatSend}
+              disabled={!chatInput.trim() || chatLoading}
+              className="shrink-0 w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center hover:bg-violet-700 disabled:opacity-30 transition-colors"
+            >
+              <Send size={12} />
+            </button>
+          </div>
+
+          {/* Adopt / Dismiss */}
+          <div className="px-4 pb-4 pt-1 flex gap-2 shrink-0">
+            <button
+              onClick={onDismiss}
+              className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+            >
+              {t("dismiss")}
+              <kbd className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">⌫</kbd>
+            </button>
+            <button
+              onClick={onAdopt}
+              disabled={adopting}
+              className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+            >
+              {adopting ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <CheckCheck size={13} />
+              )}
+              {t("adopt")}
+              <kbd className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">↵</kbd>
+            </button>
+          </div>
+        </>
       )}
     </div>
   );
