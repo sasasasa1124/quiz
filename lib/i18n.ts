@@ -44,7 +44,9 @@ export type TranslationKey =
   | "showAll"
   | "noWrongAnswers"
   | "noQuestions"
-  | "allWrongCleared";
+  | "allWrongCleared"
+  | "continueFrom"
+  | "uniq";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -92,6 +94,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     noWrongAnswers: "No wrong answers",
     noQuestions: "No questions",
     allWrongCleared: "All wrong answers cleared",
+    continueFrom: "Continue",
+    uniq: "Uniq",
   },
   ja: {
     settings: "設定",
@@ -138,6 +142,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     noWrongAnswers: "不正解なし",
     noQuestions: "問題なし",
     allWrongCleared: "不正解が全てクリアされました",
+    continueFrom: "続きから",
+    uniq: "重複除外",
   },
   zh: {
     settings: "设置",
@@ -184,6 +190,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     noWrongAnswers: "无错误答案",
     noQuestions: "无题目",
     allWrongCleared: "所有错误答案已清除",
+    continueFrom: "继续",
+    uniq: "去重",
   },
   ko: {
     settings: "설정",
@@ -230,6 +238,8 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     noWrongAnswers: "오답 없음",
     noQuestions: "문제 없음",
     allWrongCleared: "모든 오답이 해결되었습니다",
+    continueFrom: "이어서",
+    uniq: "중복제외",
   },
 };
 

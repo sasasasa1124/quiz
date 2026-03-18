@@ -616,15 +616,15 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           )}
           <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
             <button onClick={() => setFilter("all")} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-              <Layers size={11} /> <span className="hidden sm:inline">All</span> {questions.length}
+              <Layers size={11} /> <span className="hidden sm:inline">{t("all")}</span> {questions.length}
             </button>
             {hasContinue && (
               <button onClick={() => setFilter("continue")} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "continue" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-                <History size={11} /> <span className="hidden sm:inline">続きから</span><span className="hidden sm:inline text-gray-400 ml-0.5">Q{continueDisplayNum}</span>
+                <History size={11} /> <span className="hidden sm:inline">{t("continueFrom")}</span><span className="hidden sm:inline text-gray-400 ml-0.5">Q{continueDisplayNum}</span>
               </button>
             )}
             <button onClick={() => setFilter("wrong")} disabled={wrongCount === 0} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
-              <AlertCircle size={11} /> <span className="hidden sm:inline">Wrong</span> {wrongCount}
+              <AlertCircle size={11} /> <span className="hidden sm:inline">{t("wrong")}</span> {wrongCount}
             </button>
             {duplicateCount > 0 && (
               <button
@@ -632,7 +632,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                 className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${excludeDuplicates ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
                 title={excludeDuplicates ? "Include duplicates" : "Exclude duplicates"}
               >
-                <Copy size={11} /> <span className="hidden sm:inline">Uniq</span>
+                <Copy size={11} /> <span className="hidden sm:inline">{t("uniq")}</span>
               </button>
             )}
           </div>
