@@ -175,7 +175,10 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900 text-sm leading-snug">{exam.name}</p>
                     <p className="text-xs text-gray-400 mt-1">
-                      {exam.questionCount} Q
+                      {exam.duplicateCount && exam.duplicateCount > 0
+                        ? <>{exam.questionCount - exam.duplicateCount} Q <span className="text-gray-300">({exam.questionCount} total)</span></>
+                        : <>{exam.questionCount} Q</>
+                      }
                       {s && s.answered > 0 && (
                         <span className="ml-2 text-gray-300">· {s.answered}/{s.total}</span>
                       )}

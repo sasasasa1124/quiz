@@ -27,6 +27,7 @@ export interface ExamMeta {
   name: string;         // display name
   language: "ja" | "en";
   questionCount: number;
+  duplicateCount?: number;
 }
 
 export interface CategoryStat {

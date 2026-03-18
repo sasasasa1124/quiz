@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import type { Choice, ExamMeta, Question } from "./types";
 
-function getCSVDir(): string { return path.join(process.cwd(), ".."); }
+function getCSVDir(): string { return process.cwd(); }
 
 const EXAM_NAMES: Record<string, string> = {
   // ── 日本語版 ──────────────────────────────────────────────────────────────
@@ -82,11 +82,14 @@ export function getExamList(): ExamMeta[] {
       const content = fs.readFileSync(path.join(getCSVDir(), file), "utf-8");
       const records = parse(content, { columns: true, skip_empty_lines: true });
       const language = detectLanguage(records as Record<string, string>[]);
+      const duplicateCount = (records as Record<string, string>[])
+        .filter((r) => !!(r["duplicate"] ?? "").trim()).length;
       metas.push({
         id,
         name: displayName,
         language,
         questionCount: records.length,
+        duplicateCount,
       });
     } catch {
       // skip malformed CSVs

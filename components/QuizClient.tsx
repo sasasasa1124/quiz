@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, BookOpen, Brain, Layers, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home, Copy,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import type { Locale } from "@/lib/i18n";
@@ -61,6 +61,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState<QuizStats>({});
   const [filter, setFilter] = useState<"all" | "wrong">("all");
+  const [excludeDuplicates, setExcludeDuplicates] = useState(true);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
@@ -148,10 +149,13 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   useEffect(() => {
     setCurrentIndex(0);
     setDirection("forward");
-  }, [filter]);
+  }, [filter, excludeDuplicates]);
+
+  const duplicateCount = questions.filter((q) => q.isDuplicate).length;
 
   const filteredQuestions = questions.filter((q) => {
     if (filter === "wrong") return stats[String(q.id)] === 0;
+    if (excludeDuplicates && q.isDuplicate) return false;
     return true;
   });
 
@@ -476,8 +480,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
         <p className="font-semibold text-gray-700">
           {filter === "wrong" ? "No wrong answers" : "No questions"}
         </p>
-        {filter === "wrong" && (
-          <button onClick={() => setFilter("all")} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
+        {(filter === "wrong" || excludeDuplicates) && (
+          <button onClick={() => { setFilter("all"); setExcludeDuplicates(false); }} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
             Show all
           </button>
         )}
@@ -539,6 +543,15 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             <button onClick={() => setFilter("wrong")} disabled={wrongCount === 0} className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
               <AlertCircle size={11} /> <span className="hidden sm:inline">Wrong</span> {wrongCount}
             </button>
+            {duplicateCount > 0 && (
+              <button
+                onClick={() => setExcludeDuplicates((v) => !v)}
+                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${excludeDuplicates ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                title={excludeDuplicates ? "Include duplicates" : "Exclude duplicates"}
+              >
+                <Copy size={11} /> <span className="hidden sm:inline">Uniq</span>
+              </button>
+            )}
           </div>
           <div ref={langRef} className="relative">
             <button
