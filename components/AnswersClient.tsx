@@ -45,6 +45,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const [aiResult, setAiResult] = useState<AiExplainResponse | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiAdopting, setAiAdopting] = useState(false);
+  const [aiSuggesting, setAiSuggesting] = useState(false);
 
   const [refinePopupOpen, setRefinePopupOpen] = useState(false);
   const [refineLoading, setRefineLoading] = useState(false);
@@ -119,6 +120,31 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
       setAiError(e instanceof Error ? e.message : "Failed to adopt answer");
     } finally {
       setAiAdopting(false);
+    }
+  }, [aiResult, questions, currentIndex]);
+
+  const handleAiSuggest = useCallback(async () => {
+    if (!aiResult) return;
+    const q = questions[currentIndex];
+    if (!q) return;
+    setAiSuggesting(true);
+    try {
+      await fetch("/api/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: q.dbId,
+          type: "ai",
+          suggestedAnswers: aiResult.answers,
+          suggestedExplanation: aiResult.explanation,
+          aiModel: aiResult.model ?? null,
+          comment: null,
+        }),
+      });
+      setAiPopupOpen(false);
+      setAiResult(null);
+    } finally {
+      setAiSuggesting(false);
     }
   }, [aiResult, questions, currentIndex]);
 
@@ -399,6 +425,8 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
             setAiResult(null);
             setAiError(null);
           }}
+          onSuggest={handleAiSuggest}
+          suggesting={aiSuggesting}
         />
       )}
 

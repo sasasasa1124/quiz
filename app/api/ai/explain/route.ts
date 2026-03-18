@@ -14,6 +14,7 @@ const AiResponseSchema = z.object({
   answers: z.array(z.string()),
   reasoning: z.string(),
   sources: z.array(z.string()).optional(),
+  model: z.string().optional(),
 });
 
 export type AiExplainResponse = z.infer<typeof AiResponseSchema>;
@@ -82,5 +83,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json(result.data);
+  return NextResponse.json({ ...result.data, model });
 }

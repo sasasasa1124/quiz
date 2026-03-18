@@ -1,4 +1,4 @@
-import type { CategoryStat, Choice, ExamMeta, ExamSnapshot, Question, QuestionHistoryEntry, QuizStats, SessionRecord, UserSettings } from "./types";
+import type { CategoryStat, Choice, ExamMeta, ExamSnapshot, Question, QuestionHistoryEntry, QuizStats, SessionRecord, Suggestion, UserSettings } from "./types";
 import { DEFAULT_USER_SETTINGS } from "./types";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
@@ -65,7 +65,7 @@ export async function getExamList(): Promise<ExamMeta[]> {
   return (result.results ?? []).map((row) => ({
     id: row.id,
     name: row.name,
-    language: row.lang as "ja" | "en",
+    language: row.lang as "ja" | "en" | "zh" | "ko",
     questionCount: row.question_count,
     duplicateCount: row.duplicate_count ?? 0,
   }));
@@ -73,7 +73,7 @@ export async function getExamList(): Promise<ExamMeta[]> {
 
 export async function updateExamMeta(
   examId: string,
-  fields: { name?: string; language?: "ja" | "en" }
+  fields: { name?: string; language?: "ja" | "en" | "zh" | "ko" }
 ): Promise<void> {
   const db = getDB();
   if (!db) return; // CSV mode: no-op
@@ -83,6 +83,19 @@ export async function updateExamMeta(
   if (fields.language !== undefined) {
     await db.prepare("UPDATE exams SET lang = ? WHERE id = ?").bind(fields.language, examId).run();
   }
+}
+
+export async function renameCategory(
+  examId: string,
+  oldName: string,
+  newName: string
+): Promise<void> {
+  const db = getDB();
+  if (!db) return;
+  await db
+    .prepare("UPDATE questions SET category = ? WHERE exam_id = ? AND category = ?")
+    .bind(newName.trim(), examId, oldName)
+    .run();
 }
 
 // ── Questions ──────────────────────────────────────────────────────────────
@@ -803,4 +816,64 @@ export async function setSetting(key: string, value: string): Promise<void> {
     )
     .bind(key, value)
     .run();
+}
+
+// ── Suggestions ────────────────────────────────────────────────────────────
+
+function rowToSuggestion(row: Record<string, unknown>): Suggestion {
+  return {
+    id: row.id as number,
+    questionId: row.question_id as string,
+    type: row.type as "ai" | "manual",
+    suggestedAnswers: row.suggested_answers ? JSON.parse(row.suggested_answers as string) : null,
+    suggestedExplanation: (row.suggested_explanation as string) ?? null,
+    aiModel: (row.ai_model as string) ?? null,
+    comment: (row.comment as string) ?? null,
+    createdBy: row.created_by as string,
+    createdAt: row.created_at as string,
+  };
+}
+
+export async function getSuggestions(questionId: string): Promise<Suggestion[]> {
+  const db = getDB();
+  if (!db) return [];
+  const rows = await db
+    .prepare("SELECT * FROM suggestions WHERE question_id = ? ORDER BY created_at DESC")
+    .bind(questionId)
+    .all<Record<string, unknown>>();
+  return (rows.results ?? []).map(rowToSuggestion);
+}
+
+export async function createSuggestion(
+  questionId: string,
+  data: {
+    type: "ai" | "manual";
+    suggestedAnswers: string[] | null;
+    suggestedExplanation: string | null;
+    aiModel: string | null;
+    comment: string | null;
+  },
+  createdBy: string
+): Promise<Suggestion> {
+  const db = getDB();
+  if (!db) throw new Error("DB not available");
+  await db
+    .prepare(
+      "INSERT INTO suggestions (question_id, type, suggested_answers, suggested_explanation, ai_model, comment, created_by) VALUES (?,?,?,?,?,?,?)"
+    )
+    .bind(
+      questionId,
+      data.type,
+      data.suggestedAnswers ? JSON.stringify(data.suggestedAnswers) : null,
+      data.suggestedExplanation ?? null,
+      data.aiModel ?? null,
+      data.comment ?? null,
+      createdBy
+    )
+    .run();
+  const row = await db
+    .prepare("SELECT * FROM suggestions WHERE rowid = last_insert_rowid()")
+    .first<Record<string, unknown>>();
+  if (!row) throw new Error("Failed to retrieve created suggestion");
+  return rowToSuggestion(row);
 }

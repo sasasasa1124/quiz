@@ -1,17 +1,20 @@
 "use client";
 
 import { ChevronRight, CheckCircle2, Sparkles } from "lucide-react";
-import type { Question } from "@/lib/types";
+import type { Choice, Question } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
+import SuggestPanel from "@/components/SuggestPanel";
 
 interface Props {
   question: Question;
   onNext: () => void;
   isLast: boolean;
   onAiExplain?: () => void;
+  questionDbId: string;
+  choices: Choice[];
 }
 
-export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: Props) {
+export default function ReviewReveal({ question, onNext, isLast, onAiExplain, questionDbId, choices }: Props) {
   const { t } = useSettings();
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -87,6 +90,8 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: 
             )}
           </p>
         )}
+
+        <SuggestPanel questionId={questionDbId} choices={choices} />
       </div>
 
       {/* Next */}

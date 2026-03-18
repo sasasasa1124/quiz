@@ -46,7 +46,17 @@ export type TranslationKey =
   | "noQuestions"
   | "allWrongCleared"
   | "continueFrom"
-  | "uniq";
+  | "uniq"
+  | "suggest"
+  | "alternatives"
+  | "suggestSubmit"
+  | "suggestAnswers"
+  | "suggestExplanation"
+  | "suggestComment"
+  | "suggestTypeAi"
+  | "suggestTypeManual"
+  | "suggestSuccess"
+  | "suggestNone";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -96,6 +106,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     allWrongCleared: "All wrong answers cleared",
     continueFrom: "Continue",
     uniq: "Uniq",
+    suggest: "Suggest",
+    alternatives: "Alternatives",
+    suggestSubmit: "Submit",
+    suggestAnswers: "Suggested Answers",
+    suggestExplanation: "Explanation",
+    suggestComment: "Comment (optional)",
+    suggestTypeAi: "AI",
+    suggestTypeManual: "Manual",
+    suggestSuccess: "Suggestion submitted",
+    suggestNone: "No suggestions yet",
   },
   ja: {
     settings: "設定",
@@ -144,6 +164,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     allWrongCleared: "不正解が全てクリアされました",
     continueFrom: "続きから",
     uniq: "重複除外",
+    suggest: "提案する",
+    alternatives: "代替案",
+    suggestSubmit: "送信",
+    suggestAnswers: "推奨の正解",
+    suggestExplanation: "解説",
+    suggestComment: "コメント（任意）",
+    suggestTypeAi: "AI",
+    suggestTypeManual: "手動",
+    suggestSuccess: "提案を送信しました",
+    suggestNone: "まだ提案がありません",
   },
   zh: {
     settings: "设置",
@@ -192,6 +222,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     allWrongCleared: "所有错误答案已清除",
     continueFrom: "继续",
     uniq: "去重",
+    suggest: "建议",
+    alternatives: "替代方案",
+    suggestSubmit: "提交",
+    suggestAnswers: "建议答案",
+    suggestExplanation: "解释",
+    suggestComment: "评论（可选）",
+    suggestTypeAi: "AI",
+    suggestTypeManual: "手动",
+    suggestSuccess: "建议已提交",
+    suggestNone: "暂无建议",
   },
   ko: {
     settings: "설정",
@@ -240,6 +280,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     allWrongCleared: "모든 오답이 해결되었습니다",
     continueFrom: "이어서",
     uniq: "중복제외",
+    suggest: "제안",
+    alternatives: "대안",
+    suggestSubmit: "제출",
+    suggestAnswers: "추천 답",
+    suggestExplanation: "해설",
+    suggestComment: "댓글 (선택)",
+    suggestTypeAi: "AI",
+    suggestTypeManual: "수동",
+    suggestSuccess: "제안 제출됨",
+    suggestNone: "아직 제안 없음",
   },
 };
 

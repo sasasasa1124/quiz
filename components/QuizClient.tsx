@@ -97,6 +97,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [aiResult, setAiResult] = useState<AiExplainResponse | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiAdopting, setAiAdopting] = useState(false);
+  const [aiSuggesting, setAiSuggesting] = useState(false);
 
   // Reset AI popup when moving to a different question
   useEffect(() => {
@@ -464,6 +465,31 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
   }, [aiResult, filteredQuestions, currentIndex]);
 
+  const handleAiSuggest = useCallback(async () => {
+    if (!aiResult) return;
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    setAiSuggesting(true);
+    try {
+      await fetch("/api/suggestions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: q.dbId,
+          type: "ai",
+          suggestedAnswers: aiResult.answers,
+          suggestedExplanation: aiResult.explanation,
+          aiModel: aiResult.model ?? null,
+          comment: null,
+        }),
+      });
+      setAiPopupOpen(false);
+      setAiResult(null);
+    } finally {
+      setAiSuggesting(false);
+    }
+  }, [aiResult, filteredQuestions, currentIndex]);
+
   const handleAiRefine = useCallback(async () => {
     const q = filteredQuestions[currentIndex];
     if (!q) return;
@@ -804,7 +830,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                     </div>
                     {/* Back: answer reveal */}
                     <div className="card-back">
-                      <ReviewReveal question={q} onNext={handleRevealNext} isLast={isLast} onAiExplain={handleAiExplain} />
+                      <ReviewReveal question={q} onNext={handleRevealNext} isLast={isLast} onAiExplain={handleAiExplain} questionDbId={q.dbId} choices={q.choices} />
                     </div>
                   </div>
                 </div>
@@ -973,6 +999,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             setAiResult(null);
             setAiError(null);
           }}
+          onSuggest={handleAiSuggest}
+          suggesting={aiSuggesting}
           question={filteredQuestions[currentIndex]?.question}
           choices={filteredQuestions[currentIndex]?.choices}
           answers={filteredQuestions[currentIndex]?.answers}
@@ -1005,6 +1033,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           isLast={isLast}
           onNext={handleRevealNext}
           onAiExplain={handleAiExplain}
+          questionDbId={q.dbId}
+          choices={q.choices}
         />
       )}
 

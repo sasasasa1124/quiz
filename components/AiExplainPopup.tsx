@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Sparkles, X, CheckCheck, ExternalLink, Send } from "lucide-react";
+import { Loader2, Sparkles, X, CheckCheck, ExternalLink, Send, MessageSquarePlus } from "lucide-react";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
 import type { AiChatRequest, AiChatResponse } from "@/app/api/ai/chat/route";
 import type { Choice } from "@/lib/types";
@@ -14,6 +14,8 @@ interface Props {
   adopting: boolean;
   onAdopt: () => Promise<void>;
   onDismiss: () => void;
+  onSuggest: () => Promise<void>;
+  suggesting: boolean;
   // context needed for follow-up chat
   question?: string;
   choices?: Choice[];
@@ -29,6 +31,8 @@ export default function AiExplainPopup({
   adopting,
   onAdopt,
   onDismiss,
+  onSuggest,
+  suggesting,
   question = "",
   choices = [],
   answers = [],
@@ -249,7 +253,7 @@ export default function AiExplainPopup({
             </button>
           </div>
 
-          {/* Adopt / Dismiss */}
+          {/* Dismiss / Suggest / Adopt */}
           <div className="px-4 pb-4 pt-1 flex gap-2 shrink-0">
             <button
               onClick={onDismiss}
@@ -257,6 +261,18 @@ export default function AiExplainPopup({
             >
               {t("dismiss")}
               <kbd className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">⌫</kbd>
+            </button>
+            <button
+              onClick={onSuggest}
+              disabled={suggesting}
+              className="flex-1 py-2 rounded-xl border border-violet-200 text-violet-600 bg-violet-50 text-sm font-semibold hover:bg-violet-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+            >
+              {suggesting ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <MessageSquarePlus size={13} />
+              )}
+              {t("suggest")}
             </button>
             <button
               onClick={onAdopt}

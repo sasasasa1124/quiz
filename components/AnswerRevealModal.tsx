@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useCallback } from "react";
 import { CheckCircle2, XCircle, ChevronRight, Sparkles } from "lucide-react";
-import type { Question } from "@/lib/types";
+import type { Choice, Question } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
+import SuggestPanel from "@/components/SuggestPanel";
 
 interface Props {
   question: Question;
@@ -11,9 +12,11 @@ interface Props {
   isLast: boolean;
   onNext: () => void;
   onAiExplain: () => void;
+  questionDbId: string;
+  choices: Choice[];
 }
 
-export default function AnswerRevealModal({ question, isCorrect, isLast, onNext, onAiExplain }: Props) {
+export default function AnswerRevealModal({ question, isCorrect, isLast, onNext, onAiExplain, questionDbId, choices }: Props) {
   const { t } = useSettings();
   // Keyboard: Escape / N / Enter → next
   // 150ms guard prevents the same keydown that triggered Submit from instantly dismissing the modal
@@ -154,6 +157,8 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
               )}
             </p>
           )}
+
+          <SuggestPanel questionId={questionDbId} choices={choices} />
         </div>
 
         {/* Footer */}
