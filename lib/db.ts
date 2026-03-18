@@ -463,6 +463,38 @@ export async function getSessionsByExam(
   }));
 }
 
+// ── Daily progress ──────────────────────────────────────────────────────────
+
+export async function getDailyProgress(userEmail: string): Promise<{
+  todayCount: number;
+  activeDays: string[]; // YYYY-MM-DD strings, descending, max 90
+}> {
+  const db = getDB();
+  if (!db) return { todayCount: 0, activeDays: [] };
+
+  const todayRow = await db
+    .prepare(
+      `SELECT COALESCE(SUM(question_count), 0) as cnt
+       FROM sessions WHERE user_email = ? AND date(started_at) = date('now')`
+    )
+    .bind(userEmail)
+    .first<{ cnt: number }>();
+
+  const daysResult = await db
+    .prepare(
+      `SELECT DISTINCT date(started_at) as day
+       FROM sessions WHERE user_email = ?
+       ORDER BY day DESC LIMIT 90`
+    )
+    .bind(userEmail)
+    .all<{ day: string }>();
+
+  return {
+    todayCount: todayRow?.cnt ?? 0,
+    activeDays: (daysResult.results ?? []).map((r) => r.day),
+  };
+}
+
 // ── App settings ───────────────────────────────────────────────────────────
 
 export async function getSetting(key: string): Promise<string | null> {

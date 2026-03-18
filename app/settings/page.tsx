@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw } from "lucide-react";
+import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import PageHeader from "@/components/PageHeader";
 import type { Locale } from "@/lib/i18n";
@@ -23,6 +23,7 @@ function SettingsInner() {
   const [language, setLanguage] = useState<Locale>(settings.language);
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
   const [aiRefinePrompt, setAiRefinePrompt] = useState(settings.aiRefinePrompt);
+  const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 20);
   const [saved, setSaved] = useState(false);
   const [geminiModel, setGeminiModel] = useState("");
   const [modelList, setModelList] = useState<string[]>([]);
@@ -35,6 +36,7 @@ function SettingsInner() {
     setLanguage(settings.language);
     setAiPrompt(settings.aiPrompt);
     setAiRefinePrompt(settings.aiRefinePrompt);
+    setDailyGoal(settings.dailyGoal ?? 20);
   }, [settings.language, settings.aiPrompt, settings.aiRefinePrompt]);
 
   // Load current gemini model from DB
@@ -61,7 +63,7 @@ function SettingsInner() {
   }
 
   async function handleSave() {
-    updateSettings({ language, aiPrompt, aiRefinePrompt });
+    updateSettings({ language, aiPrompt, aiRefinePrompt, dailyGoal });
     if (geminiModel) {
       await fetch("/api/app-settings", {
         method: "POST",
@@ -169,6 +171,44 @@ function SettingsInner() {
               {modelList.map((m) => <option key={m} value={m} />)}
             </datalist>
           )}
+        </section>
+
+        {/* Daily Goal */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+            <Target size={11} className="text-emerald-500" />
+            Daily Goal
+          </h2>
+          <p className="text-xs text-gray-400 mb-3">Number of questions to complete each day</p>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setDailyGoal((v) => Math.max(5, v - 5))}
+              className="w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-lg font-medium transition-colors"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={5}
+              max={200}
+              step={5}
+              value={dailyGoal}
+              onChange={(e) => {
+                const v = parseInt(e.target.value, 10);
+                if (!isNaN(v) && v >= 5 && v <= 200) setDailyGoal(v);
+              }}
+              className="w-20 text-center rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
+            />
+            <button
+              type="button"
+              onClick={() => setDailyGoal((v) => Math.min(200, v + 5))}
+              className="w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-lg font-medium transition-colors"
+            >
+              ＋
+            </button>
+            <span className="text-xs text-gray-400 ml-1">questions / day</span>
+          </div>
         </section>
 
         {/* Save */}

@@ -2,9 +2,10 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search } from "lucide-react";
+import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame } from "lucide-react";
 import Link from "next/link";
 import type { ExamMeta, QuizStats } from "@/lib/types";
+import { useSettings } from "@/lib/settings-context";
 import PageHeader from "./PageHeader";
 import OnboardingGuide from "./OnboardingGuide";
 import { useSettings } from "@/lib/settings-context";
@@ -68,8 +69,16 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   );
   const [isDragging, setIsDragging] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
+  const [dailyProgress, setDailyProgress] = useState<{ todayCount: number; streak: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
+
+  useEffect(() => {
+    fetch("/api/sessions/summary")
+      .then((r) => r.json() as Promise<{ todayCount: number; streak: number }>)
+      .then(setDailyProgress)
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const map: typeof statsMap = {};
@@ -217,6 +226,40 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Daily progress banner */}
+      {dailyProgress && (dailyProgress.todayCount > 0 || dailyProgress.streak > 0) && (() => {
+        const goal = settings.dailyGoal ?? 20;
+        const { todayCount, streak } = dailyProgress;
+        const pct = Math.min(100, Math.round((todayCount / goal) * 100));
+        const done = todayCount >= goal;
+        return (
+          <div className="px-4 sm:px-8 pb-3 max-w-3xl mx-auto w-full">
+            <div className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border ${done ? "bg-emerald-50 border-emerald-200" : "bg-white border-gray-200"}`}>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center justify-between mb-1">
+                  <span className={`text-xs font-semibold ${done ? "text-emerald-700" : "text-gray-500"}`}>
+                    Today: {todayCount}/{goal}
+                  </span>
+                  {done && <span className="text-xs text-emerald-600 font-medium">Goal reached</span>}
+                </div>
+                <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${done ? "bg-emerald-500" : "bg-gray-400"}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+              {streak > 0 && (
+                <div className={`flex items-center gap-1 shrink-0 ${streak >= 7 ? "text-amber-500" : "text-gray-400"}`}>
+                  <Flame size={13} strokeWidth={2} />
+                  <span className="text-xs font-semibold tabular-nums">{streak}d</span>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="flex-1 px-4 sm:px-8 pb-6 overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
