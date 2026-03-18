@@ -8,35 +8,6 @@ import { DEFAULT_EXPLAIN_PROMPT } from "@/lib/types";
 import { getSetting } from "@/lib/db";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
-async function validateUrl(url: string): Promise<boolean> {
-  try {
-    const res = await fetch(url, {
-      method: "GET",
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; QuizBot/1.0)" },
-      signal: AbortSignal.timeout(5000),
-    });
-    if (!res.ok) return false;
-
-    const isSalesforce =
-      url.includes("help.salesforce.com") ||
-      url.includes("trailhead.salesforce.com") ||
-      url.includes("developer.salesforce.com");
-
-    if (isSalesforce) {
-      const text = await res.text();
-      if (
-        text.includes("We looked high and low") ||
-        text.includes("couldn't find that page") ||
-        text.includes("Page Not Found")
-      ) {
-        return false;
-      }
-    }
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 const AiResponseSchema = z.object({
   explanation: z.string(),
@@ -111,9 +82,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const rawSources = result.data.sources ?? [];
-  const validated = await Promise.all(rawSources.map(validateUrl));
-  const sources = rawSources.filter((_, i) => validated[i]);
-
-  return NextResponse.json({ ...result.data, sources });
+  return NextResponse.json(result.data);
 }
