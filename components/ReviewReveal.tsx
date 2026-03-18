@@ -20,7 +20,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: 
         <div className="flex items-center justify-between mb-3">
           <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Answer</p>
           {onAiExplain && (
-            <button onClick={onAiExplain} className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-400 hover:text-violet-500 hover:border-violet-200 transition-colors">
+            <button onClick={onAiExplain} className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-violet-500 hover:border-violet-200 transition-colors">
               <Sparkles size={11} />
               {t("explain")}
             </button>
@@ -30,11 +30,11 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: 
           {question.choices
             .filter((c) => question.answers.includes(c.label))
             .map((c) => (
-              <div key={c.label} className="flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span className="shrink-0 w-6 h-6 rounded-md bg-emerald-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+              <div key={c.label} className="flex items-start gap-3 px-4 py-3 lg:px-5 lg:py-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                <span className="shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg bg-emerald-500 text-white text-xs lg:text-sm font-bold flex items-center justify-center mt-0.5">
                   {c.label}
                 </span>
-                <span className="text-sm text-emerald-900 leading-snug">{c.text}</span>
+                <span className="text-sm lg:text-base text-emerald-900 leading-snug">{c.text}</span>
               </div>
             ))
           }
@@ -90,7 +90,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain }: 
           onClick={onNext}
           className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5"
         >
-          {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /> <span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
+          {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /> <span className="text-xs opacity-40 hidden sm:inline">→ Enter</span></>}
         </button>
       </div>
     </div>

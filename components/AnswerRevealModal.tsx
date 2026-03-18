@@ -93,11 +93,11 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Correct Answer</p>
               <div className="flex flex-col gap-2">
                 {correctChoices.map((c) => (
-                  <div key={c.label} className="flex items-start gap-3 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                    <span className="shrink-0 w-6 h-6 rounded-md bg-emerald-500 text-white text-xs font-bold flex items-center justify-center mt-0.5">
+                  <div key={c.label} className="flex items-start gap-3 px-4 py-3 lg:px-5 lg:py-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <span className="shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg bg-emerald-500 text-white text-xs lg:text-sm font-bold flex items-center justify-center mt-0.5">
                       {c.label}
                     </span>
-                    <span className="text-sm text-emerald-900 leading-snug">{c.text}</span>
+                    <span className="text-sm lg:text-base text-emerald-900 leading-snug">{c.text}</span>
                   </div>
                 ))}
               </div>
@@ -158,7 +158,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           </button>
           <button
             onClick={onNext}
-            className="flex items-center gap-1.5 px-5 py-2.5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1.5 h-10 px-5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
           >
             {isLast ? "Finish" : <><ChevronRight size={15} /> Next</>}
           </button>

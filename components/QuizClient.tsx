@@ -145,6 +145,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     setRevealed(false);
   }, [currentIndex, filter, mode]);
 
+  useEffect(() => {
+    setCurrentIndex(0);
+    setDirection("forward");
+  }, [filter]);
+
   const filteredQuestions = questions.filter((q) => {
     if (filter === "wrong") return stats[String(q.id)] === 0;
     return true;
@@ -633,11 +638,16 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                         <div className="max-w-3xl mx-auto w-full flex gap-2">
                           <button onClick={handleDontKnow} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
                             <ChevronLeft size={15} />
+                            <span>Didn&apos;t know</span>
+                            <span className="text-xs opacity-40 hidden sm:inline">⌫</span>
                           </button>
                           <button onClick={handleKnow} className="flex-1 h-10 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
+                            <span>Knew it</span>
+                            <span className="text-xs opacity-40 hidden sm:inline">→</span>
                             <ChevronRight size={15} />
                           </button>
                         </div>
+                        <p className="text-[10px] text-center text-gray-300 mt-1 lg:hidden">bottom swipe ↔ know / didn&apos;t &middot; top swipe = navigate</p>
                       </div>
                     </div>
                     {/* Back: answer reveal */}
@@ -759,7 +769,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           className="quiz-slider w-full"
           style={{ "--fill": sliderPct } as React.CSSProperties}
         />
-        <div className="text-right mt-1 hidden lg:block">
+        <div className="text-right mt-1">
           <span className="text-xs text-gray-300">
             {mode === "review"
               ? (revealed ? "← → navigate" : "→ knew  ⌫ didn't  ← prev")
