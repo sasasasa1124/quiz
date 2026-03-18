@@ -121,7 +121,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const touchZone = useRef<"top" | "bottom" | null>(null);
 
   const { settings, updateSettings, t } = useSettings();
-  const { speak, stop } = useAudio();
+  const { speak, stop, prefetch } = useAudio();
 
   // Auto-play question + choices when question changes or audio is toggled on
   // Skip if answer is already revealed/submitted to avoid overlap with reveal effect
@@ -130,9 +130,12 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
+    // Pre-warm next question's audio while user reads current one
+    const next = filteredQuestions[currentIndex + 1];
+    if (next) prefetch(buildQuestionText(next));
     return () => { stop(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, mode, settings.audioMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted]);
 
   // Auto-play answer reveal when card is flipped (review) or submitted (quiz)
   useEffect(() => {
@@ -141,8 +144,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     if (!q) return;
     stop();
     speak(buildAnswerRevealText(q, settings.language));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed, submitted, settings.audioMode]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealed, submitted, speak, stop, settings.language, currentIndex]);
 
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);

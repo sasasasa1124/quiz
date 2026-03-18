@@ -5,9 +5,8 @@ function stripHtml(html: string): string {
 }
 
 export function buildQuestionText(q: Question): string {
-  const questionText = stripHtml(q.question);
-  const choicesText = q.choices.map((c) => `${c.label}. ${c.text}`).join(". ");
-  return `${questionText}. ${choicesText}`;
+  // Only read the question text — choices are visible on screen and make audio very long
+  return stripHtml(q.question);
 }
 
 export function buildAnswerRevealText(q: Question, language: string): string {

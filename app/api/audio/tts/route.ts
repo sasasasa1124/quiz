@@ -3,7 +3,6 @@ export const runtime = "edge";
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getEnv } from "@/lib/env";
-import { getSetting } from "@/lib/db";
 
 function buildWavHeader(pcmByteLength: number): Uint8Array {
   const header = new ArrayBuffer(44);
@@ -57,7 +56,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const ttsModel = (await getSetting("tts_model")) ?? "gemini-2.5-flash-preview-tts";
+  // Use default model unless overridden — avoid D1 roundtrip on every request
+  const ttsModel = "gemini-2.5-flash-preview-tts";
 
   const ai = new GoogleGenAI({ apiKey });
 
