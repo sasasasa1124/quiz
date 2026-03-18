@@ -2,19 +2,19 @@ import type { CategoryStat, Choice, ExamMeta, Question, QuestionHistoryEntry, Qu
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 // Minimal D1 type stub – replaced by @cloudflare/workers-types after npm install
-interface D1PreparedStatement {
+export interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
   all<T = unknown>(): Promise<{ results: T[] }>;
   first<T = unknown>(): Promise<T | null>;
   run(): Promise<void>;
 }
-interface D1Database {
+export interface D1Database {
   prepare(query: string): D1PreparedStatement;
 }
 
 // ── Runtime detection ─────────────────────────────────────────────────────
 
-function getDB(): D1Database | null {
+export function getDB(): D1Database | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (getRequestContext() as any).env.DB as D1Database ?? null;
