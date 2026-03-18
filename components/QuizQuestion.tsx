@@ -40,8 +40,8 @@ export default function QuizQuestion({
         )}
       </div>
 
-      {/* Question text */}
-      <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0">
+      {/* Question text — capped height, scrollable if very long */}
+      <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0 max-h-[40vh] overflow-y-auto">
         <div
           className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
           dangerouslySetInnerHTML={{ __html: question.question }}
@@ -49,7 +49,7 @@ export default function QuizQuestion({
       </div>
 
       {/* Choices — scrollable if many */}
-      <div className="space-y-2 overflow-y-auto flex-1 pr-1">
+      <div className="space-y-2 overflow-y-auto flex-1 min-h-0 pr-1">
         {question.choices.map((choice, i) => {
           const isSelected = selected.has(choice.label);
           const isAnswer = question.answers.includes(choice.label);
