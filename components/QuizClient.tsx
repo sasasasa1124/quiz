@@ -208,7 +208,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const continueDisplayNum = continueIndex >= 0 ? continueIndex + 1 : null;
   const hasContinue = continueDisplayNum !== null;
 
-  const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string) => {
+  const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string, srsQuality?: 1 | 4) => {
     setStats((prev) => {
       const next = { ...prev, [String(questionId)]: correct ? 1 : 0 } as QuizStats;
       saveLocalStats(examId, next);
@@ -220,7 +220,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     fetch("/api/scores", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ examId, questionId, correct, sessionId, questionDbId }),
+      body: JSON.stringify({ examId, questionId, correct, sessionId, questionDbId, srsQuality }),
     }).catch(() => {});
   }, [examId, sessionId]);
 
@@ -285,7 +285,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const handleKnow = useCallback(() => {
     const q = filteredQuestions[currentIndex];
     if (!q) return;
-    recordAnswer(q.id, true, q.dbId);
+    recordAnswer(q.id, true, q.dbId, 4);
     setStreak((prev) => prev + 1);
     if (currentIndex === filteredQuestions.length - 1) {
       doCompleteSession();
@@ -298,7 +298,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const handleDontKnow = useCallback(() => {
     const q = filteredQuestions[currentIndex];
     if (!q) return;
-    recordAnswer(q.id, false, q.dbId);
+    recordAnswer(q.id, false, q.dbId, 1);
     setStreak(0);
     setRevealed(true);
   }, [filteredQuestions, currentIndex, recordAnswer]);

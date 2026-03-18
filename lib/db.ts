@@ -495,6 +495,79 @@ export async function getDailyProgress(userEmail: string): Promise<{
   };
 }
 
+// ── Spaced Repetition (SM-2) ───────────────────────────────────────────────
+
+/** Apply SM-2 algorithm and persist next review date.
+ *  quality: 4 = "Knew it", 1 = "Didn't know" */
+export async function saveSRSScore(
+  userEmail: string,
+  questionDbId: string,
+  quality: 1 | 4
+): Promise<void> {
+  const db = getDB();
+  if (!db) return;
+
+  const row = await db
+    .prepare("SELECT interval_days, ease_factor FROM scores WHERE user_email = ? AND question_id = ?")
+    .bind(userEmail, questionDbId)
+    .first<{ interval_days: number; ease_factor: number } | null>();
+
+  const ef = row?.ease_factor ?? 2.5;
+  const interval = row?.interval_days ?? 1;
+
+  let newInterval: number;
+  let newEF = ef;
+
+  if (quality < 3) {
+    newInterval = 1;
+  } else {
+    if (interval <= 1) newInterval = 1;
+    else if (interval === 2) newInterval = 6;
+    else newInterval = Math.round(interval * ef);
+
+    newEF = ef + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
+    newEF = Math.max(1.3, newEF);
+  }
+
+  const nextDate = new Date(Date.now() + newInterval * 86400000);
+  const nextReviewAt = nextDate.toISOString().slice(0, 10);
+
+  await db
+    .prepare(
+      `INSERT INTO scores (user_email, question_id, last_correct, attempts, correct_count, interval_days, ease_factor, next_review_at, updated_at)
+       VALUES (?, ?, ?, 1, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(user_email, question_id) DO UPDATE SET
+         last_correct   = excluded.last_correct,
+         attempts       = attempts + 1,
+         correct_count  = correct_count + excluded.correct_count,
+         interval_days  = excluded.interval_days,
+         ease_factor    = excluded.ease_factor,
+         next_review_at = excluded.next_review_at,
+         updated_at     = excluded.updated_at`
+    )
+    .bind(userEmail, questionDbId, quality >= 3 ? 1 : 0, quality >= 3 ? 1 : 0, newInterval, newEF, nextReviewAt)
+    .run();
+}
+
+/** Count questions due for review (next_review_at <= today) */
+export async function getDueCount(userEmail: string, examId: string): Promise<number> {
+  const db = getDB();
+  if (!db) return 0;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const prefix = `${examId}__`;
+
+  const row = await db
+    .prepare(
+      `SELECT COUNT(*) as cnt FROM scores
+       WHERE user_email = ? AND question_id LIKE ? AND next_review_at IS NOT NULL AND next_review_at <= ?`
+    )
+    .bind(userEmail, `${prefix}%`, today)
+    .first<{ cnt: number }>();
+
+  return row?.cnt ?? 0;
+}
+
 // ── App settings ───────────────────────────────────────────────────────────
 
 export async function getSetting(key: string): Promise<string | null> {
