@@ -72,6 +72,7 @@ export function useAudio() {
           audioRef.current = audio;
           audio.addEventListener("ended", () => resolve());
           audio.addEventListener("error", () => resolve());
+          audio.addEventListener("pause", () => resolve()); // resolve when stop() pauses audio
           setPlaying(true);
           audio.play().catch(() => resolve());
         });

@@ -308,11 +308,17 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const goNext = useCallback(() => {
     setDirection("forward");
     setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
+    setRevealed(false);
+    setSubmitted(false);
+    setSelected(new Set());
   }, [filteredQuestions.length]);
 
   const goPrev = useCallback(() => {
     setDirection("backward");
     setCurrentIndex((i) => Math.max(i - 1, 0));
+    setRevealed(false);
+    setSubmitted(false);
+    setSelected(new Set());
   }, []);
 
   const doCompleteSession = useCallback(() => {
