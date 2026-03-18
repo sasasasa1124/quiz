@@ -765,6 +765,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
                               dangerouslySetInnerHTML={{ __html: q.question }}
                             />
+                            {q.source && (
+                              <p className="text-[10px] text-gray-300 mt-2 truncate" title={q.source}>
+                                Source: {q.source}
+                              </p>
+                            )}
                           </div>
                           <div className="space-y-2">
                             {q.choices.map((c, i) => (
