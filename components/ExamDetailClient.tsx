@@ -149,7 +149,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
               onChange={(e) => setExamName(e.target.value)}
               className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
               placeholder="Exam name"
-              onKeyDown={(e) => { if (e.key === "Enter") saveExamMeta(); if (e.key === "Escape") cancelEditMeta(); }}
+              onKeyDown={(e) => { if (e.key === "Enter" && !e.isComposing) saveExamMeta(); if (e.key === "Escape") cancelEditMeta(); }}
             />
             <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
               {(["ja", "en"] as const).map((lang) => (

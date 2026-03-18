@@ -545,6 +545,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const labels = q.choices.map((c) => c.label);
 
     const handler = (e: KeyboardEvent) => {
+      if (e.isComposing) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       if (editingQuestion || aiPopupOpen || refinePopupOpen) return;
       if (mode === "quiz" && submitted) return; // modal handles keys

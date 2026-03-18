@@ -55,6 +55,7 @@ export default function AiExplainPopup({
   useEffect(() => {
     if (!result || loading) return;
     const handler = (e: KeyboardEvent) => {
+      if (e.isComposing) return;
       if (e.target === inputRef.current) return; // don't intercept chat input
       if (e.key === "Enter" && !adopting) { e.preventDefault(); onAdopt(); }
       if (e.key === "Backspace" || e.key === "Escape") { e.preventDefault(); onDismiss(); }
@@ -230,7 +231,7 @@ export default function AiExplainPopup({
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
+                if (e.key === "Enter" && !e.shiftKey && !e.isComposing) {
                   e.preventDefault();
                   handleChatSend();
                 }
