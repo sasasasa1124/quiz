@@ -123,25 +123,24 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const { settings, updateSettings, t } = useSettings();
   const { speak, stop } = useAudio();
 
-  // Review mode: auto-play question + choices when question changes
+  // Auto-play question + choices when question changes or audio is toggled on
   useEffect(() => {
-    if (mode !== "review") return;
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
     return () => { stop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, mode]);
+  }, [currentIndex, mode, settings.audioMode]);
 
-  // Review mode: auto-play answer reveal when card is flipped
+  // Auto-play answer reveal when card is flipped (review) or submitted (quiz)
   useEffect(() => {
-    if (mode !== "review" || !revealed) return;
+    if (!revealed && !submitted) return;
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     stop();
     speak(buildAnswerRevealText(q, settings.language));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed]);
+  }, [revealed, submitted, settings.audioMode]);
 
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);

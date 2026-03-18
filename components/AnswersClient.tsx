@@ -29,14 +29,14 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const { settings, updateSettings, t } = useSettings();
   const { speak, stop } = useAudio();
 
-  // Auto-play when question changes
+  // Auto-play when question changes or audio is toggled on
   useEffect(() => {
     const q = questions[currentIndex];
     if (!q) return;
     speak(buildAnswerText(q, settings.language));
     return () => { stop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex]);
+  }, [currentIndex, settings.audioMode]);
 
   const [aiPopupOpen, setAiPopupOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
