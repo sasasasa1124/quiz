@@ -21,7 +21,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Load from API first; fall back to localStorage
     fetch("/api/user-settings")
-      .then((r) => r.json() as Promise<{ settings: UserSettings }>)
+      .then((r) => { if (!r.ok) throw new Error("no db"); return r.json() as Promise<{ settings: UserSettings }>; })
       .then(({ settings: remote }) => {
         // Merge defaults, remote wins
         const merged: UserSettings = { ...DEFAULT_USER_SETTINGS, ...remote };

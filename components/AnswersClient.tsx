@@ -27,16 +27,18 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
   const { settings, updateSettings, t } = useSettings();
-  const { speak, stop } = useAudio();
+  const { speak, stop, prefetch } = useAudio();
 
   // Auto-play when question changes or audio is toggled on
   useEffect(() => {
     const q = questions[currentIndex];
     if (!q) return;
     speak(buildAnswerText(q, settings.language));
+    // Pre-warm first chunk of next question
+    const next = questions[currentIndex + 1];
+    if (next) prefetch(buildAnswerText(next, settings.language)[0]);
     return () => { stop(); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, settings.audioMode]);
+  }, [currentIndex, speak, stop, prefetch, settings.language, questions]);
 
   const [aiPopupOpen, setAiPopupOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
