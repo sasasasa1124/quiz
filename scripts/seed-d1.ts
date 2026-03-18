@@ -15,10 +15,21 @@ import path from "path";
 import { execSync } from "child_process";
 
 const isLocal = process.argv.includes("--local");
-const CSV_DIR = path.join(process.cwd(), "..");
+const CSV_DIR = process.cwd();
 const SQL_OUT = path.join(process.cwd(), "scripts", "_seed.sql");
 
 const EXAM_NAMES: Record<string, string> = {
+  // ── 日本語版 ──────────────────────────────────────────────────────────────
+  "Salesforce認定PlatformDataアーキテクト":              "Salesforce 認定 Platform Data アーキテクト",
+  "Salesforce認定PlatformIntegrationアーキテクト":       "Salesforce 認定 Platform Integration アーキテクト",
+  "Salesforce認定PlatformSharingAndVisibilityアーキテクト": "Salesforce 認定 Platform Sharing and Visibility アーキテクト",
+  "Salesforce認定DataCloudコンサルタント":                "Salesforce 認定 Data Cloud コンサルタント",
+  "Salesforce認定SalesCloudコンサルタント":               "Salesforce 認定 Sales Cloud コンサルタント",
+  "Salesforce認定ServiceCloudコンサルタント":              "Salesforce 認定 Service Cloud コンサルタント",
+  "Salesforce認定SalesCloudコンサルタント_v2":             "Salesforce 認定 Sales Cloud コンサルタント（v2）",
+  "Salesforce認定Platformアドミニストレーター上級":         "Salesforce 認定 Platform アドミニストレーター上級",
+  "Salesforce認定Platformアドミニストレーター":            "Salesforce 認定 Platform アドミニストレーター",
+  // ── 英語版・その他 ────────────────────────────────────────────────────────
   experience_cloud_consultant_exam:                "Salesforce 認定 Experience Cloud コンサルタント",
   experience_cloud_consultant_exam_en:             "Salesforce Certified Experience Cloud Consultant",
   mulesoft_developer_exam:                         "Salesforce 認定 MuleSoft デベロッパー",
@@ -68,7 +79,7 @@ function esc(s: string): string {
 
 const lines: string[] = [];
 
-const csvFiles = fs.readdirSync(CSV_DIR).filter((f) => f.endsWith(".csv"));
+const csvFiles = fs.readdirSync(CSV_DIR).filter((f) => f.endsWith(".csv") && f !== "quiz_template.csv");
 
 for (const file of csvFiles) {
   const examId = file.replace(".csv", "");
@@ -86,7 +97,7 @@ for (const file of csvFiles) {
   const lang = detectLang(records);
 
   lines.push(
-    `INSERT OR IGNORE INTO exams (id, name, lang) VALUES ('${esc(examId)}', '${esc(name)}', '${lang}');`
+    `INSERT OR REPLACE INTO exams (id, name, lang) VALUES ('${esc(examId)}', '${esc(name)}', '${lang}');`
   );
 
   records.forEach((row, i) => {
