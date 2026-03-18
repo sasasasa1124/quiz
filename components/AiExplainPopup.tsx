@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect } from "react";
 import { Loader2, Sparkles, X, CheckCheck, ExternalLink } from "lucide-react";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
 import { useSettings } from "@/lib/settings-context";
@@ -15,6 +16,17 @@ interface Props {
 
 export default function AiExplainPopup({ loading, result, error, adopting, onAdopt, onDismiss }: Props) {
   const { t } = useSettings();
+
+  // Keyboard: Enter = Adopt, Backspace = Dismiss
+  useEffect(() => {
+    if (!result || loading) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Enter" && !adopting) { e.preventDefault(); onAdopt(); }
+      if (e.key === "Backspace" || e.key === "Escape") { e.preventDefault(); onDismiss(); }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [result, loading, adopting, onAdopt, onDismiss]);
 
   return (
     <div className="fixed bottom-20 right-4 sm:right-8 z-60 w-80 sm:w-[22rem] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
@@ -115,9 +127,10 @@ export default function AiExplainPopup({ loading, result, error, adopting, onAdo
         <div className="px-4 pb-4 pt-2 flex gap-2 border-t border-gray-100 shrink-0">
           <button
             onClick={onDismiss}
-            className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors"
+            className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
           >
             {t("dismiss")}
+            <kbd className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">⌫</kbd>
           </button>
           <button
             onClick={onAdopt}
@@ -130,6 +143,7 @@ export default function AiExplainPopup({ loading, result, error, adopting, onAdo
               <CheckCheck size={13} />
             )}
             {t("adopt")}
+            <kbd className="text-[10px] bg-white/20 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">↵</kbd>
           </button>
         </div>
       )}

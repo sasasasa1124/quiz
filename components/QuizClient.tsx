@@ -678,10 +678,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       <button
                         onClick={handleSubmit}
                         disabled={selected.size === 0}
-                        className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-25 hover:bg-gray-700 transition-colors"
+                        className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                       >
+                        <CheckCircle2 size={15} strokeWidth={2} />
                         Submit
-                        <span className="ml-2 text-xs font-normal opacity-40 hidden sm:inline">Enter</span>
+                        <kbd className="text-[10px] bg-white/15 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">↵</kbd>
                       </button>
                     )}
                     {submitted && (

@@ -196,16 +196,25 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
               {isCreate ? "New Question" : "Edit Question"}
             </p>
             {!isCreate && (
-              <p className="text-xs text-gray-400 mt-0.5">
-                v{question!.version} · {question!.dbId}
-                {question!.createdBy && (
-                  <span className="ml-2">· by {question!.createdBy}</span>
-                )}
+              <p className="text-xs text-gray-400 mt-0.5 flex flex-wrap gap-x-2">
+                <span>v{question!.version} · {question!.dbId}</span>
+                {question!.createdBy && <span>by {question!.createdBy}</span>}
                 {question!.addedAt && (
-                  <span className="ml-2">· added {new Date(question!.addedAt).toLocaleDateString()}</span>
+                  <span>added {new Date(question!.addedAt).toLocaleDateString()}</span>
                 )}
                 {question!.createdAt && question!.createdAt !== question!.addedAt && (
-                  <span className="ml-2">· created {new Date(question!.createdAt).toLocaleDateString()}</span>
+                  <span>created {new Date(question!.createdAt).toLocaleDateString()}</span>
+                )}
+                {question!.source && (
+                  <a
+                    href={question!.source}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-gray-300 hover:text-violet-400 underline truncate max-w-[200px] hidden sm:inline"
+                    title={question!.source}
+                  >
+                    {(() => { try { return new URL(question!.source).hostname; } catch { return question!.source; } })()}
+                  </a>
                 )}
               </p>
             )}
