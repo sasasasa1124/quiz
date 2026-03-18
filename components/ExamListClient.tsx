@@ -224,15 +224,15 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           )}
         </div>
         <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 shrink-0">
-          {(["ja", "en"] as const).map((lang) => (
+          {(["ja", "en", "zh", "ko"] as const).map((lang) => (
             <button
               key={lang}
               onClick={() => updateSettings({ language: lang })}
               className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${
-                langFilter === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
+                settings.language === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
               }`}
             >
-              {lang === "ja" ? "JP" : "EN"}
+              {lang === "ja" ? "JP" : lang === "en" ? "EN" : lang === "zh" ? "ZH" : "KO"}
             </button>
           ))}
         </div>
