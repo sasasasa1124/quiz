@@ -50,6 +50,22 @@ npm start
 - Lucide React icons (no emojis in UI)
 - No external UI component library
 
+## Merge Conflict Rules
+
+- **Always branch from `main`**, not from another feature branch. Branching from an unmerged feature branch causes its unrelated changes to leak into your PR.
+- **Never use `git checkout --ours` or `--theirs` blindly.** Always inspect each conflicting file with `git diff HEAD origin/main -- <file>` first to understand what each side changed.
+- **Resolve conflicts manually** by editing the conflict markers, keeping only the changes relevant to your PR. Common pattern: keep both sides' logical additions, discard the conflict markers.
+- If a conflict involves files unrelated to your PR, prefer `--theirs` (origin/main) for those files to avoid smuggling unrelated changes.
+
+## Multi-Agent Collaboration
+
+This repository is worked on by **multiple AI agent teams in parallel** (e.g., Claude Code, Gemini CLI, other automated agents). This has important implications:
+
+- **Never delete branches without explicit user confirmation** — another agent may be actively working on that branch. Do NOT pass `--delete-branch` to `gh pr merge` automatically.
+- **Never use `git stash`, `git reset --hard`, `git checkout --`, or similar destructive operations without explicit user confirmation** — they can silently discard another agent's in-progress work.
+- **Before merging a PR**, confirm with the user that the branch is safe to delete/merge.
+- **Assume WIP changes on any branch may belong to another agent** — do not overwrite or discard them.
+
 ## Deployment Rules
 
 - **Branch strategy**: Never work directly on `main`. Always create a feature branch (`feat/xxx`, `fix/xxx`).

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { X, Plus, Trash2, Clock, ChevronDown, ChevronUp, Save, Loader2, Upload, FileText, Link } from "lucide-react";
+import { X, Plus, Trash2, Clock, ChevronDown, ChevronUp, Save, Loader2, Upload, FileText, Link, RotateCcw } from "lucide-react";
 import type { Choice, Question, QuestionHistoryEntry } from "@/lib/types";
 
 interface Props {
@@ -42,6 +42,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
   const [history, setHistory] = useState<QuestionHistoryEntry[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [revertingId, setRevertingId] = useState<number | null>(null);
 
   // CSV import state (create mode only)
   const [tab, setTab] = useState<"manual" | "csv">("manual");
@@ -61,6 +62,33 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
       .catch(() => {})
       .finally(() => setHistoryLoading(false));
   }, [historyOpen, question, isCreate, history.length]);
+
+  async function handleRevert(h: QuestionHistoryEntry) {
+    if (!question) return;
+    setRevertingId(h.id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(question.dbId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: h.questionText,
+          options: h.options,
+          answers: h.answers,
+          explanation: h.explanation,
+          change_reason: `Reverted to v${h.version}`,
+        }),
+      });
+      if (!res.ok) throw new Error("Revert failed");
+      const updated = await res.json() as Question;
+      onSave(updated);
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Revert failed");
+    } finally {
+      setRevertingId(null);
+    }
+  }
 
   function updateChoiceText(index: number, text: string) {
     setChoices((prev) => prev.map((c, i) => (i === index ? { ...c, text } : c)));
@@ -446,7 +474,18 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                         <div key={h.id} className="border border-gray-100 rounded-xl p-3">
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-xs font-semibold text-gray-500">v{h.version}</span>
-                            <span className="text-xs text-gray-300">{new Date(h.changedAt).toLocaleString()} · {h.changedBy ?? "unknown"}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-300">{new Date(h.changedAt).toLocaleString()} · {h.changedBy ?? "unknown"}</span>
+                              <button
+                                onClick={() => handleRevert(h)}
+                                disabled={revertingId === h.id}
+                                className="flex items-center gap-1 px-2 py-0.5 text-xs text-gray-400 hover:text-blue-500 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors disabled:opacity-40"
+                                title={`Revert to v${h.version}`}
+                              >
+                                {revertingId === h.id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}
+                                Revert
+                              </button>
+                            </div>
                           </div>
                           {h.changeReason && (
                             <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">{h.changeReason}</p>

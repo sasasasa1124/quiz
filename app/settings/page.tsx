@@ -240,21 +240,10 @@ function SettingsInner() {
             <Volume2 size={11} className="text-sky-400" />
             Audio Mode
           </h2>
-          <p className="text-xs text-gray-400 mb-3">Read questions and answers aloud (Review &amp; Answers mode)</p>
+          <p className="text-xs text-gray-400 mb-3">Toggle audio on/off from the header in Review or Answers mode. Configure speed and model here.</p>
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
-            {/* Toggle */}
-            <button
-              type="button"
-              onClick={() => setAudioMode((v) => !v)}
-              className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors text-left"
-            >
-              <span className="text-sm font-medium text-gray-900">Read aloud automatically</span>
-              <span className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${audioMode ? "bg-sky-500" : "bg-gray-200"}`}>
-                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${audioMode ? "translate-x-4" : "translate-x-0"}`} />
-              </span>
-            </button>
             {/* Speed slider */}
-            <div className={`px-4 py-3.5 transition-opacity ${audioMode ? "" : "opacity-40 pointer-events-none"}`}>
+            <div className="px-4 py-3.5">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-900">Speed</span>
                 <span className="text-sm font-semibold text-gray-700 tabular-nums w-10 text-right">{audioSpeed}x</span>
@@ -275,7 +264,7 @@ function SettingsInner() {
               </div>
             </div>
             {/* TTS Model */}
-            <div className={`px-4 py-3.5 transition-opacity ${audioMode ? "" : "opacity-40 pointer-events-none"}`}>
+            <div className="px-4 py-3.5">
               <p className="text-xs text-gray-400 mb-2">TTS Model</p>
               <input
                 list="tts-model-list"

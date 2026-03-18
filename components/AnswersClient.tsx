@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
-import { ArrowLeft, BookOpenCheck, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2 } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, Volume2, VolumeOff } from "lucide-react";
 import type { Question } from "@/lib/types";
 import QuestionEditModal from "./QuestionEditModal";
 import AiExplainPopup from "./AiExplainPopup";
@@ -26,7 +26,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const [currentIndex, setCurrentIndex] = useState(0);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
 
-  const { settings, t } = useSettings();
+  const { settings, updateSettings, t } = useSettings();
   const { speak, stop } = useAudio();
 
   // Auto-play when question changes
@@ -235,6 +235,13 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
+          <button
+            onClick={() => { settings.audioMode ? updateSettings({ audioMode: false }) : updateSettings({ audioMode: true }); }}
+            className="p-1.5 rounded-lg transition-colors text-gray-300 hover:text-gray-600 hover:bg-gray-100"
+            title={settings.audioMode ? "Audio mode on (click to turn off)" : "Audio mode off (click to turn on)"}
+          >
+            {settings.audioMode ? <Volume2 size={13} className="text-sky-500" /> : <VolumeOff size={13} />}
+          </button>
           <button
             onClick={() => setEditingQuestion(q)}
             className="flex items-center gap-1 text-xs text-gray-300 hover:text-blue-500 transition-colors"

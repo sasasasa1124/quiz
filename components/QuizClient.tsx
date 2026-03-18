@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, BookOpen, Brain, Layers, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home, History, Copy,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home, History, Copy, Volume2, VolumeOff,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import type { Locale } from "@/lib/i18n";
@@ -690,6 +690,13 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
               </div>
             )}
           </div>
+          <button
+            onClick={() => updateSettings({ audioMode: !settings.audioMode })}
+            className="p-1.5 rounded-lg transition-colors text-gray-300 hover:text-gray-600 hover:bg-gray-100"
+            title={settings.audioMode ? "Audio on (click to turn off)" : "Audio off (click to turn on)"}
+          >
+            {settings.audioMode ? <Volume2 size={13} className="text-sky-500" /> : <VolumeOff size={13} />}
+          </button>
           <Link
             href={`/settings?returnTo=${encodeURIComponent(`/quiz/${examId}?mode=${mode}`)}`}
             className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"

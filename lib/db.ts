@@ -636,7 +636,7 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
       (raw as any)[row.key] = Number(row.value);
     } else if (row.key === "audioMode") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (raw as any)[row.key] = row.value === "true";
+      (raw as any)[row.key] = row.value === "true" || row.value === "1";
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (raw as any)[row.key] = row.value;
