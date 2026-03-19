@@ -1,23 +1,37 @@
-import type { CategoryStat, Choice, ExamMeta, ExamSnapshot, Question, QuestionHistoryEntry, QuizStats, SessionRecord, Suggestion, UserSettings } from "./types";
+import type {
+  CategoryStat, Choice, ExamMeta, ExamSnapshot,
+  Question, QuestionHistoryEntry, QuizStats, SessionRecord, Suggestion, UserSettings,
+} from "./types";
 import { DEFAULT_USER_SETTINGS } from "./types";
 import { getRequestContext } from "@cloudflare/next-on-pages";
-
-// Minimal D1 type stub – replaced by @cloudflare/workers-types after npm install
-export interface D1Result {
-  meta: { last_row_id: number; changes: number };
-}
-export interface D1PreparedStatement {
-  bind(...values: unknown[]): D1PreparedStatement;
-  all<T = unknown>(): Promise<{ results: T[] }>;
-  first<T = unknown>(): Promise<T | null>;
-  run(): Promise<D1Result>;
-}
-export interface D1Database {
-  prepare(query: string): D1PreparedStatement;
-}
+import { drizzle } from "drizzle-orm/d1";
+import { eq, like, and, sql, asc, desc, isNotNull, lte, lt, gte } from "drizzle-orm";
+import type { D1Database as CloudflareD1 } from "@cloudflare/workers-types";
+import * as schema from "./schema";
+import {
+  exams as examsTable, questions as questionsTable, questionHistory,
+  scores, sessions, sessionAnswers, userSettings, userSnapshots,
+  userInvalidatedQuestions, studyGuides, suggestions as suggestionsTable,
+  appSettings,
+} from "./schema";
 
 // ── Runtime detection ─────────────────────────────────────────────────────
 
+// Minimal stub kept for complex raw-SQL queries that go through db.$client
+export interface D1Result {
+  meta: { last_row_id: number; changes: number };
+}
+export interface D1Database {
+  prepare(query: string): {
+    bind(...values: unknown[]): {
+      all<T = unknown>(): Promise<{ results: T[] }>;
+      first<T = unknown>(): Promise<T | null>;
+      run(): Promise<D1Result>;
+    };
+  };
+}
+
+/** Returns the raw D1 binding (used internally by getDrizzle and by complex queries). */
 export function getDB(): D1Database | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,10 +41,14 @@ export function getDB(): D1Database | null {
   }
 }
 
+/** Returns a Drizzle instance wrapping D1, or null in local dev. */
+function getDrizzle() {
+  const d1 = getDB();
+  if (!d1) return null;
+  return drizzle(d1 as unknown as CloudflareD1, { schema });
+}
+
 // ── CSV fallback (local dev only) ─────────────────────────────────────────
-// Edge runtime can't use fs/process.cwd(), so we call a Node.js API route
-// that reads CSV files. In production on Cloudflare, getDB() returns D1 so
-// these functions are never reached.
 
 const LOCAL_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 
@@ -51,10 +69,11 @@ async function csvQuestions(examId: string): Promise<Question[]> {
 // ── Exam list ──────────────────────────────────────────────────────────────
 
 export async function getExamList(): Promise<ExamMeta[]> {
-  const db = getDB();
-  if (!db) return csvExamList();
+  const d1 = getDB();
+  if (!d1) return csvExamList();
 
-  const result = await db
+  // Complex GROUP BY + aggregation — keep as raw SQL via db.$client
+  const result = await d1
     .prepare(
       `SELECT e.id, e.name, e.lang, e.tags, COUNT(q.id) AS question_count,
               SUM(CASE WHEN q.is_duplicate = 1 THEN 1 ELSE 0 END) AS duplicate_count
@@ -63,6 +82,7 @@ export async function getExamList(): Promise<ExamMeta[]> {
        GROUP BY e.id
        ORDER BY e.lang ASC, e.name ASC`
     )
+    .bind()
     .all<{ id: string; name: string; lang: string; tags: string | null; question_count: number; duplicate_count: number }>();
 
   return (result.results ?? []).map((row) => {
@@ -83,98 +103,36 @@ export async function updateExamMeta(
   examId: string,
   fields: { name?: string; language?: "ja" | "en" | "zh" | "ko"; tags?: string[] }
 ): Promise<void> {
-  const db = getDB();
-  if (!db) return; // CSV mode: no-op
+  const db = getDrizzle();
+  if (!db) return;
   if (fields.name !== undefined) {
-    await db.prepare("UPDATE exams SET name = ? WHERE id = ?").bind(fields.name, examId).run();
+    await db.update(examsTable).set({ name: fields.name }).where(eq(examsTable.id, examId));
   }
   if (fields.language !== undefined) {
-    await db.prepare("UPDATE exams SET lang = ? WHERE id = ?").bind(fields.language, examId).run();
+    await db.update(examsTable).set({ lang: fields.language }).where(eq(examsTable.id, examId));
   }
   if (fields.tags !== undefined) {
-    await db.prepare("UPDATE exams SET tags = ? WHERE id = ?").bind(JSON.stringify(fields.tags), examId).run();
+    await db.update(examsTable).set({ tags: JSON.stringify(fields.tags) }).where(eq(examsTable.id, examId));
   }
 }
 
-export async function renameCategory(
-  examId: string,
-  oldName: string,
-  newName: string
-): Promise<void> {
-  const db = getDB();
+export async function renameCategory(examId: string, oldName: string, newName: string): Promise<void> {
+  const db = getDrizzle();
   if (!db) return;
-  await db
-    .prepare("UPDATE questions SET category = ? WHERE exam_id = ? AND category = ?")
-    .bind(newName.trim(), examId, oldName)
-    .run();
+  await db.update(questionsTable)
+    .set({ category: newName.trim() })
+    .where(and(eq(questionsTable.examId, examId), eq(questionsTable.category, oldName)));
 }
 
 // ── Questions ──────────────────────────────────────────────────────────────
 
-export async function getQuestions(examId: string): Promise<Question[]> {
-  const db = getDB();
-  if (!db) return csvQuestions(examId);
-
-  const result = await db
-    .prepare(
-      `SELECT id, num, question_text, options, answers, explanation, source, explanation_sources,
-              is_duplicate, version, category, created_by, created_at, added_at, updated_at
-       FROM questions WHERE exam_id = ? ORDER BY num ASC`
-    )
-    .bind(examId)
-    .all<{
-      id: string; num: number; question_text: string; options: string;
-      answers: string; explanation: string; source: string;
-      explanation_sources: string | null;
-      is_duplicate: number; version: number; category: string | null;
-      created_by: string; created_at: string | null; added_at: string | null; updated_at: string | null;
-    }>();
-
-  return (result.results ?? []).map((row) => {
-    const choices: Choice[] = JSON.parse(row.options);
-    const answers: string[] = JSON.parse(row.answers);
-    return {
-      id: row.num,
-      dbId: row.id,
-      question: row.question_text,
-      choices,
-      answers,
-      explanation: row.explanation ?? "",
-      source: row.source ?? "",
-      explanationSources: JSON.parse(row.explanation_sources ?? "[]") as string[],
-      isDuplicate: row.is_duplicate === 1,
-      choiceCount: choices.length,
-      isMultiple: answers.length > 1,
-      version: row.version,
-      category: row.category ?? null,
-      createdBy: row.created_by ?? "",
-      createdAt: row.created_at ?? "",
-      addedAt: row.added_at ?? "",
-      updatedAt: row.updated_at ?? "",
-    };
-  });
-}
-
-export async function getQuestionById(id: string): Promise<Question | null> {
-  const db = getDB();
-  if (!db) return null;
-
-  const row = await db
-    .prepare(
-      `SELECT id, num, question_text, options, answers, explanation, source, explanation_sources,
-              is_duplicate, version, category, created_by, created_at, added_at, updated_at
-       FROM questions WHERE id = ?`
-    )
-    .bind(id)
-    .first<{
-      id: string; num: number; question_text: string; options: string;
-      answers: string; explanation: string; source: string;
-      explanation_sources: string | null;
-      is_duplicate: number; version: number; category: string | null;
-      created_by: string; created_at: string | null; added_at: string | null; updated_at: string | null;
-    }>();
-
-  if (!row) return null;
+function mapQuestionRow(row: {
+  id: string; num: number; question_text: string; options: string;
+  answers: string; explanation: string; source: string;
+  explanation_sources: string | null; is_duplicate: number; version: number;
+  category: string | null; created_by: string; created_at: string | null;
+  added_at: string | null; updated_at: string | null;
+}): Question {
   const choices: Choice[] = JSON.parse(row.options);
   const answers: string[] = JSON.parse(row.answers);
   return {
@@ -198,6 +156,48 @@ export async function getQuestionById(id: string): Promise<Question | null> {
   };
 }
 
+const QUESTION_COLS = `id, num, question_text, options, answers, explanation, source, explanation_sources,
+  is_duplicate, version, category, created_by, created_at, added_at, updated_at`;
+
+export async function getQuestions(examId: string): Promise<Question[]> {
+  const d1 = getDB();
+  if (!d1) return csvQuestions(examId);
+
+  type Row = {
+    id: string; num: number; question_text: string; options: string;
+    answers: string; explanation: string; source: string;
+    explanation_sources: string | null; is_duplicate: number; version: number;
+    category: string | null; created_by: string; created_at: string | null;
+    added_at: string | null; updated_at: string | null;
+  };
+  const result = await d1
+    .prepare(`SELECT ${QUESTION_COLS} FROM questions WHERE exam_id = ? ORDER BY num ASC`)
+    .bind(examId)
+    .all<Row>();
+
+  return (result.results ?? []).map(mapQuestionRow);
+}
+
+export async function getQuestionById(id: string): Promise<Question | null> {
+  const d1 = getDB();
+  if (!d1) return null;
+
+  type Row = {
+    id: string; num: number; question_text: string; options: string;
+    answers: string; explanation: string; source: string;
+    explanation_sources: string | null; is_duplicate: number; version: number;
+    category: string | null; created_by: string; created_at: string | null;
+    added_at: string | null; updated_at: string | null;
+  };
+  const row = await d1
+    .prepare(`SELECT ${QUESTION_COLS} FROM questions WHERE id = ?`)
+    .bind(id)
+    .first<Row>();
+
+  if (!row) return null;
+  return mapQuestionRow(row);
+}
+
 // ── Question edit ──────────────────────────────────────────────────────────
 
 export interface QuestionUpdate {
@@ -210,27 +210,18 @@ export interface QuestionUpdate {
   change_reason: string;
 }
 
-export async function updateQuestion(
-  id: string,
-  data: QuestionUpdate,
-  changedBy: string
-): Promise<void> {
-  const db = getDB();
-  if (!db) throw new Error("DB not available in local dev");
+export async function updateQuestion(id: string, data: QuestionUpdate, changedBy: string): Promise<void> {
+  const d1 = getDB();
+  if (!d1) throw new Error("DB not available in local dev");
 
-  const current = await db
-    .prepare(
-      `SELECT question_text, options, answers, explanation, version FROM questions WHERE id = ?`
-    )
+  const current = await d1
+    .prepare(`SELECT question_text, options, answers, explanation, version FROM questions WHERE id = ?`)
     .bind(id)
-    .first<{
-      question_text: string; options: string; answers: string;
-      explanation: string; version: number;
-    }>();
+    .first<{ question_text: string; options: string; answers: string; explanation: string; version: number }>();
 
   if (!current) throw new Error(`Question ${id} not found`);
 
-  await db
+  await d1
     .prepare(
       `INSERT INTO question_history (question_id, question_text, options, answers, explanation, version, changed_by, change_reason)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -238,7 +229,7 @@ export async function updateQuestion(
     .bind(id, current.question_text, current.options, current.answers, current.explanation, current.version, changedBy, data.change_reason)
     .run();
 
-  await db
+  await d1
     .prepare(
       `UPDATE questions
        SET question_text = ?, options = ?, answers = ?, explanation = ?, source = ?,
@@ -254,18 +245,17 @@ export async function updateQuestion(
 }
 
 export async function setDuplicate(id: string, isDuplicate: boolean): Promise<void> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) throw new Error("DB not available in local dev");
-  await db
-    .prepare(`UPDATE questions SET is_duplicate = ? WHERE id = ?`)
-    .bind(isDuplicate ? 1 : 0, id)
-    .run();
+  await db.update(questionsTable)
+    .set({ isDuplicate: isDuplicate ? 1 : 0 })
+    .where(eq(questionsTable.id, id));
 }
 
 export async function getUserInvalidatedIds(userEmail: string, examId: string): Promise<string[]> {
-  const db = getDB();
-  if (!db) return [];
-  const result = await db
+  const d1 = getDB();
+  if (!d1) return [];
+  const result = await d1
     .prepare(
       `SELECT u.question_id FROM user_invalidated_questions u
        JOIN questions q ON q.id = u.question_id
@@ -277,90 +267,157 @@ export async function getUserInvalidatedIds(userEmail: string, examId: string): 
 }
 
 export async function toggleUserInvalidated(questionId: string, userEmail: string): Promise<boolean> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) throw new Error("DB not available in local dev");
-  const existing = await db
-    .prepare(`SELECT 1 FROM user_invalidated_questions WHERE user_email = ? AND question_id = ?`)
-    .bind(userEmail, questionId)
-    .first();
-  if (existing) {
-    await db
-      .prepare(`DELETE FROM user_invalidated_questions WHERE user_email = ? AND question_id = ?`)
-      .bind(userEmail, questionId)
-      .run();
+
+  const existing = await db.select({ questionId: userInvalidatedQuestions.questionId })
+    .from(userInvalidatedQuestions)
+    .where(and(
+      eq(userInvalidatedQuestions.userEmail, userEmail),
+      eq(userInvalidatedQuestions.questionId, questionId)
+    ))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db.delete(userInvalidatedQuestions).where(
+      and(
+        eq(userInvalidatedQuestions.userEmail, userEmail),
+        eq(userInvalidatedQuestions.questionId, questionId)
+      )
+    );
     return false;
   } else {
-    await db
-      .prepare(`INSERT INTO user_invalidated_questions (user_email, question_id) VALUES (?, ?)`)
-      .bind(userEmail, questionId)
-      .run();
+    await db.insert(userInvalidatedQuestions).values({ userEmail, questionId });
     return true;
   }
 }
 
 export async function getQuestionHistory(questionId: string): Promise<QuestionHistoryEntry[]> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return [];
 
-  const result = await db
-    .prepare(
-      `SELECT id, question_id, question_text, options, answers, explanation, version, changed_at, changed_by, change_reason
-       FROM question_history WHERE question_id = ? ORDER BY version DESC`
-    )
-    .bind(questionId)
-    .all<{
-      id: number; question_id: string; question_text: string; options: string;
-      answers: string; explanation: string; version: number;
-      changed_at: string; changed_by: string | null; change_reason: string | null;
-    }>();
+  const rows = await db.select()
+    .from(questionHistory)
+    .where(eq(questionHistory.questionId, questionId))
+    .orderBy(desc(questionHistory.version));
 
-  return (result.results ?? []).map((row) => ({
+  return rows.map((row) => ({
     id: row.id,
-    questionId: row.question_id,
-    questionText: row.question_text,
+    questionId: row.questionId,
+    questionText: row.questionText,
     options: JSON.parse(row.options) as Choice[],
     answers: JSON.parse(row.answers) as string[],
     explanation: row.explanation ?? "",
     version: row.version,
-    changedAt: row.changed_at,
-    changedBy: row.changed_by,
-    changeReason: row.change_reason ?? null,
+    changedAt: row.changedAt ?? "",
+    changedBy: row.changedBy ?? null,
+    changeReason: row.changeReason ?? null,
   }));
+}
+
+// ── Question create / delete ────────────────────────────────────────────────
+
+export interface QuestionCreate {
+  question_text: string;
+  options: Choice[];
+  answers: string[];
+  explanation: string;
+  source: string;
+  explanation_sources: string[];
+}
+
+export async function createQuestion(examId: string, data: QuestionCreate, createdBy: string): Promise<Question> {
+  const d1 = getDB();
+  if (!d1) throw new Error("DB not available in local dev");
+
+  const maxRow = await d1
+    .prepare("SELECT COALESCE(MAX(num), 0) AS max_num FROM questions WHERE exam_id = ?")
+    .bind(examId)
+    .first<{ max_num: number }>();
+  const num = (maxRow?.max_num ?? 0) + 1;
+  const id = `${examId}__${num}`;
+
+  await d1
+    .prepare(
+      `INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source,
+                              explanation_sources, created_by, created_at, added_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
+    )
+    .bind(
+      id, examId, num, data.question_text, JSON.stringify(data.options),
+      JSON.stringify(data.answers), data.explanation, data.source,
+      JSON.stringify(data.explanation_sources ?? []), createdBy
+    )
+    .run();
+
+  const created = await getQuestionById(id);
+  if (!created) throw new Error("Failed to retrieve created question");
+  return created;
+}
+
+export async function deleteQuestion(id: string): Promise<void> {
+  const db = getDrizzle();
+  if (!db) throw new Error("DB not available in local dev");
+
+  await db.delete(questionHistory).where(eq(questionHistory.questionId, id));
+  await db.delete(scores).where(eq(scores.questionId, id));
+  await db.delete(questionsTable).where(eq(questionsTable.id, id));
 }
 
 // ── Scores ─────────────────────────────────────────────────────────────────
 
 export async function getScores(userEmail: string, examId: string): Promise<QuizStats> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return {};
 
   const prefix = `${examId}__`;
-  const result = await db
-    .prepare(
-      `SELECT question_id, last_correct FROM scores
-       WHERE user_email = ? AND question_id LIKE ?`
-    )
-    .bind(userEmail, `${prefix}%`)
-    .all<{ question_id: string; last_correct: number }>();
+  const rows = await db.select({ questionId: scores.questionId, lastCorrect: scores.lastCorrect })
+    .from(scores)
+    .where(and(
+      eq(scores.userEmail, userEmail),
+      like(scores.questionId, `${prefix}%`)
+    ));
 
   const stats: QuizStats = {};
-  for (const row of result.results ?? []) {
-    const num = row.question_id.slice(prefix.length);
-    stats[num] = row.last_correct as 0 | 1;
+  for (const row of rows) {
+    const num = row.questionId.slice(prefix.length);
+    stats[num] = row.lastCorrect as 0 | 1;
   }
   return stats;
 }
 
+export async function saveScore(userEmail: string, examId: string, questionNum: number, correct: boolean): Promise<void> {
+  const db = getDrizzle();
+  if (!db) return;
+
+  const questionId = `${examId}__${questionNum}`;
+  const lastCorrect = correct ? 1 : 0;
+  const correctDelta = correct ? 1 : 0;
+
+  await db.insert(scores)
+    .values({
+      userEmail, questionId, lastCorrect,
+      attempts: 1, correctCount: correctDelta,
+      updatedAt: sql`datetime('now')` as unknown as string,
+    })
+    .onConflictDoUpdate({
+      target: [scores.userEmail, scores.questionId],
+      set: {
+        lastCorrect,
+        attempts: sql`${scores.attempts} + 1`,
+        correctCount: sql`${scores.correctCount} + ${correctDelta}`,
+        updatedAt: sql`datetime('now')`,
+      },
+    });
+}
+
 // ── Category stats ───────────────────────────────────────────────────────────
 
-export async function getCategoryStats(
-  userEmail: string,
-  examId: string
-): Promise<CategoryStat[]> {
-  const db = getDB();
-  if (!db) return [];
+export async function getCategoryStats(userEmail: string, examId: string): Promise<CategoryStat[]> {
+  const d1 = getDB();
+  if (!d1) return [];
 
-  const result = await db
+  const result = await d1
     .prepare(
       `SELECT
          q.category,
@@ -384,168 +441,61 @@ export async function getCategoryStats(
   }));
 }
 
-// ── Question create / delete ────────────────────────────────────────────────
-
-export interface QuestionCreate {
-  question_text: string;
-  options: Choice[];
-  answers: string[];
-  explanation: string;
-  source: string;
-  explanation_sources: string[];
-}
-
-export async function createQuestion(
-  examId: string,
-  data: QuestionCreate,
-  createdBy: string
-): Promise<Question> {
-  const db = getDB();
-  if (!db) throw new Error("DB not available in local dev");
-
-  // Determine next num
-  const maxRow = await db
-    .prepare("SELECT COALESCE(MAX(num), 0) AS max_num FROM questions WHERE exam_id = ?")
-    .bind(examId)
-    .first<{ max_num: number }>();
-  const num = (maxRow?.max_num ?? 0) + 1;
-  const id = `${examId}__${num}`;
-
-  await db
-    .prepare(
-      `INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source,
-                              explanation_sources, created_by, created_at, added_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`
-    )
-    .bind(
-      id, examId, num, data.question_text, JSON.stringify(data.options),
-      JSON.stringify(data.answers), data.explanation, data.source,
-      JSON.stringify(data.explanation_sources ?? []), createdBy
-    )
-    .run();
-
-  const created = await getQuestionById(id);
-  if (!created) throw new Error("Failed to retrieve created question");
-  return created;
-}
-
-export async function deleteQuestion(id: string): Promise<void> {
-  const db = getDB();
-  if (!db) throw new Error("DB not available in local dev");
-
-  await db.prepare("DELETE FROM question_history WHERE question_id = ?").bind(id).run();
-  await db.prepare("DELETE FROM scores WHERE question_id = ?").bind(id).run();
-  await db.prepare("DELETE FROM questions WHERE id = ?").bind(id).run();
-}
-
-// ── Scores ─────────────────────────────────────────────────────────────────
-
-export async function saveScore(
-  userEmail: string,
-  examId: string,
-  questionNum: number,
-  correct: boolean
-): Promise<void> {
-  const db = getDB();
-  if (!db) return; // no-op in local dev
-
-  const questionId = `${examId}__${questionNum}`;
-  const lastCorrect = correct ? 1 : 0;
-  const correctDelta = correct ? 1 : 0;
-
-  await db
-    .prepare(
-      `INSERT INTO scores (user_email, question_id, last_correct, attempts, correct_count, updated_at)
-       VALUES (?, ?, ?, 1, ?, datetime('now'))
-       ON CONFLICT(user_email, question_id) DO UPDATE SET
-         last_correct  = excluded.last_correct,
-         attempts      = attempts + 1,
-         correct_count = correct_count + excluded.correct_count,
-         updated_at    = excluded.updated_at`
-    )
-    .bind(userEmail, questionId, lastCorrect, correctDelta)
-    .run();
-}
-
 // ── Sessions ───────────────────────────────────────────────────────────────
 
 export async function createSession(
-  userEmail: string,
-  examId: string,
-  mode: "quiz" | "review",
-  filter: "all" | "wrong",
-  questionCount: number,
-  sessionId: string
+  userEmail: string, examId: string, mode: "quiz" | "review",
+  filter: "all" | "wrong", questionCount: number, sessionId: string
 ): Promise<void> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return;
-  await db
-    .prepare(
-      `INSERT OR IGNORE INTO sessions (id, user_email, exam_id, mode, filter, started_at, question_count)
-       VALUES (?, ?, ?, ?, ?, datetime('now'), ?)`
-    )
-    .bind(sessionId, userEmail, examId, mode, filter, questionCount)
-    .run();
+  await db.insert(sessions)
+    .values({
+      id: sessionId, userEmail, examId, mode, filter,
+      startedAt: sql`datetime('now')` as unknown as string,
+      questionCount,
+    })
+    .onConflictDoNothing();
 }
 
-export async function completeSession(
-  sessionId: string,
-  correctCount: number
-): Promise<void> {
-  const db = getDB();
+export async function completeSession(sessionId: string, correctCount: number): Promise<void> {
+  const db = getDrizzle();
   if (!db) return;
-  await db
-    .prepare(
-      `UPDATE sessions SET completed_at = datetime('now'), correct_count = ? WHERE id = ?`
-    )
-    .bind(correctCount, sessionId)
-    .run();
+  await db.update(sessions)
+    .set({ completedAt: sql`datetime('now')` as unknown as string, correctCount })
+    .where(eq(sessions.id, sessionId));
 }
 
-export async function addSessionAnswer(
-  sessionId: string,
-  questionId: string,
-  isCorrect: boolean
-): Promise<void> {
-  const db = getDB();
+export async function addSessionAnswer(sessionId: string, questionId: string, isCorrect: boolean): Promise<void> {
+  const db = getDrizzle();
   if (!db) return;
-  await db
-    .prepare(
-      `INSERT INTO session_answers (session_id, question_id, is_correct, answered_at)
-       VALUES (?, ?, ?, datetime('now'))`
-    )
-    .bind(sessionId, questionId, isCorrect ? 1 : 0)
-    .run();
+  await db.insert(sessionAnswers).values({
+    sessionId, questionId,
+    isCorrect: isCorrect ? 1 : 0,
+    answeredAt: sql`datetime('now')` as unknown as string,
+  });
 }
 
-export async function getSessionsByExam(
-  userEmail: string,
-  examId: string,
-  limit = 20
-): Promise<SessionRecord[]> {
-  const db = getDB();
+export async function getSessionsByExam(userEmail: string, examId: string, limit = 20): Promise<SessionRecord[]> {
+  const db = getDrizzle();
   if (!db) return [];
-  const result = await db
-    .prepare(
-      `SELECT id, user_email, exam_id, mode, filter, started_at, completed_at, question_count, correct_count
-       FROM sessions WHERE user_email = ? AND exam_id = ?
-       ORDER BY started_at DESC LIMIT ?`
-    )
-    .bind(userEmail, examId, limit)
-    .all<{
-      id: string; user_email: string; exam_id: string; mode: string; filter: string;
-      started_at: string; completed_at: string | null; question_count: number; correct_count: number | null;
-    }>();
-  return (result.results ?? []).map((row) => ({
+
+  const rows = await db.select()
+    .from(sessions)
+    .where(and(eq(sessions.userEmail, userEmail), eq(sessions.examId, examId)))
+    .orderBy(desc(sessions.startedAt))
+    .limit(limit);
+
+  return rows.map((row) => ({
     id: row.id,
-    userEmail: row.user_email,
-    examId: row.exam_id,
+    userEmail: row.userEmail,
+    examId: row.examId,
     mode: row.mode as "quiz" | "review",
     filter: row.filter as "all" | "wrong",
-    startedAt: row.started_at,
-    completedAt: row.completed_at,
-    questionCount: row.question_count,
-    correctCount: row.correct_count,
+    startedAt: row.startedAt ?? "",
+    completedAt: row.completedAt ?? null,
+    questionCount: row.questionCount ?? 0,
+    correctCount: row.correctCount ?? null,
   }));
 }
 
@@ -553,12 +503,12 @@ export async function getSessionsByExam(
 
 export async function getDailyProgress(userEmail: string): Promise<{
   todayCount: number;
-  activeDays: string[]; // YYYY-MM-DD strings, descending, max 90
+  activeDays: string[];
 }> {
-  const db = getDB();
-  if (!db) return { todayCount: 0, activeDays: [] };
+  const d1 = getDB();
+  if (!d1) return { todayCount: 0, activeDays: [] };
 
-  const todayRow = await db
+  const todayRow = await d1
     .prepare(
       `SELECT COALESCE(SUM(question_count), 0) as cnt
        FROM sessions WHERE user_email = ? AND date(started_at) = date('now')`
@@ -566,7 +516,7 @@ export async function getDailyProgress(userEmail: string): Promise<{
     .bind(userEmail)
     .first<{ cnt: number }>();
 
-  const daysResult = await db
+  const daysResult = await d1
     .prepare(
       `SELECT DISTINCT date(started_at) as day
        FROM sessions WHERE user_email = ?
@@ -583,23 +533,17 @@ export async function getDailyProgress(userEmail: string): Promise<{
 
 // ── Spaced Repetition (SM-2) ───────────────────────────────────────────────
 
-/** Apply SM-2 algorithm and persist next review date.
- *  quality: 4 = "Knew it", 1 = "Didn't know" */
-export async function saveSRSScore(
-  userEmail: string,
-  questionDbId: string,
-  quality: 1 | 4
-): Promise<void> {
-  const db = getDB();
+export async function saveSRSScore(userEmail: string, questionDbId: string, quality: 1 | 4): Promise<void> {
+  const db = getDrizzle();
   if (!db) return;
 
-  const row = await db
-    .prepare("SELECT interval_days, ease_factor FROM scores WHERE user_email = ? AND question_id = ?")
-    .bind(userEmail, questionDbId)
-    .first<{ interval_days: number; ease_factor: number } | null>();
+  const [row] = await db.select({ intervalDays: scores.intervalDays, easeFactor: scores.easeFactor })
+    .from(scores)
+    .where(and(eq(scores.userEmail, userEmail), eq(scores.questionId, questionDbId)))
+    .limit(1);
 
-  const ef = row?.ease_factor ?? 2.5;
-  const interval = row?.interval_days ?? 1;
+  const ef = row?.easeFactor ?? 2.5;
+  const interval = row?.intervalDays ?? 1;
 
   let newInterval: number;
   let newEF = ef;
@@ -615,41 +559,45 @@ export async function saveSRSScore(
     newEF = Math.max(1.3, newEF);
   }
 
-  const nextDate = new Date(Date.now() + newInterval * 86400000);
-  const nextReviewAt = nextDate.toISOString().slice(0, 10);
+  const nextReviewAt = new Date(Date.now() + newInterval * 86400000).toISOString().slice(0, 10);
+  const lastCorrect = quality >= 3 ? 1 : 0;
 
-  await db
-    .prepare(
-      `INSERT INTO scores (user_email, question_id, last_correct, attempts, correct_count, interval_days, ease_factor, next_review_at, updated_at)
-       VALUES (?, ?, ?, 1, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(user_email, question_id) DO UPDATE SET
-         last_correct   = excluded.last_correct,
-         attempts       = attempts + 1,
-         correct_count  = correct_count + excluded.correct_count,
-         interval_days  = excluded.interval_days,
-         ease_factor    = excluded.ease_factor,
-         next_review_at = excluded.next_review_at,
-         updated_at     = excluded.updated_at`
-    )
-    .bind(userEmail, questionDbId, quality >= 3 ? 1 : 0, quality >= 3 ? 1 : 0, newInterval, newEF, nextReviewAt)
-    .run();
+  await db.insert(scores)
+    .values({
+      userEmail, questionId: questionDbId, lastCorrect,
+      attempts: 1, correctCount: lastCorrect,
+      intervalDays: newInterval, easeFactor: newEF, nextReviewAt,
+      updatedAt: sql`datetime('now')` as unknown as string,
+    })
+    .onConflictDoUpdate({
+      target: [scores.userEmail, scores.questionId],
+      set: {
+        lastCorrect,
+        attempts: sql`${scores.attempts} + 1`,
+        correctCount: sql`${scores.correctCount} + ${lastCorrect}`,
+        intervalDays: newInterval,
+        easeFactor: newEF,
+        nextReviewAt,
+        updatedAt: sql`datetime('now')`,
+      },
+    });
 }
 
-/** Count questions due for review (next_review_at <= today) */
 export async function getDueCount(userEmail: string, examId: string): Promise<number> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return 0;
 
   const today = new Date().toISOString().slice(0, 10);
   const prefix = `${examId}__`;
 
-  const row = await db
-    .prepare(
-      `SELECT COUNT(*) as cnt FROM scores
-       WHERE user_email = ? AND question_id LIKE ? AND next_review_at IS NOT NULL AND next_review_at <= ?`
-    )
-    .bind(userEmail, `${prefix}%`, today)
-    .first<{ cnt: number }>();
+  const [row] = await db.select({ cnt: sql<number>`COUNT(*)` })
+    .from(scores)
+    .where(and(
+      eq(scores.userEmail, userEmail),
+      like(scores.questionId, `${prefix}%`),
+      isNotNull(scores.nextReviewAt),
+      lte(scores.nextReviewAt, today)
+    ));
 
   return row?.cnt ?? 0;
 }
@@ -657,22 +605,21 @@ export async function getDueCount(userEmail: string, examId: string): Promise<nu
 // ── All scores (cross-exam) ─────────────────────────────────────────────────
 
 export async function getAllScores(userEmail: string): Promise<Record<string, QuizStats>> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return {};
 
-  const result = await db
-    .prepare("SELECT question_id, last_correct FROM scores WHERE user_email = ?")
-    .bind(userEmail)
-    .all<{ question_id: string; last_correct: number }>();
+  const rows = await db.select({ questionId: scores.questionId, lastCorrect: scores.lastCorrect })
+    .from(scores)
+    .where(eq(scores.userEmail, userEmail));
 
   const statsMap: Record<string, QuizStats> = {};
-  for (const row of result.results ?? []) {
-    const sep = row.question_id.indexOf("__");
+  for (const row of rows) {
+    const sep = row.questionId.indexOf("__");
     if (sep < 0) continue;
-    const examId = row.question_id.slice(0, sep);
-    const num = row.question_id.slice(sep + 2);
+    const examId = row.questionId.slice(0, sep);
+    const num = row.questionId.slice(sep + 2);
     if (!statsMap[examId]) statsMap[examId] = {};
-    statsMap[examId][num] = row.last_correct as 0 | 1;
+    statsMap[examId][num] = row.lastCorrect as 0 | 1;
   }
   return statsMap;
 }
@@ -680,18 +627,17 @@ export async function getAllScores(userEmail: string): Promise<Record<string, Qu
 // ── User settings ───────────────────────────────────────────────────────────
 
 export async function getAllUserSettings(userEmail: string): Promise<UserSettings> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return DEFAULT_USER_SETTINGS;
 
-  const result = await db
-    .prepare("SELECT key, value FROM user_settings WHERE user_email = ?")
-    .bind(userEmail)
-    .all<{ key: string; value: string }>();
+  const rows = await db.select({ key: userSettings.key, value: userSettings.value })
+    .from(userSettings)
+    .where(eq(userSettings.userEmail, userEmail));
 
-  if (!result.results?.length) return DEFAULT_USER_SETTINGS;
+  if (!rows.length) return DEFAULT_USER_SETTINGS;
 
   const raw: Partial<UserSettings> = {};
-  for (const row of result.results) {
+  for (const row of rows) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     if (row.key === "dailyGoal" || row.key === "audioSpeed") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -711,187 +657,177 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
   return merged;
 }
 
-export async function setUserSettings(
-  userEmail: string,
-  settings: Partial<UserSettings>
-): Promise<void> {
-  const db = getDB();
+export async function setUserSettings(userEmail: string, settings: Partial<UserSettings>): Promise<void> {
+  const db = getDrizzle();
   if (!db) return;
 
   for (const [key, value] of Object.entries(settings)) {
-    await db
-      .prepare(
-        `INSERT INTO user_settings (user_email, key, value, updated_at)
-         VALUES (?, ?, ?, datetime('now'))
-         ON CONFLICT(user_email, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-      )
-      .bind(userEmail, key, String(value))
-      .run();
+    await db.insert(userSettings)
+      .values({
+        userEmail, key, value: String(value),
+        updatedAt: sql`datetime('now')` as unknown as string,
+      })
+      .onConflictDoUpdate({
+        target: [userSettings.userEmail, userSettings.key],
+        set: { value: String(value), updatedAt: sql`datetime('now')` },
+      });
   }
 }
 
 // ── User snapshots ──────────────────────────────────────────────────────────
 
-export async function getSnapshots(
-  userEmail: string,
-  examId?: string
-): Promise<Record<string, ExamSnapshot[]>> {
-  const db = getDB();
+export async function getSnapshots(userEmail: string, examId?: string): Promise<Record<string, ExamSnapshot[]>> {
+  const db = getDrizzle();
   if (!db) return {};
 
-  const result = examId
-    ? await db
-        .prepare(
-          "SELECT exam_id, ts, correct, total, accuracy FROM user_snapshots WHERE user_email = ? AND exam_id = ? ORDER BY ts ASC"
-        )
-        .bind(userEmail, examId)
-        .all<{ exam_id: string; ts: number; correct: number; total: number; accuracy: number }>()
-    : await db
-        .prepare(
-          "SELECT exam_id, ts, correct, total, accuracy FROM user_snapshots WHERE user_email = ? ORDER BY ts ASC"
-        )
-        .bind(userEmail)
-        .all<{ exam_id: string; ts: number; correct: number; total: number; accuracy: number }>();
+  const rows = examId
+    ? await db.select({
+        examId: userSnapshots.examId, ts: userSnapshots.ts, correct: userSnapshots.correct,
+        total: userSnapshots.total, accuracy: userSnapshots.accuracy,
+      })
+      .from(userSnapshots)
+      .where(and(eq(userSnapshots.userEmail, userEmail), eq(userSnapshots.examId, examId)))
+      .orderBy(asc(userSnapshots.ts))
+    : await db.select({
+        examId: userSnapshots.examId, ts: userSnapshots.ts, correct: userSnapshots.correct,
+        total: userSnapshots.total, accuracy: userSnapshots.accuracy,
+      })
+      .from(userSnapshots)
+      .where(eq(userSnapshots.userEmail, userEmail))
+      .orderBy(asc(userSnapshots.ts));
 
   const map: Record<string, ExamSnapshot[]> = {};
-  for (const row of result.results ?? []) {
-    if (!map[row.exam_id]) map[row.exam_id] = [];
-    map[row.exam_id].push({ ts: row.ts, correct: row.correct, total: row.total, accuracy: row.accuracy });
+  for (const row of rows) {
+    if (!map[row.examId]) map[row.examId] = [];
+    map[row.examId].push({ ts: row.ts, correct: row.correct, total: row.total, accuracy: row.accuracy });
   }
   return map;
 }
 
 export async function saveSnapshot(
-  userEmail: string,
-  examId: string,
-  ts: number,
-  correct: number,
-  total: number,
-  accuracy: number
+  userEmail: string, examId: string, ts: number,
+  correct: number, total: number, accuracy: number
 ): Promise<void> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return;
 
-  // Check if there's already a snapshot from today (by UTC date)
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
   const todayTs = todayStart.getTime();
   const tomorrowTs = todayTs + 86400000;
 
-  const existing = await db
-    .prepare(
-      "SELECT id FROM user_snapshots WHERE user_email = ? AND exam_id = ? AND ts >= ? AND ts < ?"
-    )
-    .bind(userEmail, examId, todayTs, tomorrowTs)
-    .first<{ id: number }>();
+  const [existing] = await db.select({ id: userSnapshots.id })
+    .from(userSnapshots)
+    .where(and(
+      eq(userSnapshots.userEmail, userEmail),
+      eq(userSnapshots.examId, examId),
+      gte(userSnapshots.ts, todayTs),
+      lt(userSnapshots.ts, tomorrowTs)
+    ))
+    .limit(1);
 
   if (existing) {
-    await db
-      .prepare(
-        "UPDATE user_snapshots SET ts = ?, correct = ?, total = ?, accuracy = ? WHERE id = ?"
-      )
-      .bind(ts, correct, total, accuracy, existing.id)
-      .run();
+    await db.update(userSnapshots)
+      .set({ ts, correct, total, accuracy })
+      .where(eq(userSnapshots.id, existing.id));
   } else {
-    await db
-      .prepare(
-        `INSERT INTO user_snapshots (user_email, exam_id, ts, correct, total, accuracy)
-         VALUES (?, ?, ?, ?, ?, ?)`
-      )
-      .bind(userEmail, examId, ts, correct, total, accuracy)
-      .run();
+    await db.insert(userSnapshots).values({ userEmail, examId, ts, correct, total, accuracy });
 
     // Keep only last 60 snapshots per exam
-    await db
-      .prepare(
-        `DELETE FROM user_snapshots WHERE user_email = ? AND exam_id = ? AND id NOT IN (
-           SELECT id FROM user_snapshots WHERE user_email = ? AND exam_id = ?
-           ORDER BY ts DESC LIMIT 60
-         )`
-      )
-      .bind(userEmail, examId, userEmail, examId)
-      .run();
+    const d1 = getDB();
+    if (d1) {
+      await d1
+        .prepare(
+          `DELETE FROM user_snapshots WHERE user_email = ? AND exam_id = ? AND id NOT IN (
+             SELECT id FROM user_snapshots WHERE user_email = ? AND exam_id = ?
+             ORDER BY ts DESC LIMIT 60
+           )`
+        )
+        .bind(userEmail, examId, userEmail, examId)
+        .run();
+    }
   }
 }
 
 // ── Study guides ────────────────────────────────────────────────────────────
 
-export async function getStudyGuide(
-  examId: string
-): Promise<{ markdown: string; generatedAt: string } | null> {
-  const db = getDB();
+export async function getStudyGuide(examId: string): Promise<{ markdown: string; generatedAt: string } | null> {
+  const db = getDrizzle();
   if (!db) return null;
-  const row = await db
-    .prepare("SELECT markdown, generated_at FROM study_guides WHERE exam_id = ?")
-    .bind(examId)
-    .first<{ markdown: string; generated_at: string }>();
+
+  const [row] = await db.select({ markdown: studyGuides.markdown, generatedAt: studyGuides.generatedAt })
+    .from(studyGuides)
+    .where(eq(studyGuides.examId, examId))
+    .limit(1);
+
   if (!row) return null;
-  return { markdown: row.markdown, generatedAt: row.generated_at };
+  return { markdown: row.markdown, generatedAt: row.generatedAt ?? "" };
 }
 
-export async function upsertStudyGuide(
-  examId: string,
-  markdown: string
-): Promise<void> {
-  const db = getDB();
+export async function upsertStudyGuide(examId: string, markdown: string): Promise<void> {
+  const db = getDrizzle();
   if (!db) return;
-  await db
-    .prepare(
-      `INSERT INTO study_guides (exam_id, markdown, generated_at)
-       VALUES (?, ?, datetime('now'))
-       ON CONFLICT(exam_id) DO UPDATE SET markdown = excluded.markdown, generated_at = excluded.generated_at`
-    )
-    .bind(examId, markdown)
-    .run();
+
+  await db.insert(studyGuides)
+    .values({ examId, markdown, generatedAt: sql`datetime('now')` as unknown as string })
+    .onConflictDoUpdate({
+      target: studyGuides.examId,
+      set: { markdown, generatedAt: sql`datetime('now')` },
+    });
 }
 
 // ── App settings ───────────────────────────────────────────────────────────
 
 export async function getSetting(key: string): Promise<string | null> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return null;
-  const row = await db
-    .prepare("SELECT value FROM app_settings WHERE key = ?")
-    .bind(key)
-    .first<{ value: string }>();
+
+  const [row] = await db.select({ value: appSettings.value })
+    .from(appSettings)
+    .where(eq(appSettings.key, key))
+    .limit(1);
+
   return row?.value ?? null;
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return;
-  await db
-    .prepare(
-      "INSERT OR REPLACE INTO app_settings (key, value, updated_at) VALUES (?, ?, datetime('now'))"
-    )
-    .bind(key, value)
-    .run();
+
+  await db.insert(appSettings)
+    .values({ key, value, updatedAt: sql`datetime('now')` as unknown as string })
+    .onConflictDoUpdate({
+      target: appSettings.key,
+      set: { value, updatedAt: sql`datetime('now')` },
+    });
 }
 
 // ── Suggestions ────────────────────────────────────────────────────────────
 
-function rowToSuggestion(row: Record<string, unknown>): Suggestion {
+function rowToSuggestion(row: typeof suggestionsTable.$inferSelect): Suggestion {
   return {
-    id: row.id as number,
-    questionId: row.question_id as string,
+    id: row.id,
+    questionId: row.questionId,
     type: row.type as "ai" | "manual",
-    suggestedAnswers: row.suggested_answers ? JSON.parse(row.suggested_answers as string) : null,
-    suggestedExplanation: (row.suggested_explanation as string) ?? null,
-    aiModel: (row.ai_model as string) ?? null,
-    comment: (row.comment as string) ?? null,
-    createdBy: row.created_by as string,
-    createdAt: row.created_at as string,
+    suggestedAnswers: row.suggestedAnswers ? JSON.parse(row.suggestedAnswers) : null,
+    suggestedExplanation: row.suggestedExplanation ?? null,
+    aiModel: row.aiModel ?? null,
+    comment: row.comment ?? null,
+    createdBy: row.createdBy,
+    createdAt: row.createdAt ?? "",
   };
 }
 
 export async function getSuggestions(questionId: string): Promise<Suggestion[]> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) return [];
-  const rows = await db
-    .prepare("SELECT * FROM suggestions WHERE question_id = ? ORDER BY created_at DESC")
-    .bind(questionId)
-    .all<Record<string, unknown>>();
-  return (rows.results ?? []).map(rowToSuggestion);
+
+  const rows = await db.select()
+    .from(suggestionsTable)
+    .where(eq(suggestionsTable.questionId, questionId))
+    .orderBy(desc(suggestionsTable.createdAt));
+
+  return rows.map(rowToSuggestion);
 }
 
 export async function createSuggestion(
@@ -905,26 +841,26 @@ export async function createSuggestion(
   },
   createdBy: string
 ): Promise<Suggestion> {
-  const db = getDB();
+  const db = getDrizzle();
   if (!db) throw new Error("DB not available");
-  const result = await db
-    .prepare(
-      "INSERT INTO suggestions (question_id, type, suggested_answers, suggested_explanation, ai_model, comment, created_by) VALUES (?,?,?,?,?,?,?)"
-    )
-    .bind(
-      questionId,
-      data.type,
-      data.suggestedAnswers ? JSON.stringify(data.suggestedAnswers) : null,
-      data.suggestedExplanation ?? null,
-      data.aiModel ?? null,
-      data.comment ?? null,
-      createdBy
-    )
-    .run();
-  const row = await db
-    .prepare("SELECT * FROM suggestions WHERE rowid = ?")
-    .bind(result.meta.last_row_id)
-    .first<Record<string, unknown>>();
+
+  await db.insert(suggestionsTable).values({
+    questionId,
+    type: data.type,
+    suggestedAnswers: data.suggestedAnswers ? JSON.stringify(data.suggestedAnswers) : null,
+    suggestedExplanation: data.suggestedExplanation ?? null,
+    aiModel: data.aiModel ?? null,
+    comment: data.comment ?? null,
+    createdBy,
+  });
+
+  // Fetch last inserted row (D1 doesn't support RETURNING reliably)
+  const [row] = await db.select()
+    .from(suggestionsTable)
+    .where(eq(suggestionsTable.questionId, questionId))
+    .orderBy(desc(suggestionsTable.id))
+    .limit(1);
+
   if (!row) throw new Error("Failed to retrieve created suggestion");
   return rowToSuggestion(row);
 }
