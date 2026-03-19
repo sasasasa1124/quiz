@@ -55,7 +55,13 @@ export async function POST(req: NextRequest) {
       model,
       contents: prompt,
       config: {
-        tools: [{ googleSearch: {} }],
+        tools: [{
+          googleSearchRetrieval: {
+            dynamicRetrievalConfig: {
+              dynamicThreshold: 1,  // always use Google Search
+            },
+          },
+        }],
       },
     });
     raw = response.text ?? "";
