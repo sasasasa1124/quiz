@@ -697,6 +697,7 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
   const merged: UserSettings = { ...DEFAULT_USER_SETTINGS, ...raw };
   if (!merged.aiPrompt) merged.aiPrompt = DEFAULT_USER_SETTINGS.aiPrompt;
   if (!merged.aiRefinePrompt) merged.aiRefinePrompt = DEFAULT_USER_SETTINGS.aiRefinePrompt;
+  if (!merged.studyGuidePrompt) merged.studyGuidePrompt = DEFAULT_USER_SETTINGS.studyGuidePrompt;
   return merged;
 }
 

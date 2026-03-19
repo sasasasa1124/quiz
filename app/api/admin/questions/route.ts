@@ -1,9 +1,23 @@
 export const runtime = "edge";
 
 import { NextRequest, NextResponse } from "next/server";
-import { createQuestion } from "@/lib/db";
+import { createQuestion, getQuestions, getUserInvalidatedIds } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import type { Choice } from "@/lib/types";
+
+export async function GET(req: NextRequest) {
+  const examId = req.nextUrl.searchParams.get("examId");
+  if (!examId) return NextResponse.json({ error: "examId required" }, { status: 400 });
+
+  const userEmail = await getUserEmail();
+  const [questions, invalidatedIds] = await Promise.all([
+    getQuestions(examId),
+    userEmail ? getUserInvalidatedIds(userEmail, examId) : Promise.resolve([]),
+  ]);
+  const invalidatedSet = new Set(invalidatedIds);
+  const result = questions.map((q) => ({ ...q, invalidated: invalidatedSet.has(q.dbId) }));
+  return NextResponse.json({ questions: result });
+}
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as {

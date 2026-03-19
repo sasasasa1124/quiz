@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap } from "lucide-react";
+import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import PageHeader from "@/components/PageHeader";
 
@@ -14,6 +14,8 @@ function SettingsInner() {
   const { settings, updateSettings, t } = useSettings();
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
   const [aiRefinePrompt, setAiRefinePrompt] = useState(settings.aiRefinePrompt);
+  const [studyGuidePrompt, setStudyGuidePrompt] = useState(settings.studyGuidePrompt);
+  const [openPrompt, setOpenPrompt] = useState<string | null>(null);
   const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 20);
   const [audioMode, setAudioMode] = useState(settings.audioMode ?? false);
   const [audioSpeed, setAudioSpeed] = useState(settings.audioSpeed ?? 1.0);
@@ -32,12 +34,13 @@ function SettingsInner() {
   useEffect(() => {
     setAiPrompt(settings.aiPrompt);
     setAiRefinePrompt(settings.aiRefinePrompt);
+    setStudyGuidePrompt(settings.studyGuidePrompt);
     setDailyGoal(settings.dailyGoal ?? 20);
     setAudioMode(settings.audioMode ?? false);
     setAudioSpeed(settings.audioSpeed ?? 1.0);
-    setAudioPrefetch(settings.audioPrefetch ?? 3);
+    setAudioPrefetch(settings.audioPrefetch ?? 0);
     setSkipRevealOnCorrect(settings.skipRevealOnCorrect ?? false);
-  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect]);
+  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.studyGuidePrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect]);
 
   // Load current gemini model and tts model from DB
   useEffect(() => {
@@ -67,7 +70,7 @@ function SettingsInner() {
   }
 
   async function handleSave() {
-    updateSettings({ aiPrompt, aiRefinePrompt, dailyGoal, audioMode, audioSpeed, audioPrefetch, skipRevealOnCorrect });
+    updateSettings({ aiPrompt, aiRefinePrompt, studyGuidePrompt, dailyGoal, audioMode, audioSpeed, audioPrefetch, skipRevealOnCorrect });
     const saves: Promise<unknown>[] = [];
     if (geminiModel) {
       saves.push(
@@ -97,36 +100,91 @@ function SettingsInner() {
       <PageHeader back={{ href: returnTo }} title={t("settings")} hideSettingsIcon />
       <main className="flex-1 px-4 sm:px-8 py-8 max-w-xl mx-auto w-full space-y-8">
 
-        {/* AI Explain Prompt */}
+        {/* Prompts (accordion) */}
         <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1.5">
-            <Sparkles size={11} className="text-violet-400" />
-            {t("aiPrompt")}
-          </h2>
-          <p className="text-xs text-gray-400 mb-3">{t("aiPromptPlaceholder")}</p>
-          <textarea
-            value={aiPrompt}
-            onChange={(e) => setAiPrompt(e.target.value)}
-            rows={3}
-            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent resize-none"
-            placeholder={t("aiPromptPlaceholder")}
-          />
-        </section>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Prompts</h2>
+          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
+            {/* AI Explain Prompt */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setOpenPrompt((v) => v === "explain" ? null : "explain")}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Sparkles size={13} className="text-violet-400" />
+                  {t("aiPrompt")}
+                </span>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${openPrompt === "explain" ? "rotate-180" : ""}`} />
+              </button>
+              {openPrompt === "explain" && (
+                <div className="px-4 pb-4">
+                  <p className="text-xs text-gray-400 mb-2">{t("aiPromptPlaceholder")}</p>
+                  <textarea
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    rows={6}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent resize-y font-mono"
+                    placeholder={t("aiPromptPlaceholder")}
+                  />
+                </div>
+              )}
+            </div>
 
-        {/* AI Refine Prompt */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1.5">
-            <Wand2 size={11} className="text-amber-400" />
-            {t("aiRefinePrompt")}
-          </h2>
-          <p className="text-xs text-gray-400 mb-3">{t("aiRefinePromptPlaceholder")}</p>
-          <textarea
-            value={aiRefinePrompt}
-            onChange={(e) => setAiRefinePrompt(e.target.value)}
-            rows={3}
-            className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-none"
-            placeholder={t("aiRefinePromptPlaceholder")}
-          />
+            {/* AI Refine Prompt */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setOpenPrompt((v) => v === "refine" ? null : "refine")}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <Wand2 size={13} className="text-amber-400" />
+                  {t("aiRefinePrompt")}
+                </span>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${openPrompt === "refine" ? "rotate-180" : ""}`} />
+              </button>
+              {openPrompt === "refine" && (
+                <div className="px-4 pb-4">
+                  <p className="text-xs text-gray-400 mb-2">{t("aiRefinePromptPlaceholder")}</p>
+                  <textarea
+                    value={aiRefinePrompt}
+                    onChange={(e) => setAiRefinePrompt(e.target.value)}
+                    rows={6}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-y font-mono"
+                    placeholder={t("aiRefinePromptPlaceholder")}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Study Guide Prompt */}
+            <div>
+              <button
+                type="button"
+                onClick={() => setOpenPrompt((v) => v === "studyguide" ? null : "studyguide")}
+                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <BookOpen size={13} className="text-emerald-500" />
+                  Study Guide Prompt
+                </span>
+                <ChevronDown size={14} className={`text-gray-400 transition-transform ${openPrompt === "studyguide" ? "rotate-180" : ""}`} />
+              </button>
+              {openPrompt === "studyguide" && (
+                <div className="px-4 pb-4">
+                  <p className="text-xs text-gray-400 mb-2">System instruction for Study Guide generation. Use {"{examName}"} as a placeholder.</p>
+                  <textarea
+                    value={studyGuidePrompt}
+                    onChange={(e) => setStudyGuidePrompt(e.target.value)}
+                    rows={6}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent resize-y font-mono"
+                    placeholder="You are an expert on the &quot;{examName}&quot; certification exam..."
+                  />
+                </div>
+              )}
+            </div>
+          </div>
         </section>
 
         {/* AI Model */}

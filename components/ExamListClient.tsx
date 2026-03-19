@@ -249,37 +249,39 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       <PageHeader
         title="Exams"
         right={
-          <>
-            {langOptions.length > 1 && (
-              <div className="flex items-center gap-0.5">
-                {langOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => updateSettings({ language: opt.value })}
-                    className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
-                      langFilter === opt.value
-                        ? "bg-gray-900 text-white"
-                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
-            <Link
-              href="/profile"
-              className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              title="Profile"
-            >
-              <User size={14} />
-            </Link>
-          </>
+          <Link
+            href="/profile"
+            className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            title="Profile"
+          >
+            <User size={14} />
+          </Link>
         }
       />
 
+      {/* Language selector */}
+      {langOptions.length > 1 && (
+        <div className="px-4 sm:px-8 pt-4 max-w-3xl mx-auto w-full">
+          <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
+            {langOptions.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => updateSettings({ language: opt.value })}
+                className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                  langFilter === opt.value
+                    ? "bg-white text-gray-900 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Controls: search */}
-      <div className="px-4 sm:px-8 pt-5 pb-3 max-w-3xl mx-auto w-full">
+      <div className="px-4 sm:px-8 pt-3 pb-3 max-w-3xl mx-auto w-full">
         <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
           <input

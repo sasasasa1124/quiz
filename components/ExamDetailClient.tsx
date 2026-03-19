@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { CategoryStat, ExamMeta } from "@/lib/types";
 import PageHeader from "./PageHeader";
+import ExamQuestionTable from "./ExamQuestionTable";
 
 interface Props {
   exam: ExamMeta;
@@ -28,7 +29,7 @@ function pctTextColor(pct: number) {
   return "text-rose-500";
 }
 
-export default function ExamDetailClient({ exam, categoryStats: initialStats }: Props) {
+export default function ExamDetailClient({ exam, categoryStats: initialStats, userEmail }: Props) {
   const [stats, setStats] = useState<CategoryStat[]>(initialStats);
   const [statsLoading, setStatsLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<"quiz" | "review">("quiz");
@@ -603,6 +604,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats }: 
 
           </div>
         </div>
+        <ExamQuestionTable examId={exam.id} userEmail={userEmail} />
       </main>
     </div>
   );

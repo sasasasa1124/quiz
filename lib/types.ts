@@ -66,10 +66,11 @@ export interface UserSettings {
   language: "en" | "ja" | "zh" | "ko";
   aiPrompt: string;
   aiRefinePrompt: string;
+  studyGuidePrompt: string;
   dailyGoal: number; // questions per day target
   audioMode: boolean; // read questions aloud
   audioSpeed: number; // playback rate 0.5–4.0
-  audioPrefetch: number; // chunks to pre-fetch ahead while playing (0 = off, default: 3)
+  audioPrefetch: number; // chunks to pre-fetch ahead while playing (0 = off)
   skipRevealOnCorrect: boolean; // auto-advance without showing answer when correct
 }
 
@@ -132,13 +133,17 @@ export interface SessionRecord {
   correctCount: number | null;
 }
 
+export const DEFAULT_STUDY_GUIDE_PROMPT = `You are an expert on the "{examName}" certification exam.
+Analyze the exam questions below (grouped by category) and use Google Search to find the latest official exam guide information. Then produce a comprehensive Study Guide in Markdown format covering key topics, representative Q&As per category, and study priorities.`;
+
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   language: "en",
   aiPrompt: DEFAULT_EXPLAIN_PROMPT,
   aiRefinePrompt: DEFAULT_REFINE_PROMPT,
+  studyGuidePrompt: DEFAULT_STUDY_GUIDE_PROMPT,
   dailyGoal: 20,
   audioMode: false,
   audioSpeed: 1.0,
-  audioPrefetch: 5,
+  audioPrefetch: 0,
   skipRevealOnCorrect: false,
 };
