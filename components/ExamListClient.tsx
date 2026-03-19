@@ -32,10 +32,9 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
-async function uploadFile(file: File, language: Locale): Promise<ExamMeta> {
+async function uploadFile(file: File): Promise<ExamMeta> {
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("language", language);
   const res = await fetch("/api/upload", { method: "POST", body: formData });
   if (!res.ok) throw new Error(await res.text());
   const { exam } = await res.json() as { exam: ExamMeta };
@@ -47,17 +46,15 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const { settings, updateSettings } = useSettings();
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
   const [statsMap, setStatsMap] = useState<Record<string, { pct: number | null; answered: number; total: number; wrongCount: number }>>({});
-  const availableLangs = Array.from(new Set(initialExams.map((e) => e.language)));
-  const langOptions = LANG_OPTIONS.filter((opt) => availableLangs.includes(opt.value));
-  const langFilter = availableLangs.includes(settings.language)
-    ? settings.language
-    : (availableLangs[0] ?? "en");
+  const langFilter = settings.language;
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
-  const [uploadLang, setUploadLang] = useState<Locale>(
-    settings.language === "ja" ? "ja" : "en"
-  );
+  const [uploadedExam, setUploadedExam] = useState<ExamMeta | null>(null);
+  const [previewName, setPreviewName] = useState("");
+  const [previewLang, setPreviewLang] = useState<Locale>("en");
+  const [previewTags, setPreviewTags] = useState<string[]>(["Salesforce"]);
+  const [previewTagInput, setPreviewTagInput] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [dailyProgress, setDailyProgress] = useState<{ todayCount: number; streak: number } | null>(null);
@@ -65,6 +62,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const [translateSourceId, setTranslateSourceId] = useState<string | null>(null);
   const [translateStatus, setTranslateStatus] = useState<"idle" | "translating" | "done" | "error">("idle");
   const [translateProgress, setTranslateProgress] = useState<{ done: number; total: number } | null>(null);
+  const [translateSearch, setTranslateSearch] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
 
@@ -126,9 +124,11 @@ export default function ExamListClient({ exams: initialExams }: Props) {
     setUploadProgress({ done: 0, total: csvFiles.length });
 
     let hasError = false;
+    let lastExam: ExamMeta | null = null;
     for (let i = 0; i < csvFiles.length; i++) {
       try {
-        const exam = await uploadFile(csvFiles[i], uploadLang);
+        const exam = await uploadFile(csvFiles[i]);
+        lastExam = exam;
         setExams((prev) => {
           const exists = prev.find((e) => e.id === exam.id);
           return exists ? prev.map((e) => (e.id === exam.id ? exam : e)) : [...prev, exam];
@@ -139,9 +139,16 @@ export default function ExamListClient({ exams: initialExams }: Props) {
 
     setUploadStatus(hasError ? "error" : "done");
     setUploadProgress(null);
+    if (lastExam) {
+      setUploadedExam(lastExam);
+      setPreviewName(lastExam.name);
+      setPreviewLang(lastExam.language);
+      setPreviewTags(["Salesforce"]);
+      setPreviewTagInput("");
+    }
     setTimeout(() => setUploadStatus("idle"), 2000);
     if (fileRef.current) fileRef.current.value = "";
-  }, [uploadLang]);
+  }, []);
 
   // Global drag & drop
   useEffect(() => {
@@ -244,23 +251,21 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       <PageHeader
         right={
           <>
-            {langOptions.length > 1 && (
-              <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg">
-                {langOptions.map((opt) => (
-                  <button
-                    key={opt.value}
-                    onClick={() => updateSettings({ language: opt.value })}
-                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                      langFilter === opt.value
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-500 hover:text-gray-700"
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
-              </div>
-            )}
+            <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg">
+              {LANG_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => updateSettings({ language: opt.value })}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                    settings.language === opt.value
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-500 hover:text-gray-700"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
             <Link
               href="/profile"
               className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -346,11 +351,16 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                   className="flex-1 text-left px-5 py-4 flex items-start gap-3 hover:bg-gray-50 transition-colors group"
                 >
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-gray-900 text-sm leading-snug mb-1">{exam.name}</p>
+                    <div className="flex items-start gap-2 mb-1">
+                      <p className="flex-1 font-semibold text-gray-900 text-sm leading-snug">{exam.name}</p>
+                      <span className="shrink-0 px-1.5 py-0.5 rounded bg-gray-100 text-[10px] text-gray-500 font-medium leading-none mt-0.5">
+                        {exam.language.toUpperCase()}
+                      </span>
+                    </div>
                     <p className="text-xs text-gray-400">
                       {exam.questionCount} Q
                       {s && s.answered > 0 && (
-                        <span className="ml-2 text-gray-300">· {s.answered}/{s.total}</span>
+                        <span className="ml-2 text-gray-300">· {s.answered}/{s.total} answered</span>
                       )}
                     </p>
                     {exam.tags && exam.tags.length > 0 && (
@@ -361,11 +371,19 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                       </div>
                     )}
                     {s && s.answered > 0 && pct !== null && (
-                      <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-400" : "bg-rose-400"}`}
-                          style={{ width: `${pct}%` }}
-                        />
+                      <div className="mt-2 flex items-center gap-2">
+                        <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-400" : "bg-rose-400"}`}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                        {s.wrongCount > 0 && (
+                          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-[10px] text-rose-400 font-medium leading-none shrink-0">
+                            <RotateCcw size={8} />
+                            {s.wrongCount}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -378,12 +396,6 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
                   </div>
                 </button>
-                {s && s.wrongCount > 0 && (
-                  <div className="px-5 py-2.5 flex items-center gap-2 border-t border-gray-100">
-                    <RotateCcw size={12} className="text-rose-300 shrink-0" />
-                    <span className="text-xs text-rose-400">{s.wrongCount}</span>
-                  </div>
-                )}
               </div>
             );
           })}
@@ -403,7 +415,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
             <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-gray-700">Add Exam</p>
-                <button onClick={() => setShowAdd(false)} className="text-gray-300 hover:text-gray-500 transition-colors">
+                <button onClick={() => { setShowAdd(false); setUploadedExam(null); }} className="text-gray-300 hover:text-gray-500 transition-colors">
                   <X size={15} />
                 </button>
               </div>
@@ -415,22 +427,6 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                 >
                   <Download size={12} /> CSV Template
                 </button>
-              </div>
-              <div>
-                <p className="text-xs text-gray-400 mb-2">Language</p>
-                <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5 mb-3">
-                  {(["ja", "en"] as const).map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => setUploadLang(lang)}
-                      className={`flex-1 text-xs font-medium py-1 rounded-md transition-colors ${
-                        uploadLang === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
-                      }`}
-                    >
-                      {lang === "ja" ? "JP" : "EN"}
-                    </button>
-                  ))}
-                </div>
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-2">Upload</p>
@@ -452,19 +448,119 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                   </div>
                 </button>
               </div>
+
+              {/* Upload preview panel */}
+              {uploadedExam && (
+                <div className="border border-gray-200 rounded-xl p-3 flex flex-col gap-2.5">
+                  <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Preview</p>
+                  <input
+                    value={previewName}
+                    onChange={(e) => setPreviewName(e.target.value)}
+                    className="w-full h-8 px-2.5 rounded-lg border border-gray-200 text-xs text-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    placeholder="Exam name"
+                  />
+                  <div className="flex gap-1">
+                    {LANG_OPTIONS.map((opt) => (
+                      <button
+                        key={opt.value}
+                        onClick={() => setPreviewLang(opt.value)}
+                        className={`flex-1 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          previewLang === opt.value
+                            ? "bg-gray-900 text-white"
+                            : "border border-gray-200 text-gray-500 hover:bg-gray-50"
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-1 min-h-[20px] p-1.5 border border-gray-200 rounded-lg">
+                    {previewTags.map((tag) => (
+                      <span key={tag} className="flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-gray-100 text-[10px] text-gray-600 leading-none">
+                        {tag}
+                        <button onClick={() => setPreviewTags((prev) => prev.filter((t) => t !== tag))} className="text-gray-400 hover:text-gray-600 ml-0.5">
+                          <X size={9} />
+                        </button>
+                      </span>
+                    ))}
+                    <input
+                      value={previewTagInput}
+                      onChange={(e) => setPreviewTagInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.key === "Enter" || e.key === ",") && previewTagInput.trim()) {
+                          e.preventDefault();
+                          setPreviewTags((prev) => [...new Set([...prev, previewTagInput.trim()])]);
+                          setPreviewTagInput("");
+                        }
+                      }}
+                      placeholder="Add tag..."
+                      className="h-5 text-[10px] px-0.5 border-0 outline-none bg-transparent text-gray-600 placeholder:text-gray-300 min-w-[50px]"
+                    />
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => {
+                        await fetch(`/api/admin/exams/${uploadedExam.id}`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ name: previewName, language: previewLang, tags: previewTags }),
+                        });
+                        setExams((prev) => prev.map((e) => e.id === uploadedExam.id
+                          ? { ...e, name: previewName, language: previewLang, tags: previewTags }
+                          : e
+                        ));
+                        setUploadedExam(null);
+                      }}
+                      className="flex-1 h-8 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-gray-700 transition-colors"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setUploadedExam(null)}
+                      className="flex-1 h-8 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition-colors"
+                    >
+                      Skip
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {otherLangExams.length > 0 && (
                 <div>
                   <p className="text-xs text-gray-400 mb-2">Translate from another language</p>
-                  <select
-                    value={translateSourceId ?? ""}
-                    onChange={(e) => setTranslateSourceId(e.target.value || null)}
-                    className="w-full h-9 px-3 rounded-lg border border-gray-200 text-xs text-gray-700 bg-white mb-2 focus:outline-none"
-                  >
-                    <option value="">Select source exam…</option>
-                    {otherLangExams.map((e) => (
-                      <option key={e.id} value={e.id}>{e.name} ({e.language.toUpperCase()})</option>
-                    ))}
-                  </select>
+                  <div className="border border-gray-200 rounded-lg overflow-hidden mb-2">
+                    <div className="relative border-b border-gray-100">
+                      <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
+                      <input
+                        type="text"
+                        value={translateSearch}
+                        onChange={(e) => setTranslateSearch(e.target.value)}
+                        placeholder="Search..."
+                        className="w-full h-8 pl-7 pr-2.5 text-xs text-gray-700 placeholder:text-gray-300 focus:outline-none bg-transparent"
+                      />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      {otherLangExams
+                        .filter((e) => !translateSearch.trim() || e.name.toLowerCase().includes(translateSearch.trim().toLowerCase()))
+                        .map((e) => (
+                          <button
+                            key={e.id}
+                            onClick={() => setTranslateSourceId(e.id === translateSourceId ? null : e.id)}
+                            className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between ${
+                              translateSourceId === e.id
+                                ? "bg-gray-100 text-gray-900 font-medium"
+                                : "text-gray-600 hover:bg-gray-50"
+                            }`}
+                          >
+                            <span className="truncate">{e.name}</span>
+                            <span className="shrink-0 ml-2 text-[10px] text-gray-400 uppercase">{e.language}</span>
+                          </button>
+                        ))}
+                      {otherLangExams.filter((e) => !translateSearch.trim() || e.name.toLowerCase().includes(translateSearch.trim().toLowerCase())).length === 0 && (
+                        <p className="px-3 py-3 text-xs text-gray-300 text-center">No results</p>
+                      )}
+                    </div>
+                  </div>
                   <button
                     onClick={() => translateSourceId && translateExam(translateSourceId)}
                     disabled={!translateSourceId || translateStatus === "translating"}
@@ -479,7 +575,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                       ? translateProgress ? `Translating ${translateProgress.done}/${translateProgress.total}…` : "Translating…"
                       : translateStatus === "done" ? "Done"
                       : translateStatus === "error" ? "Error — retry?"
-                      : `Translate → ${langOptions.find((o) => o.value === langFilter)?.label ?? langFilter}`}
+                      : `Translate → ${LANG_OPTIONS.find((o) => o.value === langFilter)?.label ?? langFilter}`}
                   </button>
                 </div>
               )}
