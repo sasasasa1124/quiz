@@ -141,7 +141,7 @@ ${userStats ? `## Your Learning Trends & Wrong Answer Patterns
 ${categoryLines.join("\n")}
 ${userStatsSection}
 
-Important: Use Google Search to look up "${examName} exam guide" and "${examName} certification" for the latest official information.
+Important: Use Google Search to look up "${examName} exam guide" and "${examName} certification" for the latest official information. Limit searches to official Salesforce and MuleSoft sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com).
 ${langInstruction[lang] ?? langInstruction["en"]}`;
 
   const ai = new GoogleGenAI({ apiKey });

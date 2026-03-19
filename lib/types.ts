@@ -89,7 +89,7 @@ Choices:
 Currently recorded answer(s): {answers}
 {explanation}
 
-Please verify the correct answer(s) using your knowledge and web search if needed.
+When searching, limit searches to official Salesforce and MuleSoft sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com). Do not reference unrelated domains.
 Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
 { "explanation": "...", "answers": ["A"], "reasoning": "..." }
 - explanation: concise explanation of why the correct answer(s) are correct
@@ -100,6 +100,7 @@ export const DEFAULT_REFINE_PROMPT = `You are an expert editor for Salesforce/Mu
 Your task is to fix ONLY typos, grammatical errors, spelling mistakes, and awkward phrasing, missing line breaks (either in list, bullets; 1.xxx, 1).xxx, *xxx , - xxx, etc.) in the question text and answer choices.
 Do NOT change the meaning, technical content, correct answers, or add/remove choices.
 Do NOT rewrite or rephrase if there is no error — preserve the original wording as much as possible.
+When searching, limit searches to official Salesforce and MuleSoft sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com). Do not reference unrelated domains.
 
 Question:
 {question}
