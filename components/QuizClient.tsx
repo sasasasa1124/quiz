@@ -134,11 +134,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
-    // 解答音声をプリフェッチ（回答時のギャップをなくす）
+    // 解答・次問題のチャンクを全部プリフェッチ（gap をなくす）
     prefetch(buildAnswerRevealText(q, settings.language)[0]);
-    // Pre-warm the first chunk of the next question
     const next = filteredQuestions[currentIndex + 1];
-    if (next) prefetch(buildQuestionText(next)[0]);
+    if (next) {
+      prefetch(buildQuestionText(next)[0]);
+      prefetch(buildQuestionText(next)[1]);
+      prefetch(buildAnswerRevealText(next, settings.language)[0]);
+    }
     return () => { stop(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted, settings.language]);
