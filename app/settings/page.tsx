@@ -268,7 +268,7 @@ function SettingsInner() {
                 <span className="text-sm font-semibold text-gray-700 w-4 text-center tabular-nums">{audioPrefetch}</span>
                 <button
                   type="button"
-                  onClick={() => setAudioPrefetch((v) => Math.min(5, v + 1))}
+                  onClick={() => setAudioPrefetch((v) => Math.min(10, v + 1))}
                   className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors"
                 >
                   ＋

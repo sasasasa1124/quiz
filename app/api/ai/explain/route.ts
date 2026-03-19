@@ -13,8 +13,9 @@ const AiResponseSchema = z.object({
   explanation: z.string(),
   answers: z.array(z.string()),
   reasoning: z.string(),
-  sources: z.array(z.string()).optional(),
   model: z.string().optional(),
+  // sources is populated from grounding metadata, not from AI JSON output
+  sources: z.array(z.string()).optional(),
 });
 
 export type AiExplainResponse = z.infer<typeof AiResponseSchema>;
@@ -48,6 +49,7 @@ export async function POST(req: NextRequest) {
   const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash";
 
   let raw: string;
+  let groundingSources: string[] = [];
   try {
     const response = await ai.models.generateContent({
       model,
@@ -57,6 +59,13 @@ export async function POST(req: NextRequest) {
       },
     });
     raw = response.text ?? "";
+    // Extract real URLs from grounding metadata (never hallucinated)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chunks = (response as any).candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+    groundingSources = (chunks as Array<{ web?: { uri?: string } }>)
+      .map((c) => c.web?.uri)
+      .filter((u): u is string => typeof u === "string" && u.length > 0)
+      .slice(0, 3);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
@@ -83,5 +92,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ ...result.data, model });
+  return NextResponse.json({ ...result.data, model, sources: groundingSources });
 }

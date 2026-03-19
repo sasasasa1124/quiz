@@ -893,7 +893,7 @@ export async function createSuggestion(
 ): Promise<Suggestion> {
   const db = getDB();
   if (!db) throw new Error("DB not available");
-  await db
+  const result = await db
     .prepare(
       "INSERT INTO suggestions (question_id, type, suggested_answers, suggested_explanation, ai_model, comment, created_by) VALUES (?,?,?,?,?,?,?)"
     )
@@ -908,7 +908,8 @@ export async function createSuggestion(
     )
     .run();
   const row = await db
-    .prepare("SELECT * FROM suggestions WHERE rowid = last_insert_rowid()")
+    .prepare("SELECT * FROM suggestions WHERE rowid = ?")
+    .bind(result.meta.last_row_id)
     .first<Record<string, unknown>>();
   if (!row) throw new Error("Failed to retrieve created suggestion");
   return rowToSuggestion(row);
