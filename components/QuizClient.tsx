@@ -145,13 +145,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     if (!q) return;
     stop();
     speak(buildAnswerRevealText(q, settings.language));
-    // While explanation plays, pre-fetch all chunks of the next question
-    if ((settings.audioPrefetch ?? 3) > 0) {
-      const next = filteredQuestions[currentIndex + 1];
-      if (next) buildQuestionText(next).forEach((chunk) => prefetch(chunk));
-    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed, submitted, speak, stop, settings.language, settings.audioPrefetch, currentIndex]);
+  }, [revealed, submitted, speak, stop, settings.language, currentIndex]);
 
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
