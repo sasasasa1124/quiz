@@ -256,6 +256,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const continueDisplayNum = continueIndex >= 0 ? continueIndex + 1 : null;
   const hasContinue = continueDisplayNum !== null;
 
+  // Clamp currentIndex when filteredQuestions shrinks (e.g., after stats reload)
+  useEffect(() => {
+    if (filteredQuestions.length > 0 && currentIndex >= filteredQuestions.length) {
+      setCurrentIndex(filteredQuestions.length - 1);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredQuestions.length]);
+
   // Auto-reset "wrong" filter when all wrong answers are cleared
   useEffect(() => {
     if (!statsLoaded) return;
