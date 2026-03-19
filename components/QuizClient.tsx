@@ -259,6 +259,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wrongCount]);
 
+
   const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string, srsQuality?: 1 | 4) => {
     setStats((prev) => {
       const next = { ...prev, [String(questionId)]: correct ? 1 : 0 } as QuizStats;
