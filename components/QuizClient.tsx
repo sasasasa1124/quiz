@@ -133,15 +133,15 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     if (revealed || submitted) return;
     const q = filteredQuestions[currentIndex];
     if (!q) return;
-    // 必要な全チャンクをプリフェッチしてから再生
-    prefetch(buildQuestionText(q)[1]);  // 選択肢（現在問題）
-    prefetch(buildAnswerRevealText(q, settings.language)[0]);  // 解答（現在問題）
+    // 現在問題文の次から始まるチャンク列を k 個先読み
     const next = filteredQuestions[currentIndex + 1];
-    if (next) {
-      prefetch(buildQuestionText(next)[0]);
-      prefetch(buildQuestionText(next)[1]);
-      prefetch(buildAnswerRevealText(next, settings.language)[0]);
-    }
+    const upcoming = [
+      buildQuestionText(q)[1],
+      buildAnswerRevealText(q, settings.language)[0],
+      ...(next ? [...buildQuestionText(next), buildAnswerRevealText(next, settings.language)[0]] : []),
+    ];
+    const k = settings.audioPrefetch ?? 3;
+    upcoming.slice(0, k).forEach((chunk) => prefetch(chunk));
     speak(buildQuestionText(q));
     return () => { stop(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
