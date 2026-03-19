@@ -1,4 +1,4 @@
-import { getQuestions, getExamList, createSession } from "@/lib/db";
+import { getQuestions, getExamList, createSession, getUserInvalidatedIds } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import QuizClient from "@/components/QuizClient";
 import AnswersClient from "@/components/AnswersClient";
@@ -26,14 +26,14 @@ export const runtime = 'edge';
 
 interface Props {
   params: Promise<{ exam: string }>;
-  searchParams: Promise<{ mode?: string; category?: string }>;
+  searchParams: Promise<{ mode?: string; category?: string; startId?: string }>;
 }
 
 export const dynamic = "force-dynamic";
 
 export default async function QuizPage({ params, searchParams }: Props) {
   const { exam } = await params;
-  const { mode = "quiz", category } = await searchParams;
+  const { mode = "quiz", category, startId } = await searchParams;
 
   if (mode !== "quiz" && mode !== "review" && mode !== "answers" && mode !== "mock" && mode !== "study-guide") notFound();
 
@@ -91,6 +91,10 @@ export default async function QuizPage({ params, searchParams }: Props) {
     );
   }
 
+  const invalidatedIds = await getUserInvalidatedIds(userEmail, examId);
+
+  const initialQuestionId = startId ? parseInt(startId, 10) : undefined;
+
   return (
     <QuizClient
       questions={questions}
@@ -99,6 +103,8 @@ export default async function QuizPage({ params, searchParams }: Props) {
       mode={mode as "quiz" | "review"}
       userEmail={userEmail}
       activeCategory={category ?? null}
+      invalidatedIds={invalidatedIds}
+      initialQuestionId={initialQuestionId}
     />
   );
 }

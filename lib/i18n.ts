@@ -56,7 +56,8 @@ export type TranslationKey =
   | "suggestTypeAi"
   | "suggestTypeManual"
   | "suggestSuccess"
-  | "suggestNone";
+  | "suggestNone"
+  | "invalidate";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -116,6 +117,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestTypeManual: "Manual",
     suggestSuccess: "Suggestion submitted",
     suggestNone: "No suggestions yet",
+    invalidate: "Invalidate",
   },
   ja: {
     settings: "設定",
@@ -174,6 +176,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestTypeManual: "手動",
     suggestSuccess: "提案を送信しました",
     suggestNone: "まだ提案がありません",
+    invalidate: "無効化",
   },
   zh: {
     settings: "设置",
@@ -232,6 +235,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestTypeManual: "手动",
     suggestSuccess: "建议已提交",
     suggestNone: "暂无建议",
+    invalidate: "作废",
   },
   ko: {
     settings: "설정",
@@ -290,6 +294,7 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestTypeManual: "수동",
     suggestSuccess: "제안 제출됨",
     suggestNone: "아직 제안 없음",
+    invalidate: "무효화",
   },
 };
 

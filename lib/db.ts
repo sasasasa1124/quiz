@@ -249,6 +249,42 @@ export async function setDuplicate(id: string, isDuplicate: boolean): Promise<vo
     .run();
 }
 
+export async function getUserInvalidatedIds(userEmail: string, examId: string): Promise<string[]> {
+  const db = getDB();
+  if (!db) return [];
+  const result = await db
+    .prepare(
+      `SELECT u.question_id FROM user_invalidated_questions u
+       JOIN questions q ON q.id = u.question_id
+       WHERE u.user_email = ? AND q.exam_id = ?`
+    )
+    .bind(userEmail, examId)
+    .all<{ question_id: string }>();
+  return result.results.map((r) => r.question_id);
+}
+
+export async function toggleUserInvalidated(questionId: string, userEmail: string): Promise<boolean> {
+  const db = getDB();
+  if (!db) throw new Error("DB not available in local dev");
+  const existing = await db
+    .prepare(`SELECT 1 FROM user_invalidated_questions WHERE user_email = ? AND question_id = ?`)
+    .bind(userEmail, questionId)
+    .first();
+  if (existing) {
+    await db
+      .prepare(`DELETE FROM user_invalidated_questions WHERE user_email = ? AND question_id = ?`)
+      .bind(userEmail, questionId)
+      .run();
+    return false;
+  } else {
+    await db
+      .prepare(`INSERT INTO user_invalidated_questions (user_email, question_id) VALUES (?, ?)`)
+      .bind(userEmail, questionId)
+      .run();
+    return true;
+  }
+}
+
 export async function getQuestionHistory(questionId: string): Promise<QuestionHistoryEntry[]> {
   const db = getDB();
   if (!db) return [];

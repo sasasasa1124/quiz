@@ -38,6 +38,8 @@ interface Props {
   userEmail: string;
   activeCategory: string | null;
   initialFilter?: "all" | "continue" | "wrong";
+  invalidatedIds?: string[];
+  initialQuestionId?: number;
 }
 
 const statsKey = (id: string) => `quiz-stats-${id}`;
@@ -74,7 +76,7 @@ function saveLastQuestionId(examId: string, questionId: number) {
   localStorage.setItem(lastQKey(examId), String(questionId));
 }
 
-export default function QuizClient({ questions: initialQuestions, examId, examName, mode, userEmail, activeCategory, initialFilter }: Props) {
+export default function QuizClient({ questions: initialQuestions, examId, examName, mode, userEmail, activeCategory, initialFilter, invalidatedIds: initialInvalidatedIds = [], initialQuestionId }: Props) {
   const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -82,6 +84,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [filter, setFilter] = useState<"all" | "continue" | "wrong">(initialFilter ?? "all");
   const [savedLastQuestionId, setSavedLastQuestionId] = useState<number | null>(null);
   const [excludeDuplicates, setExcludeDuplicates] = useState(true);
+  const [userInvalidated, setUserInvalidated] = useState<Set<string>>(() => new Set(initialInvalidatedIds));
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
@@ -130,13 +133,19 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     if (revealed || submitted) return;
     const q = filteredQuestions[currentIndex];
     if (!q) return;
-    speak(buildQuestionText(q));
-    // Pre-warm the first chunk of the next question
+    // 現在問題文の次から始まるチャンク列を k 個先読み
     const next = filteredQuestions[currentIndex + 1];
-    if (next) prefetch(buildQuestionText(next)[0]);
+    const upcoming = [
+      buildQuestionText(q)[1],
+      buildAnswerRevealText(q, settings.language)[0],
+      ...(next ? [...buildQuestionText(next), buildAnswerRevealText(next, settings.language)[0]] : []),
+    ];
+    const k = settings.audioPrefetch ?? 3;
+    upcoming.slice(0, k).forEach((chunk) => prefetch(chunk));
+    speak(buildQuestionText(q));
     return () => { stop(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted]);
+  }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted, settings.language]);
 
   // Auto-play answer reveal when card is flipped (review) or submitted (quiz)
   useEffect(() => {
@@ -212,6 +221,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       } else {
         setCurrentIndex(0);
       }
+    } else if (initialQuestionId !== undefined) {
+      const idx = questions.findIndex((q) => q.id === initialQuestionId);
+      setCurrentIndex(idx >= 0 ? idx : 0);
     } else {
       setCurrentIndex(0);
     }
@@ -222,6 +234,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const duplicateCount = questions.filter((q) => q.isDuplicate).length;
 
   const filteredQuestions = questions.filter((q) => {
+    if (userInvalidated.has(q.dbId)) return false;
     if (filter === "wrong") return stats[String(q.id)] === 0;
     if (excludeDuplicates && q.isDuplicate) return false;
     return true;
@@ -564,18 +577,16 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
   }, [filteredQuestions, currentIndex]);
 
-  const handleToggleDuplicate = useCallback(async () => {
+  const handleToggleInvalidate = useCallback(async () => {
     const q = filteredQuestions[currentIndex];
     if (!q?.dbId) return;
-    const newVal = !q.isDuplicate;
-    await fetch(`/api/admin/questions/${q.dbId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ is_duplicate: newVal }),
+    const res = await fetch(`/api/user/questions/${q.dbId}/invalidate`, { method: "POST" });
+    const { invalidated } = await res.json() as { invalidated: boolean };
+    setUserInvalidated((prev) => {
+      const next = new Set(prev);
+      if (invalidated) next.add(q.dbId); else next.delete(q.dbId);
+      return next;
     });
-    setQuestions((prev) =>
-      prev.map((pq) => pq.dbId === q.dbId ? { ...pq, isDuplicate: newVal } : pq)
-    );
   }, [filteredQuestions, currentIndex]);
 
   // Keyboard
@@ -744,7 +755,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
               : <VolumeOff size={13} />}
           </button>
           <Link
-            href={`/settings?returnTo=${encodeURIComponent(`/quiz/${examId}?mode=${mode}`)}`}
+            href={`/settings?returnTo=${encodeURIComponent(`/quiz/${examId}?mode=${mode}&startId=${filteredQuestions[currentIndex]?.id ?? ""}`)}`}
             className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             title="Settings"
           >
@@ -791,15 +802,15 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       <div className="flex-1 overflow-y-auto px-4 sm:px-8 pb-4">
                         <div className="max-w-3xl mx-auto w-full">
                           <div className="flex justify-end gap-2 mb-2">
-                            <button onClick={handleToggleDuplicate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${q.isDuplicate ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={q.isDuplicate ? "Unmark duplicate" : "Mark as duplicate"}>
+                            <button onClick={handleToggleInvalidate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${userInvalidated.has(q.dbId) ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={userInvalidated.has(q.dbId) ? "Restore — this question will reappear in your quiz" : "Invalidate — hide this question from your quiz"}>
                               <Copy size={12} />
-                              Dup
+                              {t("invalidate")}
                             </button>
-                            <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title={t("refine")}>
+                            <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Wording Fix — fix typos and phrasing (does not change meaning or answers)">
                               <Wand2 size={12} />
                               {t("refine")}
                             </button>
-                            <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit question">
+                            <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit — manually edit the question and answer choices">
                               <Pencil size={12} />
                               Edit
                             </button>
@@ -857,15 +868,15 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                 >
                   <div className="max-w-3xl mx-auto w-full h-full">
                     <div className="flex justify-end gap-2 mb-2">
-                      <button onClick={handleToggleDuplicate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${q.isDuplicate ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={q.isDuplicate ? "Unmark duplicate" : "Mark as duplicate"}>
+                      <button onClick={handleToggleInvalidate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${userInvalidated.has(q.dbId) ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={userInvalidated.has(q.dbId) ? "Restore — this question will reappear in your quiz" : "Invalidate — hide this question from your quiz"}>
                         <Copy size={12} />
-                        Dup
+                        {t("invalidate")}
                       </button>
-                      <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title={t("refine")}>
+                      <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Wording Fix — fix typos and phrasing (does not change meaning or answers)">
                         <Wand2 size={12} />
                         {t("refine")}
                       </button>
-                      <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit question">
+                      <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit — manually edit the question and answer choices">
                         <Pencil size={12} />
                         Edit
                       </button>
