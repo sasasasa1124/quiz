@@ -80,6 +80,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [excludeDuplicates, setExcludeDuplicates] = useState(true);
   const [userInvalidated, setUserInvalidated] = useState<Set<string>>(() => new Set(initialInvalidatedIds));
 
+  // Wrong-filter fix: keep current question sticky until navigation, and skip index increment on removal
+  const submittedWrongQIdRef = useRef<number | null>(null);
+  const pendingWrongAdvanceRef = useRef(false);
+
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
@@ -231,7 +235,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
 
   const filteredQuestions = questions.filter((q) => {
     if (userInvalidated.has(q.dbId)) return false;
-    if (filter === "wrong") return stats[String(q.id)] === 0;
+    if (filter === "wrong") {
+      if (q.id === submittedWrongQIdRef.current) return true; // keep during reveal until navigation
+      return stats[String(q.id)] === 0;
+    }
     if (excludeDuplicates && q.isDuplicate) return false;
     return true;
   });
@@ -317,6 +324,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
     const correct = q.answers.length === selected.size && q.answers.every((a) => selected.has(a));
     setIsCorrect(correct);
+    if (filter === "wrong" && correct) {
+      submittedWrongQIdRef.current = q.id;
+      pendingWrongAdvanceRef.current = true;
+    }
     recordAnswer(q.id, correct, q.dbId);
     if (mode !== "review") {
       setStreak((prev) => correct ? prev + 1 : 0);
@@ -326,17 +337,25 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     } else {
       setSubmitted(true);
     }
-  }, [filteredQuestions, currentIndex, selected, recordAnswer, mode, settings.skipRevealOnCorrect]);
+  }, [filteredQuestions, currentIndex, filter, selected, recordAnswer, mode, settings.skipRevealOnCorrect]);
 
   const goNext = useCallback(() => {
+    const skipAdvance = pendingWrongAdvanceRef.current;
+    pendingWrongAdvanceRef.current = false;
+    submittedWrongQIdRef.current = null;
     setDirection("forward");
-    setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
     setRevealed(false);
     setSubmitted(false);
     setSelected(new Set());
+    if (!skipAdvance) {
+      setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
+    }
+    // skipAdvance=true: sticky cleared → filteredQuestions shrinks → currentIndex unchanged → points to next Q
   }, [filteredQuestions.length]);
 
   const goPrev = useCallback(() => {
+    pendingWrongAdvanceRef.current = false;
+    submittedWrongQIdRef.current = null;
     setDirection("backward");
     setCurrentIndex((i) => Math.max(i - 1, 0));
     setRevealed(false);
@@ -365,6 +384,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const handleKnow = useCallback(() => {
     const q = filteredQuestions[currentIndex];
     if (!q) return;
+    if (filter === "wrong") {
+      submittedWrongQIdRef.current = q.id;
+      pendingWrongAdvanceRef.current = true;
+    }
     recordAnswer(q.id, true, q.dbId, 4);
     setStreak((prev) => prev + 1);
     if (currentIndex === filteredQuestions.length - 1) {
@@ -373,7 +396,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     } else {
       goNext();
     }
-  }, [filteredQuestions, currentIndex, recordAnswer, goNext, router, backHref, doCompleteSession]);
+  }, [filteredQuestions, currentIndex, filter, recordAnswer, goNext, router, backHref, doCompleteSession]);
 
   const handleDontKnow = useCallback(() => {
     const q = filteredQuestions[currentIndex];
