@@ -13,6 +13,8 @@ export function useAudio() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const speakingTokenRef = useRef<symbol | null>(null);
   const [playing, setPlaying] = useState(false);
+  // true while waiting for TTS fetch before playback starts
+  const [loading, setLoading] = useState(false);
 
   const stop = useCallback(() => {
     speakingTokenRef.current = null; // cancel any in-progress sequence
@@ -22,6 +24,7 @@ export function useAudio() {
       audioRef.current = null;
     }
     setPlaying(false);
+    setLoading(false);
   }, []);
 
   const fetchAudio = useCallback(async (text: string): Promise<string | null> => {
@@ -59,14 +62,14 @@ export function useAudio() {
       const token = Symbol();
       speakingTokenRef.current = token;
 
-      // Kick off all chunk fetches in parallel upfront so that by the time
-      // chunk N finishes playing, chunk N+1 is already in cache (no gap).
-      const fetchPromises = texts.map((t) => fetchAudio(t).catch(() => null));
-
       for (let i = 0; i < texts.length; i++) {
         if (speakingTokenRef.current !== token) break;
 
-        const objectUrl = await fetchPromises[i];
+        // Show loading indicator while fetching this chunk (only if not already cached)
+        const isCached = audioCache.has(texts[i]) || inFlight.has(texts[i]);
+        if (!isCached) setLoading(true);
+        const objectUrl = await fetchAudio(texts[i]);
+        setLoading(false);
         if (!objectUrl || speakingTokenRef.current !== token) break;
 
         // Play this chunk and wait for it to finish
@@ -78,19 +81,25 @@ export function useAudio() {
           audio.addEventListener("error", () => resolve());
           audio.addEventListener("pause", () => resolve()); // resolve when stop() pauses audio
           setPlaying(true);
+          // i+k lookahead: kick off fetch for next k chunks as soon as this one starts playing
+          const k = settings.audioPrefetch ?? 3;
+          for (let j = 1; j <= k; j++) {
+            if (i + j < texts.length) fetchAudio(texts[i + j]).catch(() => {});
+          }
           audio.play().catch(() => resolve());
         });
       }
 
       if (speakingTokenRef.current === token) {
         setPlaying(false);
+        setLoading(false);
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.audioMode, settings.audioSpeed, fetchAudio, stop],
+    [settings.audioMode, settings.audioSpeed, settings.audioPrefetch, fetchAudio, stop],
   );
 
-  // Pre-warm the first chunk of the next question
+  // Pre-warm the next question's audio
   const prefetch = useCallback(
     (firstChunk: string) => {
       if (!settings.audioMode) return;
@@ -100,5 +109,5 @@ export function useAudio() {
     [settings.audioMode, fetchAudio],
   );
 
-  return { speak, stop, prefetch, playing };
+  return { speak, stop, prefetch, playing, loading };
 }

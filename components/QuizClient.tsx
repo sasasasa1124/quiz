@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, BookOpen, Brain, Layers, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home, History, Copy, Volume2, VolumeOff,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home, History, Copy, Volume2, VolumeOff, Loader2,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import type { Locale } from "@/lib/i18n";
@@ -122,7 +122,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const touchZone = useRef<"top" | "bottom" | null>(null);
 
   const { settings, updateSettings, t } = useSettings();
-  const { speak, stop, prefetch } = useAudio();
+  const { speak, stop, prefetch, loading: audioLoading } = useAudio();
 
   // Auto-play question + choices when question changes or audio is toggled on
   // Skip if answer is already revealed/submitted to avoid overlap with reveal effect
@@ -131,9 +131,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
-    // Pre-warm all chunks (question + choices) of the next question
+    // Pre-warm the first chunk of the next question
     const next = filteredQuestions[currentIndex + 1];
-    if (next) buildQuestionText(next).forEach((chunk) => prefetch(chunk));
+    if (next) prefetch(buildQuestionText(next)[0]);
     return () => { stop(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted]);
@@ -145,8 +145,13 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     if (!q) return;
     stop();
     speak(buildAnswerRevealText(q, settings.language));
+    // While explanation plays, pre-fetch all chunks of the next question
+    if ((settings.audioPrefetch ?? 3) > 0) {
+      const next = filteredQuestions[currentIndex + 1];
+      if (next) buildQuestionText(next).forEach((chunk) => prefetch(chunk));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed, submitted, speak, stop, settings.language, currentIndex]);
+  }, [revealed, submitted, speak, stop, settings.language, settings.audioPrefetch, currentIndex]);
 
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
@@ -736,7 +741,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             className="p-1.5 rounded-lg transition-colors text-gray-300 hover:text-gray-600 hover:bg-gray-100"
             title={settings.audioMode ? "Audio on (click to turn off)" : "Audio off (click to turn on)"}
           >
-            {settings.audioMode ? <Volume2 size={13} className="text-sky-500" /> : <VolumeOff size={13} />}
+            {settings.audioMode && audioLoading
+              ? <Loader2 size={13} className="animate-spin text-sky-400" />
+              : settings.audioMode
+              ? <Volume2 size={13} className="text-sky-500" />
+              : <VolumeOff size={13} />}
           </button>
           <Link
             href={`/settings?returnTo=${encodeURIComponent(`/quiz/${examId}?mode=${mode}`)}`}

@@ -17,6 +17,7 @@ function SettingsInner() {
   const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 20);
   const [audioMode, setAudioMode] = useState(settings.audioMode ?? false);
   const [audioSpeed, setAudioSpeed] = useState(settings.audioSpeed ?? 1.0);
+  const [audioPrefetch, setAudioPrefetch] = useState(settings.audioPrefetch ?? 3);
   const [skipRevealOnCorrect, setSkipRevealOnCorrect] = useState(settings.skipRevealOnCorrect ?? false);
   const [saved, setSaved] = useState(false);
   const [geminiModel, setGeminiModel] = useState("");
@@ -34,8 +35,9 @@ function SettingsInner() {
     setDailyGoal(settings.dailyGoal ?? 20);
     setAudioMode(settings.audioMode ?? false);
     setAudioSpeed(settings.audioSpeed ?? 1.0);
+    setAudioPrefetch(settings.audioPrefetch ?? 3);
     setSkipRevealOnCorrect(settings.skipRevealOnCorrect ?? false);
-  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.audioMode, settings.audioSpeed, settings.skipRevealOnCorrect]);
+  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect]);
 
   // Load current gemini model and tts model from DB
   useEffect(() => {
@@ -65,7 +67,7 @@ function SettingsInner() {
   }
 
   async function handleSave() {
-    updateSettings({ aiPrompt, aiRefinePrompt, dailyGoal, audioMode, audioSpeed, skipRevealOnCorrect });
+    updateSettings({ aiPrompt, aiRefinePrompt, dailyGoal, audioMode, audioSpeed, audioPrefetch, skipRevealOnCorrect });
     const saves: Promise<unknown>[] = [];
     if (geminiModel) {
       saves.push(
@@ -247,6 +249,31 @@ function SettingsInner() {
                 <option value="gemini-2.5-flash-preview-tts" />
                 <option value="gemini-2.5-pro-preview-tts" />
               </datalist>
+            </div>
+            {/* Pre-load audio (audioPrefetch) */}
+            <div className="px-4 py-3.5">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-sm font-medium text-gray-900">Pre-load audio</span>
+                <span className="text-sm font-semibold text-gray-700 tabular-nums">{audioPrefetch === 0 ? "off" : `k=${audioPrefetch}`}</span>
+              </div>
+              <p className="text-xs text-gray-400 mb-2">Chunks to pre-fetch ahead while playing (0 = off)</p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setAudioPrefetch((v) => Math.max(0, v - 1))}
+                  className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors"
+                >
+                  −
+                </button>
+                <span className="text-sm font-semibold text-gray-700 w-4 text-center tabular-nums">{audioPrefetch}</span>
+                <button
+                  type="button"
+                  onClick={() => setAudioPrefetch((v) => Math.min(5, v + 1))}
+                  className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors"
+                >
+                  ＋
+                </button>
+              </div>
             </div>
           </div>
         </section>
