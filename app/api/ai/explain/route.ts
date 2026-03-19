@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     .replace("{explanation}", explanationLine);
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash";
+  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   let raw: string;
   let groundingSources: string[] = [];
@@ -56,12 +56,12 @@ export async function POST(req: NextRequest) {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
       },
     });
     raw = response.text ?? "";
     // Extract real URLs from grounding metadata (never hallucinated)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chunks = (response as any).candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
     groundingSources = (chunks as Array<{ web?: { uri?: string } }>)
       .map((c) => c.web?.uri)
       .filter((u): u is string => typeof u === "string" && u.length > 0)

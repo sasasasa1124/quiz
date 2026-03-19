@@ -145,7 +145,7 @@ Important: Use Google Search to look up "${examName} exam guide" and "${examName
 ${langInstruction[lang] ?? langInstruction["en"]}`;
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash";
+  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   let markdown: string;
   try {

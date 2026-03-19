@@ -50,7 +50,7 @@ Answer follow-up questions concisely and accurately.`;
   ];
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash";
+  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   try {
     const response = await ai.models.generateContent({ model, contents });

@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
     .replace("{choices}", choicesText);
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash";
+  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   let raw: string;
   try {
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
       },
     });
     raw = response.text ?? "";

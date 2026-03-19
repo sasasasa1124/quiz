@@ -70,7 +70,7 @@ export async function POST(
   const sourceLangName = LANG_NAMES[examRow.lang] ?? examRow.lang;
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash";
+  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   const BATCH_SIZE = 15;
   const total = questions.length;

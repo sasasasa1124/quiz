@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSetting, setSetting } from "@/lib/db";
 
 const DEFAULTS: Record<string, string> = {
-  gemini_model: "gemini-2.5-flash",
+  gemini_model: "gemini-3-flash-preview",
 };
 
 export async function GET(req: NextRequest) {
