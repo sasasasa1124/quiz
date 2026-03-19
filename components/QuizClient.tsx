@@ -212,13 +212,13 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     if (filter === "continue") {
       const savedId = loadLastQuestionId(examId);
       if (savedId !== null) {
-        const idx = questions.findIndex((q) => q.id === savedId);
+        const idx = filteredQuestions.findIndex((q) => q.id === savedId);
         setCurrentIndex(idx >= 0 ? idx : 0);
       } else {
         setCurrentIndex(0);
       }
     } else if (initialQuestionId !== undefined) {
-      const idx = questions.findIndex((q) => q.id === initialQuestionId);
+      const idx = filteredQuestions.findIndex((q) => q.id === initialQuestionId);
       setCurrentIndex(idx >= 0 ? idx : 0);
     } else {
       setCurrentIndex(0);
