@@ -113,6 +113,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [refineError, setRefineError] = useState<string | null>(null);
   const [refineAdopting, setRefineAdopting] = useState(false);
 
+  const [shakeKey, setShakeKey] = useState(0);
   const [sessionId] = useState<string>(() => crypto.randomUUID());
   const [sessionCorrectCount, setSessionCorrectCount] = useState(0);
   const [filterResetToast, setFilterResetToast] = useState(false);
@@ -311,6 +312,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
     const correct = q.answers.length === selected.size && q.answers.every((a) => selected.has(a));
     setIsCorrect(correct);
+    if (!correct) setShakeKey((k) => k + 1);
     if (filter === "wrong" && correct) {
       submittedWrongQIdRef.current = q.id;
       pendingWrongAdvanceRef.current = true;
@@ -645,19 +647,31 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const showAnswerModal = mode === "quiz" && submitted;
 
   if (filteredQuestions.length === 0) {
+    const isAllCleared = filter === "wrong";
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-4 px-4">
-        <AlertCircle size={32} className="text-gray-300" />
-        <p className="font-semibold text-gray-700">
-          {filter === "wrong" ? t("noWrongAnswers") : t("noQuestions")}
-        </p>
+      <div className="h-screen flex flex-col items-center justify-center gap-5 px-4 text-center">
+        <div className={`float-y ${isAllCleared ? "text-emerald-400" : "text-gray-300"}`}>
+          {isAllCleared
+            ? <CheckCircle2 size={52} strokeWidth={1.25} />
+            : <AlertCircle size={52} strokeWidth={1.25} />
+          }
+        </div>
+        <div>
+          <p className="font-semibold text-gray-800 text-lg">
+            {isAllCleared ? "All cleared!" : t("noQuestions")}
+          </p>
+          {isAllCleared && (
+            <p className="text-sm text-gray-400 mt-1">You&apos;ve mastered all the wrong answers.</p>
+          )}
+        </div>
         {(filter === "wrong" || excludeDuplicates) && (
-          <button onClick={() => { setFilter("all"); setExcludeDuplicates(false); }} className="px-4 py-2 rounded-xl bg-gray-900 text-white text-sm font-medium hover:bg-gray-700 transition-colors">
+          <button onClick={() => { setFilter("all"); setExcludeDuplicates(false); }} className="h-10 px-5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors">
             {t("showAll")}
           </button>
         )}
-        <button onClick={() => { doCompleteSession(); router.push(backHref); }} className="text-sm text-gray-400 hover:text-gray-700 flex items-center gap-1.5">
+        <button onClick={() => { doCompleteSession(); router.push(backHref); }} className="text-sm text-gray-400 hover:text-gray-700 flex items-center gap-1.5 transition-colors">
           <ArrowLeft size={14} />
+          Back
         </button>
       </div>
     );
@@ -699,8 +713,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       {/* ── Main ── */}
       <div className="flex-1 flex flex-col lg:flex-row overflow-hidden" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
 
-        {/* Left panel */}
-        <div className={`
+        {/* Left panel — key=shakeKey forces animation restart on each wrong answer */}
+        <div key={`panel-${shakeKey}`} className={`
           min-h-0 flex-1 flex flex-col overflow-hidden
           border-b lg:border-b-0 lg:border-r border-gray-200
           transition-colors duration-300
@@ -709,6 +723,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             : isCorrect === true  ? "bg-emerald-50"
             : isCorrect === false ? "bg-rose-50"
             : "bg-white"}
+          ${submitted && isCorrect === false ? "shake-x" : ""}
         `}>
           {/* Position indicator */}
           <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 flex items-center justify-between">

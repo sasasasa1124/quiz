@@ -70,7 +70,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
       `}>
         {/* Header */}
         <div className={`shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b ${isCorrect ? "border-gray-100" : "border-rose-100"}`}>
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? "bg-emerald-100" : "bg-rose-100"}`}>
+          <div className={`icon-bounce w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? "bg-emerald-100" : "bg-rose-100"}`}>
             {isCorrect
               ? <CheckCircle2 size={22} className="text-emerald-500" strokeWidth={2.5} />
               : <XCircle size={22} className="text-rose-500" strokeWidth={2.5} />

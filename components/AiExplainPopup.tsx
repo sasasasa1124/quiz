@@ -257,7 +257,7 @@ export default function AiExplainPopup({
           <div className="px-4 pb-4 pt-1 flex gap-2 shrink-0">
             <button
               onClick={onDismiss}
-              className="flex-1 py-2 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 h-10 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
             >
               {t("dismiss")}
               <kbd className="text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded-md font-mono hidden sm:inline">⌫</kbd>
@@ -265,7 +265,7 @@ export default function AiExplainPopup({
             <button
               onClick={onSuggest}
               disabled={suggesting}
-              className="flex-1 py-2 rounded-xl border border-violet-200 text-violet-600 bg-violet-50 text-sm font-semibold hover:bg-violet-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 h-10 rounded-xl border border-violet-200 text-violet-600 bg-violet-50 text-sm font-semibold hover:bg-violet-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
             >
               {suggesting ? (
                 <Loader2 size={13} className="animate-spin" />
@@ -277,7 +277,7 @@ export default function AiExplainPopup({
             <button
               onClick={onAdopt}
               disabled={adopting}
-              className="flex-1 py-2 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 h-10 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
             >
               {adopting ? (
                 <Loader2 size={13} className="animate-spin" />

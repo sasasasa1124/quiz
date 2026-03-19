@@ -92,11 +92,11 @@ export default function QuizQuestion({
               key={choice.label}
               onClick={() => onToggle(choice.label)}
               disabled={submitted}
-              className={`w-full text-left border rounded-xl px-4 py-3 lg:px-5 lg:py-4 transition-all duration-100 active:scale-[0.97] ${ring} ${submitted ? "cursor-default option-reveal" : "cursor-pointer"}`}
+              className={`w-full text-left border rounded-xl px-4 py-3 lg:px-5 lg:py-4 transition-all duration-150 active:scale-[0.97] ${ring} ${submitted ? "cursor-default option-reveal" : "cursor-pointer hover:shadow-sm"}`}
               style={submitted ? { animationDelay: `${i * 50}ms`, animationFillMode: "both" } : undefined}
             >
               <div className="flex items-start gap-3">
-                <span className={`shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg border text-xs lg:text-sm font-bold flex items-center justify-center transition-all ${badge}`}>
+                <span className={`shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg border text-xs lg:text-sm font-bold flex items-center justify-center transition-all duration-150 ${badge}`}>
                   {choice.label}
                 </span>
                 <span className={`text-sm lg:text-base leading-relaxed pt-0.5 whitespace-pre-wrap ${textColor}`}>
