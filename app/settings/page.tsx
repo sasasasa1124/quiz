@@ -2,9 +2,232 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown } from "lucide-react";
+import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import PageHeader from "@/components/PageHeader";
+import type { PromptVersion } from "@/lib/types";
+import { DEFAULT_EXPLAIN_PROMPT, DEFAULT_REFINE_PROMPT, DEFAULT_STUDY_GUIDE_PROMPT } from "@/lib/types";
+
+type PromptKey = "explain" | "refine" | "studyguide";
+
+interface PromptConfig {
+  key: PromptKey;
+  label: string;
+  icon: React.ReactNode;
+  accentClass: string;
+  ringClass: string;
+  defaultPrompt: string;
+  defaultLabel: string;
+}
+
+function VersionSelector({
+  versions,
+  currentPrompt,
+  defaultPrompt,
+  onSelect,
+}: {
+  versions: PromptVersion[];
+  currentPrompt: string;
+  defaultPrompt: string;
+  onSelect: (v: PromptVersion | null) => void;
+}) {
+  const allOptions = [
+    { name: "default", author: "", prompt: defaultPrompt },
+    ...versions,
+  ];
+
+  // Find the currently selected version name
+  const selectedName = allOptions.find((v) => v.prompt === currentPrompt)?.name ?? "custom";
+
+  return (
+    <select
+      value={selectedName}
+      onChange={(e) => {
+        const found = allOptions.find((v) => v.name === e.target.value) ?? null;
+        onSelect(found);
+      }}
+      className="flex-1 h-8 px-2 rounded-lg border border-gray-200 bg-white text-xs text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-200"
+    >
+      <option value="default">default</option>
+      {versions.map((v) => (
+        <option key={v.name} value={v.name}>{v.name}{v.author ? ` — ${v.author}` : ""}</option>
+      ))}
+      {selectedName === "custom" && <option value="custom">(unsaved)</option>}
+    </select>
+  );
+}
+
+function PromptSection({
+  config,
+  prompt,
+  setPrompt,
+  author,
+  setAuthor,
+  versions,
+  setVersions,
+}: {
+  config: PromptConfig;
+  prompt: string;
+  setPrompt: (v: string) => void;
+  author: string;
+  setAuthor: (v: string) => void;
+  versions: PromptVersion[];
+  setVersions: (v: PromptVersion[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saveName, setSaveName] = useState("");
+  const [showSaveInput, setShowSaveInput] = useState(false);
+
+  function handleSelectVersion(v: PromptVersion | null) {
+    if (!v) return;
+    setPrompt(v.prompt);
+    setAuthor(v.author);
+    setShowSaveInput(false);
+  }
+
+  function handleSaveVersion() {
+    const name = saveName.trim();
+    if (!name) return;
+    const newVersion: PromptVersion = { name, author, prompt };
+    const existing = versions.findIndex((v) => v.name === name);
+    if (existing >= 0) {
+      const updated = [...versions];
+      updated[existing] = newVersion;
+      setVersions(updated);
+    } else {
+      setVersions([...versions, newVersion]);
+    }
+    setSaveName("");
+    setShowSaveInput(false);
+  }
+
+  function handleDeleteVersion(name: string) {
+    setVersions(versions.filter((v) => v.name !== name));
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
+      >
+        <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
+          {config.icon}
+          {config.label}
+        </span>
+        <ChevronDown size={14} className={`text-gray-400 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          {/* Version selector row */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 shrink-0">Version</span>
+            <VersionSelector
+              versions={versions}
+              currentPrompt={prompt}
+              defaultPrompt={config.defaultPrompt}
+              onSelect={handleSelectVersion}
+            />
+            <button
+              type="button"
+              onClick={() => {
+                setPrompt(config.defaultPrompt);
+                setAuthor("");
+                setShowSaveInput(false);
+              }}
+              title="Reset to default"
+              className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            >
+              <RotateCcw size={12} />
+            </button>
+          </div>
+
+          {/* Author field */}
+          <div className="flex items-center gap-2">
+            <User size={11} className="text-gray-400 shrink-0" />
+            <input
+              type="text"
+              value={author}
+              onChange={(e) => setAuthor(e.target.value)}
+              placeholder="Author"
+              className="flex-1 h-8 px-2 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-200"
+            />
+          </div>
+
+          {/* Prompt textarea */}
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            rows={6}
+            className={`w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 ${config.ringClass} focus:border-transparent resize-y font-mono`}
+          />
+
+          {/* Save version */}
+          {showSaveInput ? (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={saveName}
+                onChange={(e) => setSaveName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleSaveVersion(); if (e.key === "Escape") setShowSaveInput(false); }}
+                placeholder="Version name..."
+                autoFocus
+                className="flex-1 h-8 px-2 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-200"
+              />
+              <button
+                type="button"
+                onClick={handleSaveVersion}
+                disabled={!saveName.trim()}
+                className="shrink-0 h-8 px-3 rounded-lg bg-gray-900 text-white text-xs font-semibold disabled:opacity-40 hover:bg-gray-700 transition-colors"
+              >
+                Save
+              </button>
+              <button type="button" onClick={() => setShowSaveInput(false)} className="shrink-0 p-1.5 text-gray-400 hover:text-gray-600 transition-colors">
+                <X size={12} />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowSaveInput(true)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              <Plus size={11} />
+              Save as named version
+            </button>
+          )}
+
+          {/* Saved versions list */}
+          {versions.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Saved versions</p>
+              {versions.map((v) => (
+                <div key={v.name} className="flex items-center justify-between py-1 px-2 rounded-lg hover:bg-gray-50">
+                  <button
+                    type="button"
+                    onClick={() => handleSelectVersion(v)}
+                    className="flex-1 text-left"
+                  >
+                    <span className="text-xs font-medium text-gray-700">{v.name}</span>
+                    {v.author && <span className="text-xs text-gray-400 ml-1.5">— {v.author}</span>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteVersion(v.name)}
+                    className="shrink-0 p-1 text-gray-300 hover:text-rose-400 transition-colors"
+                  >
+                    <X size={11} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function SettingsInner() {
   const searchParams = useSearchParams();
@@ -13,13 +236,18 @@ function SettingsInner() {
 
   const { settings, updateSettings, t } = useSettings();
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
+  const [aiPromptAuthor, setAiPromptAuthor] = useState(settings.aiPromptAuthor ?? "");
+  const [aiPromptVersions, setAiPromptVersions] = useState<PromptVersion[]>(settings.aiPromptVersions ?? []);
   const [aiRefinePrompt, setAiRefinePrompt] = useState(settings.aiRefinePrompt);
+  const [aiRefinePromptAuthor, setAiRefinePromptAuthor] = useState(settings.aiRefinePromptAuthor ?? "");
+  const [aiRefinePromptVersions, setAiRefinePromptVersions] = useState<PromptVersion[]>(settings.aiRefinePromptVersions ?? []);
   const [studyGuidePrompt, setStudyGuidePrompt] = useState(settings.studyGuidePrompt);
-  const [openPrompt, setOpenPrompt] = useState<string | null>(null);
-  const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 20);
+  const [studyGuidePromptAuthor, setStudyGuidePromptAuthor] = useState(settings.studyGuidePromptAuthor ?? "");
+  const [studyGuidePromptVersions, setStudyGuidePromptVersions] = useState<PromptVersion[]>(settings.studyGuidePromptVersions ?? []);
+  const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 100);
   const [audioMode, setAudioMode] = useState(settings.audioMode ?? false);
   const [audioSpeed, setAudioSpeed] = useState(settings.audioSpeed ?? 1.0);
-  const [audioPrefetch, setAudioPrefetch] = useState(settings.audioPrefetch ?? 3);
+  const [audioPrefetch, setAudioPrefetch] = useState(settings.audioPrefetch ?? 0);
   const [skipRevealOnCorrect, setSkipRevealOnCorrect] = useState(settings.skipRevealOnCorrect ?? false);
   const [saved, setSaved] = useState(false);
   const [geminiModel, setGeminiModel] = useState("");
@@ -33,13 +261,20 @@ function SettingsInner() {
   // Sync local state when settings load from localStorage
   useEffect(() => {
     setAiPrompt(settings.aiPrompt);
+    setAiPromptAuthor(settings.aiPromptAuthor ?? "");
+    setAiPromptVersions(settings.aiPromptVersions ?? []);
     setAiRefinePrompt(settings.aiRefinePrompt);
+    setAiRefinePromptAuthor(settings.aiRefinePromptAuthor ?? "");
+    setAiRefinePromptVersions(settings.aiRefinePromptVersions ?? []);
     setStudyGuidePrompt(settings.studyGuidePrompt);
-    setDailyGoal(settings.dailyGoal ?? 20);
+    setStudyGuidePromptAuthor(settings.studyGuidePromptAuthor ?? "");
+    setStudyGuidePromptVersions(settings.studyGuidePromptVersions ?? []);
+    setDailyGoal(settings.dailyGoal ?? 100);
     setAudioMode(settings.audioMode ?? false);
     setAudioSpeed(settings.audioSpeed ?? 1.0);
     setAudioPrefetch(settings.audioPrefetch ?? 0);
     setSkipRevealOnCorrect(settings.skipRevealOnCorrect ?? false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.aiPrompt, settings.aiRefinePrompt, settings.studyGuidePrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect]);
 
   // Load current gemini model and tts model from DB
@@ -70,7 +305,12 @@ function SettingsInner() {
   }
 
   async function handleSave() {
-    updateSettings({ aiPrompt, aiRefinePrompt, studyGuidePrompt, dailyGoal, audioMode, audioSpeed, audioPrefetch, skipRevealOnCorrect });
+    updateSettings({
+      aiPrompt, aiPromptAuthor, aiPromptVersions,
+      aiRefinePrompt, aiRefinePromptAuthor, aiRefinePromptVersions,
+      studyGuidePrompt, studyGuidePromptAuthor, studyGuidePromptVersions,
+      dailyGoal, audioMode, audioSpeed, audioPrefetch, skipRevealOnCorrect,
+    });
     const saves: Promise<unknown>[] = [];
     if (geminiModel) {
       saves.push(
@@ -95,6 +335,36 @@ function SettingsInner() {
     setTimeout(() => setSaved(false), 2000);
   }
 
+  const promptConfigs: PromptConfig[] = [
+    {
+      key: "explain",
+      label: t("aiPrompt"),
+      icon: <Sparkles size={13} className="text-violet-400" />,
+      accentClass: "text-violet-400",
+      ringClass: "focus:ring-violet-400",
+      defaultPrompt: DEFAULT_EXPLAIN_PROMPT,
+      defaultLabel: "default",
+    },
+    {
+      key: "refine",
+      label: t("aiRefinePrompt"),
+      icon: <Wand2 size={13} className="text-amber-400" />,
+      accentClass: "text-amber-400",
+      ringClass: "focus:ring-amber-400",
+      defaultPrompt: DEFAULT_REFINE_PROMPT,
+      defaultLabel: "default",
+    },
+    {
+      key: "studyguide",
+      label: "Study Guide Prompt",
+      icon: <BookOpen size={13} className="text-emerald-500" />,
+      accentClass: "text-emerald-500",
+      ringClass: "focus:ring-emerald-400",
+      defaultPrompt: DEFAULT_STUDY_GUIDE_PROMPT,
+      defaultLabel: "default",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
       <PageHeader back={{ href: returnTo }} title={t("settings")} hideSettingsIcon />
@@ -104,86 +374,33 @@ function SettingsInner() {
         <section>
           <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Prompts</h2>
           <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
-            {/* AI Explain Prompt */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setOpenPrompt((v) => v === "explain" ? null : "explain")}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-              >
-                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <Sparkles size={13} className="text-violet-400" />
-                  {t("aiPrompt")}
-                </span>
-                <ChevronDown size={14} className={`text-gray-400 transition-transform ${openPrompt === "explain" ? "rotate-180" : ""}`} />
-              </button>
-              {openPrompt === "explain" && (
-                <div className="px-4 pb-4">
-                  <p className="text-xs text-gray-400 mb-2">{t("aiPromptPlaceholder")}</p>
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    rows={6}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:border-transparent resize-y font-mono"
-                    placeholder={t("aiPromptPlaceholder")}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* AI Refine Prompt */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setOpenPrompt((v) => v === "refine" ? null : "refine")}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-              >
-                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <Wand2 size={13} className="text-amber-400" />
-                  {t("aiRefinePrompt")}
-                </span>
-                <ChevronDown size={14} className={`text-gray-400 transition-transform ${openPrompt === "refine" ? "rotate-180" : ""}`} />
-              </button>
-              {openPrompt === "refine" && (
-                <div className="px-4 pb-4">
-                  <p className="text-xs text-gray-400 mb-2">{t("aiRefinePromptPlaceholder")}</p>
-                  <textarea
-                    value={aiRefinePrompt}
-                    onChange={(e) => setAiRefinePrompt(e.target.value)}
-                    rows={6}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent resize-y font-mono"
-                    placeholder={t("aiRefinePromptPlaceholder")}
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Study Guide Prompt */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setOpenPrompt((v) => v === "studyguide" ? null : "studyguide")}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
-              >
-                <span className="flex items-center gap-2 text-sm font-medium text-gray-700">
-                  <BookOpen size={13} className="text-emerald-500" />
-                  Study Guide Prompt
-                </span>
-                <ChevronDown size={14} className={`text-gray-400 transition-transform ${openPrompt === "studyguide" ? "rotate-180" : ""}`} />
-              </button>
-              {openPrompt === "studyguide" && (
-                <div className="px-4 pb-4">
-                  <p className="text-xs text-gray-400 mb-2">System instruction for Study Guide generation. Use {"{examName}"} as a placeholder.</p>
-                  <textarea
-                    value={studyGuidePrompt}
-                    onChange={(e) => setStudyGuidePrompt(e.target.value)}
-                    rows={6}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-xs text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent resize-y font-mono"
-                    placeholder="You are an expert on the &quot;{examName}&quot; certification exam..."
-                  />
-                </div>
-              )}
-            </div>
+            <PromptSection
+              config={promptConfigs[0]}
+              prompt={aiPrompt}
+              setPrompt={setAiPrompt}
+              author={aiPromptAuthor}
+              setAuthor={setAiPromptAuthor}
+              versions={aiPromptVersions}
+              setVersions={setAiPromptVersions}
+            />
+            <PromptSection
+              config={promptConfigs[1]}
+              prompt={aiRefinePrompt}
+              setPrompt={setAiRefinePrompt}
+              author={aiRefinePromptAuthor}
+              setAuthor={setAiRefinePromptAuthor}
+              versions={aiRefinePromptVersions}
+              setVersions={setAiRefinePromptVersions}
+            />
+            <PromptSection
+              config={promptConfigs[2]}
+              prompt={studyGuidePrompt}
+              setPrompt={setStudyGuidePrompt}
+              author={studyGuidePromptAuthor}
+              setAuthor={setStudyGuidePromptAuthor}
+              versions={studyGuidePromptVersions}
+              setVersions={setStudyGuidePromptVersions}
+            />
           </div>
         </section>
 
@@ -242,18 +459,18 @@ function SettingsInner() {
             <input
               type="number"
               min={5}
-              max={200}
+              max={500}
               step={5}
               value={dailyGoal}
               onChange={(e) => {
                 const v = parseInt(e.target.value, 10);
-                if (!isNaN(v) && v >= 5 && v <= 200) setDailyGoal(v);
+                if (!isNaN(v) && v >= 5 && v <= 500) setDailyGoal(v);
               }}
               className="w-20 text-center rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-semibold text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-transparent"
             />
             <button
               type="button"
-              onClick={() => setDailyGoal((v) => Math.min(200, v + 5))}
+              onClick={() => setDailyGoal((v) => Math.min(500, v + 5))}
               className="w-10 h-10 rounded-xl border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-lg font-medium transition-colors"
             >
               ＋
@@ -308,29 +525,26 @@ function SettingsInner() {
                 <option value="gemini-2.5-pro-preview-tts" />
               </datalist>
             </div>
-            {/* Pre-load audio (audioPrefetch) */}
+            {/* Pre-load audio slider */}
             <div className="px-4 py-3.5">
-              <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-gray-900">Pre-load audio</span>
                 <span className="text-sm font-semibold text-gray-700 tabular-nums">{audioPrefetch === 0 ? "off" : `k=${audioPrefetch}`}</span>
               </div>
               <p className="text-xs text-gray-400 mb-2">Chunks to pre-fetch ahead while playing (0 = off)</p>
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setAudioPrefetch((v) => Math.max(0, v - 1))}
-                  className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors"
-                >
-                  −
-                </button>
-                <span className="text-sm font-semibold text-gray-700 w-4 text-center tabular-nums">{audioPrefetch}</span>
-                <button
-                  type="button"
-                  onClick={() => setAudioPrefetch((v) => Math.min(10, v + 1))}
-                  className="w-8 h-8 rounded-lg border border-gray-200 bg-white text-gray-600 hover:bg-gray-50 text-sm font-medium transition-colors"
-                >
-                  ＋
-                </button>
+                <span className="text-xs text-gray-400 shrink-0">0</span>
+                <input
+                  type="range"
+                  min={0}
+                  max={10}
+                  step={1}
+                  value={audioPrefetch}
+                  onChange={(e) => setAudioPrefetch(Number(e.target.value))}
+                  className="quiz-slider flex-1"
+                  style={{ "--fill": `${(audioPrefetch / 10) * 100}%` } as React.CSSProperties}
+                />
+                <span className="text-xs text-gray-400 shrink-0">10</span>
               </div>
             </div>
           </div>

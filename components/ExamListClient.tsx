@@ -353,6 +353,13 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                         <span className="ml-2 text-gray-300">· {s.answered}/{s.total}</span>
                       )}
                     </p>
+                    {exam.tags && exam.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {exam.tags.map((tag) => (
+                          <span key={tag} className="px-1.5 py-0.5 rounded bg-gray-100 text-[10px] text-gray-500 font-medium leading-none">{tag}</span>
+                        ))}
+                      </div>
+                    )}
                     {s && s.answered > 0 && pct !== null && (
                       <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
                         <div

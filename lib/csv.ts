@@ -22,6 +22,21 @@ const EXAM_NAMES: Record<string, string> = {
   ux_designer_exam_en:                               "Salesforce Certified Platform User Experience Designer",
 };
 
+const EXAM_TAGS: Record<string, string[]> = {
+  experience_cloud_consultant_exam:               ["Salesforce"],
+  mulesoft_developer_exam:                        ["Salesforce", "MuleSoft"],
+  mulesoft_platform_integration_architect_exam:   ["Salesforce", "MuleSoft"],
+  platform_iam_architect_exam:                    ["Salesforce"],
+  service_cloud_consultant_exam:                  ["Salesforce"],
+  ux_designer_exam:                               ["Salesforce"],
+  experience_cloud_consultant_exam_en:            ["Salesforce"],
+  mulesoft_developer_exam_en:                     ["Salesforce", "MuleSoft"],
+  mulesoft_platform_integration_architect_exam_en:["Salesforce", "MuleSoft"],
+  platform_iam_architect_exam_en:                 ["Salesforce"],
+  service_cloud_consultant_exam_en:               ["Salesforce"],
+  ux_designer_exam_en:                            ["Salesforce"],
+};
+
 // Detect language from parsed CSV records via character-code majority vote.
 export function detectLanguage(records: Record<string, string>[]): "ja" | "en" {
   if (records.length === 0) return "ja";
@@ -90,6 +105,7 @@ export function getExamList(): ExamMeta[] {
         language,
         questionCount: records.length,
         duplicateCount,
+        tags: EXAM_TAGS[id] ?? ["Salesforce"],
       });
     } catch {
       // skip malformed CSVs
