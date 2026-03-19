@@ -3,11 +3,14 @@ import { DEFAULT_USER_SETTINGS } from "./types";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 
 // Minimal D1 type stub – replaced by @cloudflare/workers-types after npm install
+export interface D1Result {
+  meta: { last_row_id: number; changes: number };
+}
 export interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
   all<T = unknown>(): Promise<{ results: T[] }>;
   first<T = unknown>(): Promise<T | null>;
-  run(): Promise<void>;
+  run(): Promise<D1Result>;
 }
 export interface D1Database {
   prepare(query: string): D1PreparedStatement;
