@@ -2,17 +2,9 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2 } from "lucide-react";
+import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
 import PageHeader from "@/components/PageHeader";
-import type { Locale } from "@/lib/i18n";
-
-const LANGUAGES: { value: Locale; label: string; native: string }[] = [
-  { value: "en", label: "English", native: "English" },
-  { value: "ja", label: "Japanese", native: "日本語" },
-  { value: "zh", label: "Chinese (Simplified)", native: "中文（简体）" },
-  { value: "ko", label: "Korean", native: "한국어" },
-];
 
 function SettingsInner() {
   const searchParams = useSearchParams();
@@ -20,12 +12,12 @@ function SettingsInner() {
   const returnTo = raw.startsWith("/") ? raw : "/";
 
   const { settings, updateSettings, t } = useSettings();
-  const [language, setLanguage] = useState<Locale>(settings.language);
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
   const [aiRefinePrompt, setAiRefinePrompt] = useState(settings.aiRefinePrompt);
   const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 20);
   const [audioMode, setAudioMode] = useState(settings.audioMode ?? false);
   const [audioSpeed, setAudioSpeed] = useState(settings.audioSpeed ?? 1.0);
+  const [skipRevealOnCorrect, setSkipRevealOnCorrect] = useState(settings.skipRevealOnCorrect ?? false);
   const [saved, setSaved] = useState(false);
   const [geminiModel, setGeminiModel] = useState("");
   const [ttsModel, setTtsModel] = useState("");
@@ -37,13 +29,13 @@ function SettingsInner() {
 
   // Sync local state when settings load from localStorage
   useEffect(() => {
-    setLanguage(settings.language);
     setAiPrompt(settings.aiPrompt);
     setAiRefinePrompt(settings.aiRefinePrompt);
     setDailyGoal(settings.dailyGoal ?? 20);
     setAudioMode(settings.audioMode ?? false);
     setAudioSpeed(settings.audioSpeed ?? 1.0);
-  }, [settings.language, settings.aiPrompt, settings.aiRefinePrompt, settings.audioMode, settings.audioSpeed]);
+    setSkipRevealOnCorrect(settings.skipRevealOnCorrect ?? false);
+  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.audioMode, settings.audioSpeed, settings.skipRevealOnCorrect]);
 
   // Load current gemini model and tts model from DB
   useEffect(() => {
@@ -73,7 +65,7 @@ function SettingsInner() {
   }
 
   async function handleSave() {
-    updateSettings({ language, aiPrompt, aiRefinePrompt, dailyGoal, audioMode, audioSpeed });
+    updateSettings({ aiPrompt, aiRefinePrompt, dailyGoal, audioMode, audioSpeed, skipRevealOnCorrect });
     const saves: Promise<unknown>[] = [];
     if (geminiModel) {
       saves.push(
@@ -102,30 +94,6 @@ function SettingsInner() {
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
       <PageHeader back={{ href: returnTo }} title={t("settings")} hideSettingsIcon />
       <main className="flex-1 px-4 sm:px-8 py-8 max-w-xl mx-auto w-full space-y-8">
-
-        {/* Language */}
-        <section>
-          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">
-            {t("languageLabel")}
-          </h2>
-          <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden divide-y divide-gray-100">
-            {LANGUAGES.map((lang) => (
-              <button
-                key={lang.value}
-                onClick={() => { setLanguage(lang.value); updateSettings({ language: lang.value }); }}
-                className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors text-left"
-              >
-                <div>
-                  <span className="text-sm font-medium text-gray-900">{lang.native}</span>
-                  <span className="ml-2 text-xs text-gray-400">{lang.label}</span>
-                </div>
-                {language === lang.value && (
-                  <Check size={15} className="text-blue-500 shrink-0" strokeWidth={2.5} />
-                )}
-              </button>
-            ))}
-          </div>
-        </section>
 
         {/* AI Explain Prompt */}
         <section>
@@ -281,6 +249,22 @@ function SettingsInner() {
               </datalist>
             </div>
           </div>
+        </section>
+
+        {/* Skip on Correct */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+            <Zap size={11} className="text-amber-400" />
+            Skip on Correct
+          </h2>
+          <p className="text-xs text-gray-400 mb-3">Automatically advance to the next question when correct, without showing the answer</p>
+          <button
+            type="button"
+            onClick={() => setSkipRevealOnCorrect((v) => !v)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${skipRevealOnCorrect ? "bg-gray-900" : "bg-gray-200"}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${skipRevealOnCorrect ? "translate-x-6" : "translate-x-1"}`} />
+          </button>
         </section>
 
         {/* Save */}

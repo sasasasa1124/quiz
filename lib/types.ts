@@ -69,6 +69,7 @@ export interface UserSettings {
   dailyGoal: number; // questions per day target
   audioMode: boolean; // read questions aloud
   audioSpeed: number; // playback rate 0.5–4.0
+  skipRevealOnCorrect: boolean; // auto-advance without showing answer when correct
 }
 
 export const DEFAULT_EXPLAIN_PROMPT = `You are a Salesforce/MuleSoft certification exam expert.
@@ -138,4 +139,5 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   dailyGoal: 20,
   audioMode: false,
   audioSpeed: 1.0,
+  skipRevealOnCorrect: false,
 };

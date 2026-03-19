@@ -298,12 +298,16 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
     const correct = q.answers.length === selected.size && q.answers.every((a) => selected.has(a));
     setIsCorrect(correct);
-    setSubmitted(true);
     recordAnswer(q.id, correct, q.dbId);
     if (mode !== "review") {
       setStreak((prev) => correct ? prev + 1 : 0);
     }
-  }, [filteredQuestions, currentIndex, selected, recordAnswer, mode]);
+    if (correct && settings.skipRevealOnCorrect && mode === "quiz") {
+      goNext();
+    } else {
+      setSubmitted(true);
+    }
+  }, [filteredQuestions, currentIndex, selected, recordAnswer, mode, settings.skipRevealOnCorrect]);
 
   const goNext = useCallback(() => {
     setDirection("forward");

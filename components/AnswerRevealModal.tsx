@@ -117,35 +117,23 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           )}
 
           {/* Sources */}
-          {(question.source || (question.explanationSources && question.explanationSources.length > 0)) && (
-            <div className="space-y-1">
-              {question.source && (
-                <p className="text-xs text-gray-400">
-                  Question source:{" "}
-                  <a href={question.source} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-500 underline break-all">
-                    {question.source}
-                  </a>
-                </p>
-              )}
-              {question.explanationSources && question.explanationSources.length > 0 && (
-                <div>
-                  <p className="text-xs text-gray-400 font-medium mb-1">References:</p>
-                  <ul className="space-y-0.5">
-                    {question.explanationSources.map((url, i) => (
-                      <li key={i}>
-                        <a
-                          href={url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-blue-400 hover:text-blue-500 underline break-all"
-                        >
-                          {url}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+          {question.explanationSources && question.explanationSources.length > 0 && (
+            <div>
+              <p className="text-xs text-gray-400 font-medium mb-1">References:</p>
+              <ul className="space-y-0.5">
+                {question.explanationSources.map((url, i) => (
+                  <li key={i}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-blue-400 hover:text-blue-500 underline break-all"
+                    >
+                      {url}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
           {/* Timestamps */}

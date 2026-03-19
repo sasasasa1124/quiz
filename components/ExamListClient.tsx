@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame, Globe } from "lucide-react";
+import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame } from "lucide-react";
 import Link from "next/link";
 import type { ExamMeta } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
@@ -49,9 +49,9 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const langOptions = (
     [
       { value: "en" as const, label: "EN" },
-      { value: "ja" as const, label: "日本語" },
-      { value: "zh" as const, label: "中文" },
-      { value: "ko" as const, label: "한국어" },
+      { value: "ja" as const, label: "JA" },
+      { value: "zh" as const, label: "ZH" },
+      { value: "ko" as const, label: "KO" },
     ] as { value: "en" | "ja" | "zh" | "ko"; label: string }[]
   ).filter((opt) => availableLangs.includes(opt.value));
   const langFilter = availableLangs.includes(settings.language)
@@ -67,18 +67,11 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const [showAdd, setShowAdd] = useState(false);
   const [dailyProgress, setDailyProgress] = useState<{ todayCount: number; streak: number } | null>(null);
   const [statsLoading, setStatsLoading] = useState(true);
-  const [langOpen, setLangOpen] = useState(false);
-  const langRef = useRef<HTMLDivElement>(null);
+  const [translateSourceId, setTranslateSourceId] = useState<string | null>(null);
+  const [translateStatus, setTranslateStatus] = useState<"idle" | "translating" | "done" | "error">("idle");
+  const [translateProgress, setTranslateProgress] = useState<{ done: number; total: number } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
-
-  useEffect(() => {
-    function handleOutside(e: MouseEvent) {
-      if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
-    }
-    document.addEventListener("mousedown", handleOutside);
-    return () => document.removeEventListener("mousedown", handleOutside);
-  }, []);
 
   useEffect(() => {
     fetch("/api/sessions/summary")
@@ -194,11 +187,50 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       : uploadStatus === "error" ? "Error"
       : null;
 
-  const filteredExams = exams.filter((e) => {
-    if (e.language !== langFilter) return false;
-    if (search.trim()) return e.name.toLowerCase().includes(search.trim().toLowerCase());
-    return true;
-  });
+  const translateExam = useCallback(async (sourceId: string) => {
+    setTranslateStatus("translating");
+    setTranslateProgress(null);
+    try {
+      const res = await fetch(`/api/admin/exams/${sourceId}/translate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetLanguage: langFilter }),
+      });
+      if (!res.ok || !res.body) { setTranslateStatus("error"); return; }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        for (const line of decoder.decode(value).split("\n")) {
+          if (!line.startsWith("data: ")) continue;
+          try {
+            const evt = JSON.parse(line.slice(6)) as { done?: number; total?: number; exam?: ExamMeta; error?: string };
+            if (evt.done != null && evt.total != null) setTranslateProgress({ done: evt.done, total: evt.total });
+            if (evt.exam) {
+              setExams((prev) => [...prev.filter((e) => e.id !== evt.exam!.id), evt.exam!]);
+              setTranslateStatus("done");
+              setTimeout(() => { setTranslateStatus("idle"); setTranslateSourceId(null); }, 2000);
+            }
+            if (evt.error) setTranslateStatus("error");
+          } catch { /* ignore parse errors */ }
+        }
+      }
+    } catch { setTranslateStatus("error"); }
+  }, [langFilter]);
+
+  const otherLangExams = exams.filter((e) => e.language !== langFilter);
+
+  const filteredExams = exams
+    .filter((e) => {
+      if (search.trim()) return e.name.toLowerCase().includes(search.trim().toLowerCase());
+      return true;
+    })
+    .sort((a, b) => {
+      const aMatch = a.language === langFilter ? 0 : 1;
+      const bMatch = b.language === langFilter ? 0 : 1;
+      return aMatch - bMatch;
+    });
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative">
@@ -217,19 +249,38 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       <PageHeader
         title="Exams"
         right={
-          <Link
-            href="/profile"
-            className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Profile"
-          >
-            <User size={14} />
-          </Link>
+          <>
+            {langOptions.length > 1 && (
+              <div className="flex items-center gap-0.5">
+                {langOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => updateSettings({ language: opt.value })}
+                    className={`px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
+                      langFilter === opt.value
+                        ? "bg-gray-900 text-white"
+                        : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Link
+              href="/profile"
+              className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title="Profile"
+            >
+              <User size={14} />
+            </Link>
+          </>
         }
       />
 
-      {/* Controls: search + language filter */}
-      <div className="px-4 sm:px-8 pt-5 pb-3 flex items-center gap-3 max-w-3xl mx-auto w-full">
-        <div className="relative flex-1">
+      {/* Controls: search */}
+      <div className="px-4 sm:px-8 pt-5 pb-3 max-w-3xl mx-auto w-full">
+        <div className="relative">
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300 pointer-events-none" />
           <input
             type="text"
@@ -242,28 +293,6 @@ export default function ExamListClient({ exams: initialExams }: Props) {
             <button onClick={() => setSearch("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500 transition-colors">
               <X size={13} />
             </button>
-          )}
-        </div>
-        <div ref={langRef} className="relative shrink-0">
-          <button
-            onClick={() => setLangOpen((o) => !o)}
-            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Language"
-          >
-            <Globe size={15} />
-          </button>
-          {langOpen && (
-            <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-1 min-w-[100px]">
-              {langOptions.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => { updateSettings({ language: opt.value }); setLangOpen(false); }}
-                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${langFilter === opt.value ? "font-semibold text-blue-600" : "text-gray-700"}`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
           )}
         </div>
       </div>
@@ -422,6 +451,37 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                   </div>
                 </button>
               </div>
+              {otherLangExams.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-400 mb-2">Translate from another language</p>
+                  <select
+                    value={translateSourceId ?? ""}
+                    onChange={(e) => setTranslateSourceId(e.target.value || null)}
+                    className="w-full h-9 px-3 rounded-lg border border-gray-200 text-xs text-gray-700 bg-white mb-2 focus:outline-none"
+                  >
+                    <option value="">Select source exam…</option>
+                    {otherLangExams.map((e) => (
+                      <option key={e.id} value={e.id}>{e.name} ({e.language.toUpperCase()})</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => translateSourceId && translateExam(translateSourceId)}
+                    disabled={!translateSourceId || translateStatus === "translating"}
+                    className={`w-full py-2 rounded-lg border text-xs font-medium transition-all disabled:opacity-40 ${
+                      translateStatus === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-600"
+                      : translateStatus === "error" ? "border-rose-300 bg-rose-50 text-rose-500"
+                      : translateStatus === "translating" ? "border-blue-300 bg-blue-50 text-blue-500"
+                      : "border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    {translateStatus === "translating"
+                      ? translateProgress ? `Translating ${translateProgress.done}/${translateProgress.total}…` : "Translating…"
+                      : translateStatus === "done" ? "Done"
+                      : translateStatus === "error" ? "Error — retry?"
+                      : `Translate → ${langOptions.find((o) => o.value === langFilter)?.label ?? langFilter}`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
