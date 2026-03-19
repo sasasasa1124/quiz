@@ -62,13 +62,18 @@ export function useAudio() {
       const token = Symbol();
       speakingTokenRef.current = token;
 
+      // 全チャンクを並行で fetch 開始（再生中に次チャンクが完成 → gap なし）
+      const fetchPromises = texts.map((text) => fetchAudio(text).catch(() => null));
+
       for (let i = 0; i < texts.length; i++) {
         if (speakingTokenRef.current !== token) break;
 
-        // Show loading indicator while fetching this chunk (only if not already cached)
-        const isCached = audioCache.has(texts[i]) || inFlight.has(texts[i]);
-        if (!isCached) setLoading(true);
-        const objectUrl = await fetchAudio(texts[i]);
+        // ローディング表示は chunk0 のみ（キャッシュ済みでなければ）
+        if (i === 0) {
+          const isCached = audioCache.has(texts[0]) || inFlight.has(texts[0]);
+          if (!isCached) setLoading(true);
+        }
+        const objectUrl = await fetchPromises[i];
         setLoading(false);
         if (!objectUrl || speakingTokenRef.current !== token) break;
 
@@ -81,11 +86,6 @@ export function useAudio() {
           audio.addEventListener("error", () => resolve());
           audio.addEventListener("pause", () => resolve()); // resolve when stop() pauses audio
           setPlaying(true);
-          // i+k lookahead: kick off fetch for next k chunks as soon as this one starts playing
-          const k = settings.audioPrefetch ?? 3;
-          for (let j = 1; j <= k; j++) {
-            if (i + j < texts.length) fetchAudio(texts[i + j]).catch(() => {});
-          }
           audio.play().catch(() => resolve());
         });
       }
@@ -96,7 +96,7 @@ export function useAudio() {
       }
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [settings.audioMode, settings.audioSpeed, settings.audioPrefetch, fetchAudio, stop],
+    [settings.audioMode, settings.audioSpeed, fetchAudio, stop],
   );
 
   // Pre-warm the next question's audio

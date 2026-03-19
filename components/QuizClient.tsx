@@ -134,12 +134,14 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const q = filteredQuestions[currentIndex];
     if (!q) return;
     speak(buildQuestionText(q));
+    // 解答音声をプリフェッチ（回答時のギャップをなくす）
+    prefetch(buildAnswerRevealText(q, settings.language)[0]);
     // Pre-warm the first chunk of the next question
     const next = filteredQuestions[currentIndex + 1];
     if (next) prefetch(buildQuestionText(next)[0]);
     return () => { stop(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted]);
+  }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted, settings.language]);
 
   // Auto-play answer reveal when card is flipped (review) or submitted (quiz)
   useEffect(() => {
