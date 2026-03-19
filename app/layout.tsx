@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Cert Practice",
+  title: "ignitest",
   description: "Salesforce / MuleSoft certification exam practice",
 };
 

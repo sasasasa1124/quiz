@@ -242,7 +242,6 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       )}
 
       <PageHeader
-        title="Exams"
         right={
           <>
             {langOptions.length > 1 && (
