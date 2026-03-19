@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame } from "lucide-react";
 import Link from "next/link";
 import type { ExamMeta } from "@/lib/types";
+import type { Locale } from "@/lib/i18n";
+import { LANG_OPTIONS } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-context";
 import PageHeader from "./PageHeader";
 import OnboardingGuide from "./OnboardingGuide";
@@ -30,7 +32,7 @@ function downloadTemplate() {
   URL.revokeObjectURL(url);
 }
 
-async function uploadFile(file: File, language: "ja" | "en"): Promise<ExamMeta> {
+async function uploadFile(file: File, language: Locale): Promise<ExamMeta> {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("language", language);
@@ -46,21 +48,14 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const [exams, setExams] = useState<ExamMeta[]>(initialExams);
   const [statsMap, setStatsMap] = useState<Record<string, { pct: number | null; answered: number; total: number; wrongCount: number }>>({});
   const availableLangs = Array.from(new Set(initialExams.map((e) => e.language)));
-  const langOptions = (
-    [
-      { value: "en" as const, label: "EN" },
-      { value: "ja" as const, label: "JA" },
-      { value: "zh" as const, label: "ZH" },
-      { value: "ko" as const, label: "KO" },
-    ] as { value: "en" | "ja" | "zh" | "ko"; label: string }[]
-  ).filter((opt) => availableLangs.includes(opt.value));
+  const langOptions = LANG_OPTIONS.filter((opt) => availableLangs.includes(opt.value));
   const langFilter = availableLangs.includes(settings.language)
     ? settings.language
     : (availableLangs[0] ?? "en");
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
-  const [uploadLang, setUploadLang] = useState<"ja" | "en">(
+  const [uploadLang, setUploadLang] = useState<Locale>(
     settings.language === "ja" ? "ja" : "en"
   );
   const [isDragging, setIsDragging] = useState(false);
@@ -249,36 +244,34 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       <PageHeader
         title="Exams"
         right={
-          <Link
-            href="/profile"
-            className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-            title="Profile"
-          >
-            <User size={14} />
-          </Link>
+          <>
+            {langOptions.length > 1 && (
+              <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg">
+                {langOptions.map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => updateSettings({ language: opt.value })}
+                    className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+                      langFilter === opt.value
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-500 hover:text-gray-700"
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Link
+              href="/profile"
+              className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title="Profile"
+            >
+              <User size={14} />
+            </Link>
+          </>
         }
       />
-
-      {/* Language selector */}
-      {langOptions.length > 1 && (
-        <div className="px-4 sm:px-8 pt-4 max-w-3xl mx-auto w-full">
-          <div className="flex gap-1 p-1 bg-gray-100 rounded-xl">
-            {langOptions.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => updateSettings({ language: opt.value })}
-                className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                  langFilter === opt.value
-                    ? "bg-white text-gray-900 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Controls: search */}
       <div className="px-4 sm:px-8 pt-3 pb-3 max-w-3xl mx-auto w-full">

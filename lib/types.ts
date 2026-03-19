@@ -1,3 +1,6 @@
+import type { Locale } from "./i18n";
+export type { Locale };
+
 export interface Choice {
   label: string; // "A", "B", "C", ...
   text: string;  // choice body
@@ -20,12 +23,13 @@ export interface Question {
   createdBy: string;
   createdAt: string; // when the question was authored (ISO datetime)
   addedAt: string;   // when the question was added to the DB (ISO datetime)
+  updatedAt: string; // when the question was last edited (ISO datetime)
 }
 
 export interface ExamMeta {
   id: string;           // exam id
   name: string;         // display name
-  language: "ja" | "en" | "zh" | "ko";
+  language: Locale;
   questionCount: number;
   duplicateCount?: number;
 }
@@ -63,7 +67,7 @@ export interface ExamSnapshot {
 }
 
 export interface UserSettings {
-  language: "en" | "ja" | "zh" | "ko";
+  language: Locale;
   aiPrompt: string;
   aiRefinePrompt: string;
   studyGuidePrompt: string;

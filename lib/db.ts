@@ -110,7 +110,7 @@ export async function getQuestions(examId: string): Promise<Question[]> {
   const result = await db
     .prepare(
       `SELECT id, num, question_text, options, answers, explanation, source, explanation_sources,
-              is_duplicate, version, category, created_by, created_at, added_at
+              is_duplicate, version, category, created_by, created_at, added_at, updated_at
        FROM questions WHERE exam_id = ? ORDER BY num ASC`
     )
     .bind(examId)
@@ -119,7 +119,7 @@ export async function getQuestions(examId: string): Promise<Question[]> {
       answers: string; explanation: string; source: string;
       explanation_sources: string | null;
       is_duplicate: number; version: number; category: string | null;
-      created_by: string; created_at: string | null; added_at: string | null;
+      created_by: string; created_at: string | null; added_at: string | null; updated_at: string | null;
     }>();
 
   return (result.results ?? []).map((row) => {
@@ -142,6 +142,7 @@ export async function getQuestions(examId: string): Promise<Question[]> {
       createdBy: row.created_by ?? "",
       createdAt: row.created_at ?? "",
       addedAt: row.added_at ?? "",
+      updatedAt: row.updated_at ?? "",
     };
   });
 }
@@ -153,7 +154,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
   const row = await db
     .prepare(
       `SELECT id, num, question_text, options, answers, explanation, source, explanation_sources,
-              is_duplicate, version, category, created_by, created_at, added_at
+              is_duplicate, version, category, created_by, created_at, added_at, updated_at
        FROM questions WHERE id = ?`
     )
     .bind(id)
@@ -162,7 +163,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
       answers: string; explanation: string; source: string;
       explanation_sources: string | null;
       is_duplicate: number; version: number; category: string | null;
-      created_by: string; created_at: string | null; added_at: string | null;
+      created_by: string; created_at: string | null; added_at: string | null; updated_at: string | null;
     }>();
 
   if (!row) return null;
@@ -185,6 +186,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
     createdBy: row.created_by ?? "",
     createdAt: row.created_at ?? "",
     addedAt: row.added_at ?? "",
+    updatedAt: row.updated_at ?? "",
   };
 }
 

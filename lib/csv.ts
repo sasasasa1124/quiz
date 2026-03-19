@@ -135,6 +135,7 @@ export function getQuestions(examId: string): Question[] {
       createdBy: "",
       createdAt: row["created_at"] ?? "",
       addedAt: row["added_at"] ?? "",
+      updatedAt: "",
     };
   });
 }

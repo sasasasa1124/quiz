@@ -51,6 +51,12 @@ export default function QuizQuestion({
             Source: {question.source}
           </a>
         )}
+        <span className="text-[10px] text-gray-300 mt-1 block">
+          {question.addedAt ? `Added ${new Date(question.addedAt).toLocaleDateString()}` : ""}
+          {question.updatedAt && question.updatedAt !== question.addedAt
+            ? ` · Updated ${new Date(question.updatedAt).toLocaleDateString()}`
+            : ""}
+        </span>
       </div>
 
       {/* Choices — scrollable if many */}

@@ -26,14 +26,15 @@ export const runtime = 'edge';
 
 interface Props {
   params: Promise<{ exam: string }>;
-  searchParams: Promise<{ mode?: string; category?: string; startId?: string }>;
+  searchParams: Promise<{ mode?: string; filter?: string; category?: string; startId?: string }>;
 }
 
 export const dynamic = "force-dynamic";
 
 export default async function QuizPage({ params, searchParams }: Props) {
   const { exam } = await params;
-  const { mode = "quiz", category, startId } = await searchParams;
+  const { mode = "quiz", filter, category, startId } = await searchParams;
+  const initialFilter = (filter === "wrong" || filter === "continue") ? filter : "all";
 
   if (mode !== "quiz" && mode !== "review" && mode !== "answers" && mode !== "mock" && mode !== "study-guide") notFound();
 
@@ -103,6 +104,7 @@ export default async function QuizPage({ params, searchParams }: Props) {
       mode={mode as "quiz" | "review"}
       userEmail={userEmail}
       activeCategory={category ?? null}
+      initialFilter={initialFilter}
       invalidatedIds={invalidatedIds}
       initialQuestionId={initialQuestionId}
     />

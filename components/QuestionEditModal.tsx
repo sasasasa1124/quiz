@@ -491,6 +491,21 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                             <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-2 py-1 mb-2">{h.changeReason}</p>
                           )}
                           <p className="text-xs text-gray-600 whitespace-pre-wrap line-clamp-3">{h.questionText}</p>
+                          <div className="flex items-center gap-1 mt-1.5 flex-wrap">
+                            <span className="text-[10px] text-gray-400 uppercase tracking-wide">Answers:</span>
+                            {h.answers.map((a) => (
+                              <span
+                                key={a}
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  question?.answers.includes(a)
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : "bg-rose-100 text-rose-500 line-through"
+                                }`}
+                              >
+                                {a}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       ))}
                     </div>

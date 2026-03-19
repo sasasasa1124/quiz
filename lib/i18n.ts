@@ -1,5 +1,12 @@
 export type Locale = "en" | "ja" | "zh" | "ko";
 
+export const LANG_OPTIONS: { value: Locale; label: string }[] = [
+  { value: "en", label: "EN" },
+  { value: "ja", label: "JA" },
+  { value: "zh", label: "ZH" },
+  { value: "ko", label: "KO" },
+];
+
 export type TranslationKey =
   | "settings"
   | "language"

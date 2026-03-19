@@ -8,7 +8,7 @@ import {
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Zap, Pencil, Sparkles, Settings, Wand2, Plus, Globe, Home, History, Copy, Volume2, VolumeOff, Loader2,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
-import type { Locale } from "@/lib/i18n";
+import { LANG_OPTIONS, type Locale } from "@/lib/i18n";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
 import type { AiRefineResponse } from "@/app/api/ai/refine/route";
 import QuizQuestion from "./QuizQuestion";
@@ -23,12 +23,6 @@ import { useAudio } from "@/hooks/useAudio";
 import { buildQuestionText, buildAnswerRevealText } from "@/lib/ttsText";
 import { recordDailySnapshot } from "@/lib/snapshots";
 
-const LANG_OPTIONS: { value: Locale; label: string }[] = [
-  { value: "en", label: "EN" },
-  { value: "ja", label: "日本語" },
-  { value: "zh", label: "中文" },
-  { value: "ko", label: "한국어" },
-];
 
 interface Props {
   questions: Question[];
@@ -119,6 +113,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [sessionId] = useState<string>(() => crypto.randomUUID());
   const [sessionCorrectCount, setSessionCorrectCount] = useState(0);
   const [filterResetToast, setFilterResetToast] = useState(false);
+  const [statsLoaded, setStatsLoaded] = useState(false);
   const sessionCompletedRef = useRef(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -191,6 +186,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   useEffect(() => {
     const local = loadLocalStats(examId);
     setStats(local);
+    setStatsLoaded(true);
     setSavedLastQuestionId(loadLastQuestionId(examId));
 
     fetch(`/api/scores?examId=${encodeURIComponent(examId)}`)
@@ -262,6 +258,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
 
   // Auto-reset "wrong" filter when all wrong answers are cleared
   useEffect(() => {
+    if (!statsLoaded) return;
     if (filter === "wrong" && wrongCount === 0) {
       setFilter("all");
       setCurrentIndex(0);
@@ -270,7 +267,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wrongCount]);
+  }, [wrongCount, statsLoaded]);
 
 
   const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string, srsQuality?: 1 | 4) => {
@@ -755,7 +752,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
               : <VolumeOff size={13} />}
           </button>
           <Link
-            href={`/settings?returnTo=${encodeURIComponent(`/quiz/${examId}?mode=${mode}&startId=${filteredQuestions[currentIndex]?.id ?? ""}`)}`}
+            href={`/settings?returnTo=${encodeURIComponent(`/quiz/${examId}?mode=${mode}&filter=${filter}&startId=${filteredQuestions[currentIndex]?.id ?? ""}`)}`}
             className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             title="Settings"
           >
