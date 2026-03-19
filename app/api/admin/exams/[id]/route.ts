@@ -11,6 +11,7 @@ export async function PATCH(
   const body = await req.json() as {
     name?: string;
     language?: string;
+    tags?: string[];
     renameCategory?: { from: string; to: string };
   };
 
@@ -20,12 +21,15 @@ export async function PATCH(
     return NextResponse.json({ ok: true });
   }
 
-  const fields: { name?: string; language?: "ja" | "en" | "zh" | "ko" } = {};
+  const fields: { name?: string; language?: "ja" | "en" | "zh" | "ko"; tags?: string[] } = {};
   if (typeof body.name === "string" && body.name.trim()) {
     fields.name = body.name.trim();
   }
   if (body.language === "ja" || body.language === "en" || body.language === "zh" || body.language === "ko") {
     fields.language = body.language;
+  }
+  if (Array.isArray(body.tags)) {
+    fields.tags = body.tags.map((t) => String(t).trim()).filter(Boolean);
   }
 
   if (Object.keys(fields).length === 0) {

@@ -43,7 +43,9 @@ function parseCSV(text: string): Record<string, string>[] {
   return records;
 }
 
-function detectLanguage(records: Record<string, string>[]): "ja" | "en" {
+type Locale = "ja" | "en" | "zh" | "ko";
+
+function detectLanguage(records: Record<string, string>[]): Locale {
   if (records.length === 0) return "ja";
   const jaRe = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/g;
   const enRe = /[A-Za-z]/g;
@@ -161,7 +163,7 @@ export async function POST(req: NextRequest) {
       exam: {
         id: examRow.id,
         name: examRow.name,
-        language: examRow.lang as "ja" | "en",
+        language: examRow.lang as Locale,
         questionCount: countRow?.cnt ?? 0,
       },
       appended: records.length,
@@ -170,10 +172,11 @@ export async function POST(req: NextRequest) {
 
   // ── New exam mode ─────────────────────────────────────────────────────────
   const examId = name.replace(".csv", "");
-  const explicitLang = formData.get("language");
-  const language: "ja" | "en" = (explicitLang === "ja" || explicitLang === "en")
-    ? explicitLang
-    : (examId.endsWith("_en") ? "en" : "ja");
+  const explicitLang = formData.get("language") as string | null;
+  const validLocales: Locale[] = ["ja", "en", "zh", "ko"];
+  const language: Locale = validLocales.includes(explicitLang as Locale)
+    ? (explicitLang as Locale)
+    : detectLanguage(records);
   const displayName = examId.replace(/_en$/, "").replace(/_/g, " ");
 
   if (db) {

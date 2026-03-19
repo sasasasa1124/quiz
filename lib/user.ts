@@ -1,17 +1,14 @@
-import { headers } from "next/headers";
+import { currentUser } from "@clerk/nextjs/server";
 
 /**
  * Returns the authenticated user's email.
- * Priority:
- *   1. x-user-email  — injected by middleware after session validation
- *   2. Cf-Access-Authenticated-User-Email — Cloudflare Access (legacy / local CF tunnel)
- *   3. "local@dev"   — local development fallback
+ * Falls back to "local@dev" in local development without Clerk configured.
  */
 export async function getUserEmail(): Promise<string> {
-  const h = await headers();
-  return (
-    h.get("x-user-email") ??
-    h.get("Cf-Access-Authenticated-User-Email") ??
-    "local@dev"
-  );
+  try {
+    const user = await currentUser();
+    return user?.emailAddresses[0]?.emailAddress ?? "local@dev";
+  } catch {
+    return "local@dev";
+  }
 }

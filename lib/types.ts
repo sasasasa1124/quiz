@@ -32,6 +32,13 @@ export interface ExamMeta {
   language: Locale;
   questionCount: number;
   duplicateCount?: number;
+  tags?: string[];      // categorization tags (e.g. ["Salesforce", "MuleSoft"])
+}
+
+export interface PromptVersion {
+  name: string;    // version identifier (e.g. "default", "my-custom-v1")
+  author: string;  // author name
+  prompt: string;  // prompt text
 }
 
 export interface CategoryStat {
@@ -69,8 +76,14 @@ export interface ExamSnapshot {
 export interface UserSettings {
   language: Locale;
   aiPrompt: string;
+  aiPromptAuthor: string;           // author of the current explain prompt
+  aiPromptVersions: PromptVersion[]; // saved named versions
   aiRefinePrompt: string;
+  aiRefinePromptAuthor: string;
+  aiRefinePromptVersions: PromptVersion[];
   studyGuidePrompt: string;
+  studyGuidePromptAuthor: string;
+  studyGuidePromptVersions: PromptVersion[];
   dailyGoal: number; // questions per day target
   audioMode: boolean; // read questions aloud
   audioSpeed: number; // playback rate 0.5–4.0
@@ -144,9 +157,15 @@ Analyze the exam questions below (grouped by category) and use Google Search to 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   language: "en",
   aiPrompt: DEFAULT_EXPLAIN_PROMPT,
+  aiPromptAuthor: "",
+  aiPromptVersions: [],
   aiRefinePrompt: DEFAULT_REFINE_PROMPT,
+  aiRefinePromptAuthor: "",
+  aiRefinePromptVersions: [],
   studyGuidePrompt: DEFAULT_STUDY_GUIDE_PROMPT,
-  dailyGoal: 20,
+  studyGuidePromptAuthor: "",
+  studyGuidePromptVersions: [],
+  dailyGoal: 100,
   audioMode: false,
   audioSpeed: 1.0,
   audioPrefetch: 0,

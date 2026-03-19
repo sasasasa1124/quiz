@@ -39,6 +39,8 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   // Exam metadata editing
   const [examName, setExamName] = useState(exam.name);
   const [examLang, setExamLang] = useState<"ja" | "en" | "zh" | "ko">(exam.language);
+  const [examTags, setExamTags] = useState<string[]>(exam.tags ?? ["Salesforce"]);
+  const [tagInput, setTagInput] = useState("");
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaSaving, setMetaSaving] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -70,7 +72,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
       await fetch(`/api/admin/exams/${encodeURIComponent(exam.id)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: examName, language: examLang }),
+        body: JSON.stringify({ name: examName, language: examLang, tags: examTags }),
       });
       setEditingMeta(false);
     } finally {
@@ -81,7 +83,19 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   function cancelEditMeta() {
     setExamName(exam.name);
     setExamLang(exam.language);
+    setExamTags(exam.tags ?? ["Salesforce"]);
+    setTagInput("");
     setEditingMeta(false);
+  }
+
+  function addTag(tag: string) {
+    const t = tag.trim();
+    if (t && !examTags.includes(t)) setExamTags((prev) => [...prev, t]);
+    setTagInput("");
+  }
+
+  function removeTag(tag: string) {
+    setExamTags((prev) => prev.filter((t) => t !== tag));
   }
 
   function startRenameCategory(catName: string) {
@@ -249,44 +263,82 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
       />
       {editingMeta && (
         <div className="bg-white border-b border-gray-200 px-4 sm:px-8 py-3">
-          <div className="max-w-2xl mx-auto flex items-center gap-2">
-            <input
-              ref={nameInputRef}
-              value={examName}
-              onChange={(e) => setExamName(e.target.value)}
-              className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
-              placeholder="Exam name"
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) saveExamMeta(); if (e.key === "Escape") cancelEditMeta(); }}
-            />
-            <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
-              {(["ja", "en", "zh", "ko"] as const).map((lang) => (
-                <button
-                  key={lang}
-                  onClick={() => setExamLang(lang)}
-                  className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${examLang === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-                >
-                  {lang === "ja" ? "JP" : lang === "en" ? "EN" : lang === "zh" ? "ZH" : "KO"}
-                </button>
-              ))}
+          <div className="max-w-2xl mx-auto space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                ref={nameInputRef}
+                value={examName}
+                onChange={(e) => setExamName(e.target.value)}
+                className="flex-1 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:border-transparent"
+                placeholder="Exam name"
+                onKeyDown={(e) => { if (e.key === "Enter" && !e.nativeEvent.isComposing) saveExamMeta(); if (e.key === "Escape") cancelEditMeta(); }}
+              />
+              <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+                {(["ja", "en", "zh", "ko"] as const).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => setExamLang(lang)}
+                    className={`text-xs font-medium px-2.5 py-1 rounded-md transition-colors ${examLang === lang ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                  >
+                    {lang === "ja" ? "JP" : lang === "en" ? "EN" : lang === "zh" ? "ZH" : "KO"}
+                  </button>
+                ))}
+              </div>
+              <button
+                onClick={saveExamMeta}
+                disabled={metaSaving || !examName.trim()}
+                className="p-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
+              >
+                <Check size={13} />
+              </button>
+              <button
+                onClick={cancelEditMeta}
+                className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                <X size={13} />
+              </button>
             </div>
-            <button
-              onClick={saveExamMeta}
-              disabled={metaSaving || !examName.trim()}
-              className="p-1.5 rounded-lg bg-gray-900 text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
-            >
-              <Check size={13} />
-            </button>
-            <button
-              onClick={cancelEditMeta}
-              className="p-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
-            >
-              <X size={13} />
-            </button>
+            {/* Tag editor */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              {examTags.map((tag) => (
+                <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 text-xs text-gray-600 font-medium">
+                  {tag}
+                  <button type="button" onClick={() => removeTag(tag)} className="text-gray-400 hover:text-gray-700 transition-colors">
+                    <X size={10} />
+                  </button>
+                </span>
+              ))}
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                    e.preventDefault();
+                    addTag(tagInput);
+                  }
+                }}
+                placeholder="Add tag..."
+                className="h-6 px-2 text-xs rounded-md border border-dashed border-gray-300 bg-transparent text-gray-700 placeholder-gray-300 focus:outline-none focus:border-gray-400 min-w-[80px]"
+              />
+            </div>
           </div>
         </div>
       )}
 
       <main className={`flex-1 px-4 sm:px-8 py-6 max-w-2xl mx-auto w-full transition-opacity duration-300 ${statsLoading ? "opacity-60" : "opacity-100"}`}>
+
+        {/* ── Tags ── */}
+        {examTags.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4">
+            {examTags.map((tag) => (
+              <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-gray-100 text-xs text-gray-500 font-medium">
+                <Tag size={10} className="text-gray-400" />
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* ── Overall progress ── */}
         {overallPct !== null && (
