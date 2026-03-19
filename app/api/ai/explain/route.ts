@@ -51,21 +51,56 @@ export async function POST(req: NextRequest) {
   let raw: string;
   let groundingSources: string[] = [];
   try {
-    const response = await ai.models.generateContent({
+    // Step 1: Google Search grounding with free-form output (no JSON instruction).
+    // Combining googleSearch with JSON output causes model to skip search or return
+    // citation-annotated text that breaks JSON.parse.
+    const groundingPrompt = `You are a Salesforce/MuleSoft certification exam expert.
+
+Question:
+${body.question}
+
+Choices:
+${choicesText}
+
+Currently recorded answer(s): ${body.answers.join(", ")}
+${body.explanation ? `Current explanation on record: ${body.explanation}` : ""}
+
+Use Google Search to research the correct answer(s) for this certification exam question.
+Provide a detailed explanation of which answer(s) are correct and why, referencing any official Salesforce/MuleSoft documentation you find.`;
+
+    const groundingResponse = await ai.models.generateContent({
       model,
-      contents: prompt,
+      contents: groundingPrompt,
       config: {
         tools: [{ googleSearch: {} }],
       },
     });
-    raw = response.text ?? "";
+    const groundedText = groundingResponse.text ?? "";
     // Extract real URLs from grounding metadata (never hallucinated)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const chunks = (response as any).candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+    const chunks = groundingResponse.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
     groundingSources = (chunks as Array<{ web?: { uri?: string } }>)
       .map((c) => c.web?.uri)
       .filter((u): u is string => typeof u === "string" && u.length > 0)
       .slice(0, 3);
+
+    // Step 2: Format the grounded analysis as JSON.
+    // Uses the user's custom prompt as additional context, plus responseMimeType
+    // to guarantee clean JSON output without citation markers.
+    const formatPrompt = `${prompt}
+
+Additional research context (from Google Search):
+${groundedText}
+
+Using the above context, provide your answer in the JSON format specified above.`;
+
+    const formatResponse = await ai.models.generateContent({
+      model,
+      contents: formatPrompt,
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+    raw = formatResponse.text ?? "";
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });

@@ -46,14 +46,47 @@ export async function POST(req: NextRequest) {
 
   let raw: string;
   try {
-    const response = await ai.models.generateContent({
+    // Step 1: Google Search grounding with free-form output.
+    // Separating grounding from JSON output avoids the incompatibility where
+    // JSON-requesting prompts cause the model to skip search or return
+    // citation-annotated text that breaks JSON.parse.
+    const groundingPrompt = `You are an expert editor for Salesforce/MuleSoft certification exam questions.
+Research the correct Salesforce/MuleSoft terminology and phrasing for the following exam question.
+Identify any typos, grammatical errors, or awkward phrasing that should be fixed.
+
+Question:
+${body.question}
+
+Choices:
+${choicesText}
+
+Provide your analysis of what should be corrected (if anything), referencing official terminology where relevant.`;
+
+    const groundingResponse = await ai.models.generateContent({
       model,
-      contents: prompt,
+      contents: groundingPrompt,
       config: {
         tools: [{ googleSearch: {} }],
       },
     });
-    raw = response.text ?? "";
+    const groundedText = groundingResponse.text ?? "";
+
+    // Step 2: Format as JSON using grounded analysis as additional context.
+    const formatPrompt = `${prompt}
+
+Additional research context (from Google Search):
+${groundedText}
+
+Using the above context, provide your answer in the JSON format specified above.`;
+
+    const formatResponse = await ai.models.generateContent({
+      model,
+      contents: formatPrompt,
+      config: {
+        responseMimeType: "application/json",
+      },
+    });
+    raw = formatResponse.text ?? "";
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
