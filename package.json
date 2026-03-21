@@ -17,6 +17,7 @@
     "classify:local": "npx tsx scripts/classify-categories.ts --local"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6",
     "@google/genai": "^1.45.0",
     "@types/diff": "^7.0.2",
     "csv-parse": "^6.1.0",
