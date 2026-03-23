@@ -2,6 +2,7 @@
 
 import { Check, X } from "lucide-react";
 import type { Question, QuizStat } from "@/lib/types";
+import { RichText } from "@/components/RichText";
 
 interface Props {
   question: Question;
@@ -42,9 +43,10 @@ export default function QuizQuestion({
 
       {/* Question text — capped height, scrollable if very long */}
       <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0 max-h-[40vh] overflow-y-auto">
-        <div
-          className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
-          dangerouslySetInnerHTML={{ __html: question.question }}
+        <RichText
+          text={question.question}
+          block
+          className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
         />
         {question.source && (
           <a href={question.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-300 hover:text-blue-400 mt-2 truncate block" title={question.source}>
@@ -99,9 +101,7 @@ export default function QuizQuestion({
                 <span className={`shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg border text-xs lg:text-sm font-bold flex items-center justify-center transition-all duration-150 ${badge}`}>
                   {choice.label}
                 </span>
-                <span className={`text-sm lg:text-base leading-relaxed pt-0.5 whitespace-pre-wrap ${textColor}`}>
-                  {choice.text}
-                </span>
+                <RichText text={choice.text} className={`text-sm lg:text-base leading-relaxed pt-0.5 ${textColor}`} />
               </div>
             </button>
           );

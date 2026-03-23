@@ -4,6 +4,7 @@ import { ChevronRight, CheckCircle2, Sparkles } from "lucide-react";
 import type { Choice, Question } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
 import SuggestPanel from "@/components/SuggestPanel";
+import { RichText } from "@/components/RichText";
 
 interface Props {
   question: Question;
@@ -38,7 +39,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, qu
                   <span className="shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg bg-emerald-500 text-white text-xs lg:text-sm font-bold flex items-center justify-center mt-0.5">
                     {c.label}
                   </span>
-                  <span className="text-sm lg:text-base text-emerald-900 leading-snug">{c.text}</span>
+                  <RichText text={c.text} className="text-sm lg:text-base text-emerald-900 leading-snug" />
                 </div>
               ))
             }
@@ -47,7 +48,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, qu
           {question.explanation && (
             <>
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Explanation</p>
-              <p className="text-sm leading-relaxed text-gray-700 whitespace-pre-wrap">{question.explanation}</p>
+              <RichText text={question.explanation} block className="text-sm leading-relaxed text-gray-700" />
             </>
           )}
           {/* Sources */}

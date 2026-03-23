@@ -91,7 +91,7 @@ export interface UserSettings {
   skipRevealOnCorrect: boolean; // auto-advance without showing answer when correct
 }
 
-export const DEFAULT_EXPLAIN_PROMPT = `You are a Salesforce/MuleSoft certification exam expert.
+export const DEFAULT_EXPLAIN_PROMPT = `You are a Salesforce certification exam expert.
 
 Question:
 {question}
@@ -102,18 +102,27 @@ Choices:
 Currently recorded answer(s): {answers}
 {explanation}
 
-When searching, limit searches to official Salesforce and MuleSoft sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com). Do not reference unrelated domains.
+You need to first discompsse the questions into parts, and compare on what way there are differences between the choices.
+Corresponding to the parts, you need to highlights the key points in the question, and then search for the relevant information to answer the question.
+When searching, focus on official Salesforce sources.
 Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
 { "explanation": "...", "answers": ["A"], "reasoning": "..." }
-- explanation: concise explanation of why the correct answer(s) are correct
+- explanation: concise explanation of why the correct answer(s) are correct and why the incorrect answers are incorrect;
 - answers: array of correct choice labels (e.g. ["A"] or ["A", "C"])
-- reasoning: brief reasoning for why you chose those answers`;
+- reasoning: brief reasoning for why you chose those answers and what are the main points you should know to identify the correct answers`;
 
 export const DEFAULT_REFINE_PROMPT = `You are an expert editor for Salesforce/MuleSoft certification exam questions.
-Your task is to fix ONLY typos, grammatical errors, spelling mistakes, and awkward phrasing, missing line breaks (either in list, bullets; 1.xxx, 1).xxx, *xxx , - xxx, etc.) in the question text and answer choices.
-Do NOT change the meaning, technical content, correct answers, or add/remove choices.
-Do NOT rewrite or rephrase if there is no error — preserve the original wording as much as possible.
-When searching, limit searches to official Salesforce and MuleSoft sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com). Do not reference unrelated domains.
+Your tasks:
+1. Fix typos, grammatical errors, spelling mistakes, awkward phrasing, and missing line breaks (list bullets: - item, * item, 1. item, etc.).
+2. Add **bold** markers around the key terms that are critical for identifying the correct answer — specifically:
+   - The core action or decision being asked (e.g., "**which feature** should be used", "**what is the first step**")
+   - Technical terms or conditions that distinguish one choice from another (e.g., "**without sharing**", "**before save**")
+   - Important constraints or qualifiers (e.g., "**without writing code**", "**in a single transaction**")
+   Use **bold** sparingly — only on genuinely important distinguishing terms, not on every noun.
+
+Do NOT change meaning, technical content, correct answers, or add/remove choices.
+Do NOT rewrite or rephrase if there is no error — preserve the original wording.
+When searching, limit to official sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com).
 
 Question:
 {question}
@@ -123,8 +132,8 @@ Choices:
 
 Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
 { "question": "...", "choices": [{"label": "A", "text": "..."}], "changesSummary": "..." }
-- question: the corrected question text (identical to input if no errors found)
-- choices: array of corrected choices in the same order (identical to input if no errors found)
+- question: the corrected question text with **bold** highlights (identical to input if no changes needed)
+- choices: array of corrected choices in the same order (identical to input if no changes needed)
 - changesSummary: a brief human-readable summary of what was changed, or empty string if nothing changed`;
 
 export interface Suggestion {
@@ -151,8 +160,13 @@ export interface SessionRecord {
   correctCount: number | null;
 }
 
-export const DEFAULT_STUDY_GUIDE_PROMPT = `You are an expert on the "{examName}" certification exam.
-Analyze the exam questions below (grouped by category) and use Google Search to find the latest official exam guide information. Then produce a comprehensive Study Guide in Markdown format covering key topics, representative Q&As per category, and study priorities.`;
+export const DEFAULT_STUDY_GUIDE_PROMPT = `
+You are an expert on the "{examName}" certification exam.
+Analyze the exam questions provided below (grouped by category) and use Google Search to find the latest relevant official documentation. Then, produce a comprehensive Study Guide in Markdown format. For each category, your guide must cover:
+- Key topics and frequently asked concepts
+- The core knowledge and concepts required to uniquely determine the correct answers
+- Study priorities
+`;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   language: "en",
