@@ -1,10 +1,13 @@
+"use client";
+
 import { ShieldX } from "lucide-react";
-import { getUserEmail } from "@/lib/user";
+import { useClerk, useUser } from "@clerk/nextjs";
 
-export const runtime = "edge";
+export default function UnauthorizedPage() {
+  const { signOut } = useClerk();
+  const { user } = useUser();
+  const email = user?.emailAddresses[0]?.emailAddress ?? "";
 
-export default async function UnauthorizedPage() {
-  const email = await getUserEmail();
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col items-center justify-center p-8">
       <div className="bg-white rounded-2xl border border-gray-200 p-10 max-w-sm w-full text-center space-y-4">
@@ -14,7 +17,19 @@ export default async function UnauthorizedPage() {
           This app is available to{" "}
           <span className="font-medium text-gray-700">@salesforce.com</span> accounts only.
         </p>
-        <p className="text-xs text-gray-400 font-mono">{email}</p>
+        {email && <p className="text-xs text-gray-400 font-mono">{email}</p>}
+        <a
+          href="/"
+          className="block w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center"
+        >
+          ホームに戻る
+        </a>
+        <button
+          onClick={() => signOut({ redirectUrl: "/login" })}
+          className="w-full h-10 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors"
+        >
+          別のアカウントでログイン
+        </button>
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { clerkMiddleware, createRouteMatcher, clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const ALLOWED_DOMAINS = ["salesforce.com"];
@@ -8,10 +8,12 @@ const isPublicRoute = createRouteMatcher(["/login", "/sign-in", "/unauthorized"]
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
 
-  const { userId, sessionClaims } = await auth.protect();
+  const { userId } = await auth.protect();
 
   if (userId) {
-    const email = (sessionClaims?.email ?? "") as string;
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const email = user.emailAddresses[0]?.emailAddress ?? "";
     const allowed = ALLOWED_DOMAINS.some((d) => email.endsWith(`@${d}`));
     if (!allowed) {
       return NextResponse.redirect(new URL("/unauthorized", req.url));
