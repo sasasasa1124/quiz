@@ -2,6 +2,7 @@
 
 import { useRef, useState, useCallback } from "react";
 import { useSettings } from "@/lib/settings-context";
+import { makeCacheKey, getAudioBlob, setAudioBlob } from "@/lib/audioDb";
 
 // Session-scoped cache: text → Object URL (WAV blob)
 const audioCache = new Map<string, string>();
@@ -34,6 +35,17 @@ export function useAudio() {
     if (existing) return existing;
     const promise = (async () => {
       try {
+        // Check IndexedDB persistent cache
+        const cacheKey = await makeCacheKey(text).catch(() => null);
+        if (cacheKey) {
+          const stored = await getAudioBlob(cacheKey).catch(() => null);
+          if (stored) {
+            const objectUrl = URL.createObjectURL(stored);
+            audioCache.set(text, objectUrl);
+            return objectUrl;
+          }
+        }
+
         const res = await fetch("/api/audio/tts", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -43,6 +55,9 @@ export function useAudio() {
         const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
         audioCache.set(text, objectUrl);
+        if (cacheKey) {
+          setAudioBlob(cacheKey, blob).catch(() => {});
+        }
         return objectUrl;
       } catch {
         return null;
