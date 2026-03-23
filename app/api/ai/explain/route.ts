@@ -10,6 +10,7 @@ import { getRequestContext } from "@cloudflare/next-on-pages";
 
 
 const AiResponseSchema = z.object({
+  highlights: z.array(z.string()).optional(),
   explanation: z.string(),
   answers: z.array(z.string()),
   reasoning: z.string(),
