@@ -2,39 +2,14 @@
 
 import React from "react";
 
-// Well-known fictional company names used in Salesforce/MuleSoft certification exams.
-// These are auto-colored amber so they visually stand out as scenario context.
-const SF_COMPANIES = [
-  "Northern Trail Outfitters",
-  "Universal Containers",
-  "Cloud Kicks",
-  "Ursa Major Solar",
-  "Infinity Solutions",
-  "Get Cloudy Consulting",
-  "Trailhead Consulting Group",
-  "DreamHouse Realty",
-  "Appy Pets",
-  "AW Computing",
-];
-
-// Build the company regex once (sorted longest-first to avoid partial matches)
-const companyPattern = SF_COMPANIES.slice()
-  .sort((a, b) => b.length - a.length)
-  .map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-  .join("|");
-
-// Matches (in order): **bold**, *italic*, `code`, company names
-const INLINE_RE = new RegExp(
-  `(\\*\\*([^\\n*]+?)\\*\\*|\\*([^\\n*]+?)\\*|\`([^\`\n]+?)\`|${companyPattern})`,
-  "g"
-);
+// Matches (in order): **bold**, *italic*, `code`
+const INLINE_RE = /(\*\*([^\n*]+?)\*\*|\*([^\n*]+?)\*|`([^`\n]+?)`)/g;
 
 type InlineToken =
   | { t: "text"; v: string }
   | { t: "bold"; v: string }
   | { t: "italic"; v: string }
-  | { t: "code"; v: string }
-  | { t: "company"; v: string };
+  | { t: "code"; v: string };
 
 function tokenizeInline(text: string): InlineToken[] {
   const tokens: InlineToken[] = [];
@@ -46,7 +21,7 @@ function tokenizeInline(text: string): InlineToken[] {
     if (m[0].startsWith("**"))     tokens.push({ t: "bold",    v: m[2] ?? "" });
     else if (m[0].startsWith("*")) tokens.push({ t: "italic",  v: m[3] ?? "" });
     else if (m[0].startsWith("`")) tokens.push({ t: "code",    v: m[4] ?? "" });
-    else                            tokens.push({ t: "company", v: m[0] });
+    else                            tokens.push({ t: "text", v: m[0] });
     last = re.lastIndex;
   }
   if (last < text.length) tokens.push({ t: "text", v: text.slice(last) });
@@ -66,8 +41,6 @@ function renderInline(text: string): React.ReactNode {
           {tok.v}
         </code>
       );
-    if (tok.t === "company")
-      return <span key={i} className="text-amber-700 font-medium">{tok.v}</span>;
     return <React.Fragment key={i}>{tok.v}</React.Fragment>;
   });
 }
@@ -120,7 +93,6 @@ interface RichTextProps {
 /**
  * Renders text with:
  * - Inline markdown: **bold**, *italic*, `code`
- * - Salesforce scenario company names auto-colored amber
  * - Optional block parsing: bullet/numbered lists, paragraph breaks
  */
 export function RichText({ text, className, block = false }: RichTextProps) {
