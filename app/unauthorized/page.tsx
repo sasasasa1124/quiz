@@ -18,6 +18,12 @@ export default function UnauthorizedPage() {
           <span className="font-medium text-gray-700">@salesforce.com</span> accounts only.
         </p>
         {email && <p className="text-xs text-gray-400 font-mono">{email}</p>}
+        <a
+          href="/"
+          className="block w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center"
+        >
+          ホームに戻る
+        </a>
         <button
           onClick={() => signOut({ redirectUrl: "/login" })}
           className="w-full h-10 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors"
