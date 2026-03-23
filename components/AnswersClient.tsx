@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Sparkles, Wand2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, RotateCcw, Loader2 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import QuestionEditModal from "./QuestionEditModal";
 import AiExplainPopup from "./AiExplainPopup";
@@ -43,7 +43,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const [filter, setFilter] = useState<"all" | "wrong">("all");
 
   const { settings, t } = useSettings();
-  const { speak, stop, prefetch } = useAudio();
+  const { speak, stop, prefetch, playing: audioPlaying, loading: audioLoading } = useAudio();
 
   // Load stats from localStorage and sync with DB
   useEffect(() => {
@@ -87,15 +87,21 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
     }
   }, [filteredQuestions.length, currentIndex]);
 
-  // Auto-play when question changes or audio is toggled on
+  // Auto-play when question changes; auto-advance to next when audio finishes
   useEffect(() => {
     const q = filteredQuestions[currentIndex];
     if (!q) return;
-    speak(buildAnswerText(q, settings.language));
     const next = filteredQuestions[currentIndex + 1];
     if (next) prefetch(buildAnswerText(next, settings.language)[0]);
-    return () => { stop(); };
-  }, [currentIndex, speak, stop, prefetch, settings.language, filteredQuestions]);
+    let cancelled = false;
+    speak(buildAnswerText(q, settings.language)).then(() => {
+      if (!cancelled && next && settings.audioMode) {
+        setCurrentIndex((i) => i + 1);
+      }
+    });
+    return () => { cancelled = true; stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, speak, stop, prefetch, settings.language, settings.audioMode]);
 
   const [aiPopupOpen, setAiPopupOpen] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -272,6 +278,12 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const goNext = useCallback(() => setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1)), [filteredQuestions.length]);
   const goPrev = useCallback(() => setCurrentIndex((i) => Math.max(i - 1, 0)), []);
 
+  const handleReplay = useCallback(() => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    speak(buildAnswerText(q, settings.language));
+  }, [filteredQuestions, currentIndex, speak, settings.language]);
+
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (editingQuestion || aiPopupOpen || refinePopupOpen) return;
@@ -322,6 +334,8 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           filter={filter as "all" | "continue" | "wrong"}
           onFilterChange={(f) => setFilter(f === "continue" ? "all" : f)}
           wrongCount={wrongCount}
+          onReplay={handleReplay}
+          audioPlaying={audioPlaying || audioLoading}
         />
         <div className="flex-1 flex items-center justify-center text-sm text-gray-400">
           {t("noWrongAnswers")}

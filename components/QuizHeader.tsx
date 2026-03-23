@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Home, Brain, BookOpen, BookOpenCheck, ClipboardList,
   Layers, AlertCircle, History, Copy, Globe, Volume2, VolumeOff,
-  Loader2, Settings, Zap,
+  Loader2, Settings, Zap, RotateCcw,
 } from "lucide-react";
 import { LANG_OPTIONS } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-context";
@@ -39,6 +39,10 @@ interface QuizHeaderProps {
   excludeDuplicates?: boolean;
   onToggleDuplicates?: () => void;
 
+  // Audio replay
+  onReplay?: () => void;
+  audioPlaying?: boolean;
+
   // Custom right slot (e.g. timer for Mock)
   rightExtra?: React.ReactNode;
 }
@@ -70,6 +74,8 @@ export default function QuizHeader({
   duplicateCount = 0,
   excludeDuplicates,
   onToggleDuplicates,
+  onReplay,
+  audioPlaying,
   rightExtra,
 }: QuizHeaderProps) {
   const { settings, updateSettings, t } = useSettings();
@@ -222,6 +228,19 @@ export default function QuizHeader({
             </div>
           )}
         </div>
+
+        {/* Audio replay button */}
+        {settings.audioMode && onReplay && (
+          <button
+            onClick={onReplay}
+            className="p-1.5 rounded-lg transition-colors text-gray-300 hover:text-sky-500 hover:bg-gray-100"
+            title="Replay audio"
+          >
+            {audioPlaying
+              ? <Loader2 size={13} className="animate-spin text-sky-400" />
+              : <RotateCcw size={13} />}
+          </button>
+        )}
 
         {/* Audio toggle */}
         <button

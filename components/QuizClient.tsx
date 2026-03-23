@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, Plus, Copy,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, Plus, Copy, Loader2,
 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
@@ -79,9 +79,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [excludeDuplicates, setExcludeDuplicates] = useState(true);
   const [userInvalidated, setUserInvalidated] = useState<Set<string>>(() => new Set(initialInvalidatedIds));
 
-  // Wrong-filter fix: keep current question sticky until navigation, and skip index increment on removal
-  const submittedWrongQIdRef = useRef<number | null>(null);
-  const pendingWrongAdvanceRef = useRef(false);
+  const [wrongSnapshot, setWrongSnapshot] = useState<Set<number> | null>(null);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [submitted, setSubmitted] = useState(false);
@@ -124,37 +122,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const touchZone = useRef<"top" | "bottom" | null>(null);
 
   const { settings, updateSettings, t } = useSettings();
-  const { speak, stop, prefetch } = useAudio();
-
-  // Auto-play question + choices when question changes or audio is toggled on
-  // Skip if answer is already revealed/submitted to avoid overlap with reveal effect
-  useEffect(() => {
-    if (revealed || submitted) return;
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    // 現在問題文の次から始まるチャンク列を k 個先読み
-    const next = filteredQuestions[currentIndex + 1];
-    const upcoming = [
-      buildQuestionText(q)[1],
-      buildAnswerRevealText(q, settings.language)[0],
-      ...(next ? [...buildQuestionText(next), buildAnswerRevealText(next, settings.language)[0]] : []),
-    ];
-    const k = settings.audioPrefetch ?? 3;
-    upcoming.slice(0, k).forEach((chunk) => prefetch(chunk));
-    speak(buildQuestionText(q));
-    return () => { stop(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentIndex, mode, speak, stop, prefetch, revealed, submitted, settings.language]);
-
-  // Auto-play answer reveal when card is flipped (review) or submitted (quiz)
-  useEffect(() => {
-    if (!revealed && !submitted) return;
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    stop();
-    speak(buildAnswerRevealText(q, settings.language));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed, submitted, speak, stop, settings.language, currentIndex]);
+  const { speak, stop, prefetch, playing: audioPlaying } = useAudio();
 
   const backHref = `/exam/${examId}`;
 
@@ -201,6 +169,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   }, [currentIndex, filter, mode]);
 
   useEffect(() => {
+    if (filter === "wrong") {
+      setDirection("forward");
+      return; // Snapshot effect handles index for wrong mode
+    }
     if (filter === "continue") {
       const savedId = loadLastQuestionId(examId);
       if (savedId !== null) {
@@ -219,17 +191,70 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filter, excludeDuplicates]);
 
+  // Snapshot effect: freeze wrong-mode question list on first load to avoid questions disappearing mid-session
+  useEffect(() => {
+    if (filter === "wrong" && statsLoaded && wrongSnapshot === null) {
+      const snap = new Set(
+        questions.filter((q) => stats[String(q.id)] === 0).map((q) => q.id)
+      );
+      setWrongSnapshot(snap);
+      if (initialQuestionId !== undefined) {
+        const snapQuestions = questions.filter((q) => snap.has(q.id));
+        const idx = snapQuestions.findIndex((q) => q.id === initialQuestionId);
+        setCurrentIndex(idx >= 0 ? idx : 0);
+      } else {
+        setCurrentIndex(0);
+      }
+    }
+    if (filter !== "wrong") {
+      setWrongSnapshot(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter, statsLoaded]);
+
   const duplicateCount = questions.filter((q) => q.isDuplicate).length;
 
   const filteredQuestions = questions.filter((q) => {
     if (userInvalidated.has(q.dbId)) return false;
     if (filter === "wrong") {
-      if (q.id === submittedWrongQIdRef.current) return true; // keep during reveal until navigation
-      return stats[String(q.id)] === 0;
+      return wrongSnapshot ? wrongSnapshot.has(q.id) : stats[String(q.id)] === 0;
     }
     if (excludeDuplicates && q.isDuplicate) return false;
     return true;
   });
+
+  // currentQId enables re-fire when invalidate replaces same-index question without index change
+  const currentQId = filteredQuestions[currentIndex]?.id;
+
+  // Auto-play question + choices when question changes or audio is toggled on
+  // Skip if answer is already revealed/submitted to avoid overlap with reveal effect
+  useEffect(() => {
+    if (revealed || submitted) return;
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    // 現在問題文の次から始まるチャンク列を k 個先読み
+    const next = filteredQuestions[currentIndex + 1];
+    const upcoming = [
+      buildQuestionText(q)[1],
+      buildAnswerRevealText(q, settings.language)[0],
+      ...(next ? [...buildQuestionText(next), buildAnswerRevealText(next, settings.language)[0]] : []),
+    ];
+    const k = settings.audioPrefetch ?? 3;
+    upcoming.slice(0, k).forEach((chunk) => prefetch(chunk));
+    speak(buildQuestionText(q));
+    return () => { stop(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex, currentQId, mode, speak, stop, prefetch, revealed, submitted, settings.language]);
+
+  // Auto-play answer reveal when card is flipped (review) or submitted (quiz)
+  useEffect(() => {
+    if (!revealed && !submitted) return;
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    stop();
+    speak(buildAnswerRevealText(q, settings.language));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [revealed, submitted, speak, stop, settings.language, currentIndex]);
 
   // Save current question position whenever index changes
   useEffect(() => {
@@ -255,22 +280,22 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   useEffect(() => {
     if (filteredQuestions.length > 0 && currentIndex >= filteredQuestions.length) {
       setCurrentIndex(filteredQuestions.length - 1);
+      setDirection("forward");
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filteredQuestions.length]);
 
-  // Auto-reset "wrong" filter when all wrong answers are cleared
+  // Show toast when all snapshot questions are answered correctly (but keep filter active)
   useEffect(() => {
-    if (!statsLoaded) return;
-    if (filter === "wrong" && wrongCount === 0) {
-      setFilter("all");
-      setCurrentIndex(0);
+    if (!statsLoaded || filter !== "wrong" || !wrongSnapshot || wrongSnapshot.size === 0) return;
+    const allDone = [...wrongSnapshot].every((id) => stats[String(id)] === 1);
+    if (allDone) {
       setFilterResetToast(true);
       const timer = setTimeout(() => setFilterResetToast(false), 3000);
       return () => clearTimeout(timer);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [wrongCount, statsLoaded]);
+  }, [stats, wrongSnapshot, statsLoaded, filter]);
 
 
   const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string, srsQuality?: 1 | 4) => {
@@ -313,10 +338,6 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const correct = q.answers.length === selected.size && q.answers.every((a) => selected.has(a));
     setIsCorrect(correct);
     if (!correct) setShakeKey((k) => k + 1);
-    if (filter === "wrong" && correct) {
-      submittedWrongQIdRef.current = q.id;
-      pendingWrongAdvanceRef.current = true;
-    }
     recordAnswer(q.id, correct, q.dbId);
     if (mode !== "review") {
       setStreak((prev) => correct ? prev + 1 : 0);
@@ -329,22 +350,16 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   }, [filteredQuestions, currentIndex, filter, selected, recordAnswer, mode, settings.skipRevealOnCorrect]);
 
   const goNext = useCallback(() => {
-    const skipAdvance = pendingWrongAdvanceRef.current;
-    pendingWrongAdvanceRef.current = false;
-    submittedWrongQIdRef.current = null;
+    setIsCorrect(null);
     setDirection("forward");
     setRevealed(false);
     setSubmitted(false);
     setSelected(new Set());
-    if (!skipAdvance) {
-      setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
-    }
-    // skipAdvance=true: sticky cleared → filteredQuestions shrinks → currentIndex unchanged → points to next Q
+    setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
   }, [filteredQuestions.length]);
 
   const goPrev = useCallback(() => {
-    pendingWrongAdvanceRef.current = false;
-    submittedWrongQIdRef.current = null;
+    setIsCorrect(null);
     setDirection("backward");
     setCurrentIndex((i) => Math.max(i - 1, 0));
     setRevealed(false);
@@ -373,10 +388,6 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const handleKnow = useCallback(() => {
     const q = filteredQuestions[currentIndex];
     if (!q) return;
-    if (filter === "wrong") {
-      submittedWrongQIdRef.current = q.id;
-      pendingWrongAdvanceRef.current = true;
-    }
     recordAnswer(q.id, true, q.dbId, 4);
     setStreak((prev) => prev + 1);
     if (currentIndex === filteredQuestions.length - 1) {
@@ -385,7 +396,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     } else {
       goNext();
     }
-  }, [filteredQuestions, currentIndex, filter, recordAnswer, goNext, router, backHref, doCompleteSession]);
+  }, [filteredQuestions, currentIndex, recordAnswer, goNext, router, backHref, doCompleteSession]);
 
   const handleDontKnow = useCallback(() => {
     const q = filteredQuestions[currentIndex];
@@ -646,6 +657,24 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
 
   const showAnswerModal = mode === "quiz" && submitted;
 
+  const handleReplay = useCallback(() => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    if (revealed || submitted) {
+      speak(buildAnswerRevealText(q, settings.language));
+    } else {
+      speak(buildQuestionText(q));
+    }
+  }, [filteredQuestions, currentIndex, revealed, submitted, speak, settings.language]);
+
+  if (!statsLoaded) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Loader2 className="animate-spin text-gray-300" size={24} />
+      </div>
+    );
+  }
+
   if (filteredQuestions.length === 0) {
     const isAllCleared = filter === "wrong";
     return (
@@ -708,6 +737,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
         duplicateCount={duplicateCount}
         excludeDuplicates={excludeDuplicates}
         onToggleDuplicates={() => setExcludeDuplicates((v) => !v)}
+        onReplay={handleReplay}
+        audioPlaying={audioPlaying}
       />
 
       {/* ── Main ── */}

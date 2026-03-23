@@ -73,6 +73,19 @@ This repository is worked on by **multiple AI agent teams in parallel** (e.g., C
 - **Cloudflare commit messages**: Cloudflare Pages API rejects non-ASCII characters in commit messages (error code 8000111). Keep commit messages in English/ASCII only.
 - **D1 migrations**: Production migrations are applied via `scripts/migrate-d1.sh` or wrangler. Verify the migration ran on production after deployment.
 
+## Debugging and Bug Fix Protocol
+
+When asked to fix a bug, follow this flow:
+
+1. **Specific fix**: Fix the reported location.
+2. **Pattern audit**: Search for the same root cause elsewhere.
+   - State reset omission → check all navigation callbacks (goNext/goPrev/useEffect)
+   - useEffect deps missing → check all effects sharing the same data dependency
+   - Async loading guard missing → check all empty-state renders for equivalent guards
+   - Memory leak → verify every resource allocation has a paired release
+3. **Fix all**: Include same-root-cause bugs found in step 2 in the same commit.
+4. **Report**: Explicitly tell the user which extra locations were fixed beyond the original request.
+
 ## UI Design System
 
 All components must follow these patterns consistently. Do not introduce new patterns without updating this section.

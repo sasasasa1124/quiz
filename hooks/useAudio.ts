@@ -5,6 +5,7 @@ import { useSettings } from "@/lib/settings-context";
 import { makeCacheKey, getAudioBlob, setAudioBlob } from "@/lib/audioDb";
 
 // Session-scoped cache: text → Object URL (WAV blob)
+const AUDIO_CACHE_MAX = 100;
 const audioCache = new Map<string, string>();
 // In-flight dedup: text → pending promise
 const inFlight = new Map<string, Promise<string | null>>();
@@ -55,6 +56,12 @@ export function useAudio() {
         const blob = await res.blob();
         const objectUrl = URL.createObjectURL(blob);
         audioCache.set(text, objectUrl);
+        if (audioCache.size > AUDIO_CACHE_MAX) {
+          const firstKey = audioCache.keys().next().value!;
+          const evictedUrl = audioCache.get(firstKey);
+          if (evictedUrl) URL.revokeObjectURL(evictedUrl);
+          audioCache.delete(firstKey);
+        }
         if (cacheKey) {
           setAudioBlob(cacheKey, blob).catch(() => {});
         }
