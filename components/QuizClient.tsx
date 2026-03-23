@@ -719,9 +719,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           border-b lg:border-b-0 lg:border-r border-gray-200
           transition-colors duration-300
           ${mode === "review"
-            ? revealed ? "bg-rose-50" : "bg-white"
-            : isCorrect === true  ? "bg-emerald-50"
-            : isCorrect === false ? "bg-rose-50"
+            ? revealed ? "bg-rose-100/70" : "bg-white"
+            : isCorrect === true  ? "bg-emerald-100/70"
+            : isCorrect === false ? "bg-rose-100/70"
             : "bg-white"}
           ${submitted && isCorrect === false ? "shake-x" : ""}
         `}>
@@ -762,7 +762,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               Edit
                             </button>
                           </div>
-                          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 max-h-[40vh] overflow-y-auto">
+                          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 max-h-[40vh] overflow-y-auto border-l-4 border-blue-300">
                             <div
                               className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
                               dangerouslySetInnerHTML={{ __html: q.question }}

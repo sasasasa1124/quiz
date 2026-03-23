@@ -70,7 +70,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
         ${isCorrect ? "bg-white" : "bg-rose-50"}
       `}>
         {/* Header */}
-        <div className={`shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b ${isCorrect ? "border-gray-100" : "border-rose-100"}`}>
+        <div className={`shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b ${isCorrect ? "bg-emerald-50 border-emerald-100 rounded-t-2xl sm:rounded-t-2xl" : "border-rose-100"}`}>
           <div className={`icon-bounce w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? "bg-emerald-100" : "bg-rose-100"}`}>
             {isCorrect
               ? <CheckCircle2 size={22} className="text-emerald-500" strokeWidth={2.5} />
@@ -95,7 +95,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           {/* Correct answers — only shown when incorrect */}
           {!isCorrect && (
             <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Correct Answer</p>
+              <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider mb-2">Correct Answer</p>
               <div className="flex flex-col gap-2">
                 {correctChoices.map((c) => (
                   <div key={c.label} className="flex items-start gap-3 px-4 py-3 lg:px-5 lg:py-4 rounded-xl bg-emerald-50 border border-emerald-200">
@@ -112,8 +112,10 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           {/* Explanation */}
           {question.explanation && (
             <div>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Explanation</p>
-              <RichText text={question.explanation} block className="text-sm leading-relaxed text-gray-700" />
+              <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">Explanation</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
+                <RichText text={question.explanation} block className="text-sm leading-relaxed text-amber-900" />
+              </div>
             </div>
           )}
 

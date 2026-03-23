@@ -42,7 +42,7 @@ export default function QuizQuestion({
       </div>
 
       {/* Question text — capped height, scrollable if very long */}
-      <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0 max-h-[40vh] overflow-y-auto">
+      <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0 max-h-[40vh] overflow-y-auto border-l-4 border-blue-300">
         <RichText
           text={question.question}
           block
@@ -53,11 +53,11 @@ export default function QuizQuestion({
             Source: {question.source}
           </a>
         )}
-        <span className="text-[10px] text-gray-300 mt-1 block">
+        <span className="text-[10px] text-gray-400 mt-1 block">
           {question.addedAt ? `Added ${new Date(question.addedAt).toLocaleDateString()}` : ""}
-          {question.updatedAt && question.updatedAt !== question.addedAt
-            ? ` · Updated ${new Date(question.updatedAt).toLocaleDateString()}`
-            : ""}
+          {question.updatedAt && question.updatedAt !== question.addedAt && (
+            <span className="text-sky-500"> · Updated {new Date(question.updatedAt).toLocaleDateString()}</span>
+          )}
         </span>
       </div>
 
@@ -73,16 +73,16 @@ export default function QuizQuestion({
 
           if (submitted) {
             if (isAnswer) {
-              ring = "border-emerald-300 bg-emerald-50";
-              badge = "border-emerald-500 bg-emerald-500 text-white";
-              textColor = "text-emerald-900";
+              ring = "border-emerald-500 bg-emerald-100";
+              badge = "border-emerald-600 bg-emerald-600 text-white";
+              textColor = "text-emerald-950";
             } else if (isSelected) {
-              ring = "border-rose-300 bg-rose-50";
-              badge = "border-rose-500 bg-rose-500 text-white";
-              textColor = "text-rose-800";
+              ring = "border-rose-400 bg-rose-100";
+              badge = "border-rose-600 bg-rose-600 text-white";
+              textColor = "text-rose-950";
             } else {
-              ring = "border-gray-100 bg-gray-50";
-              textColor = "text-gray-400";
+              ring = "border-gray-100 bg-gray-50/60";
+              textColor = "text-gray-300";
             }
           } else if (isSelected) {
             ring = "border-blue-400 bg-blue-50";
