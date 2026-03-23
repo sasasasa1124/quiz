@@ -7,6 +7,58 @@ import type { AiChatRequest, AiChatResponse } from "@/app/api/ai/chat/route";
 import type { Choice } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
 
+/** Strip HTML tags to plain text */
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/** Render text with matched phrases wrapped in <mark> */
+function HighlightedText({ text, phrases }: { text: string; phrases: string[] }) {
+  if (!phrases || phrases.length === 0) return <>{text}</>;
+  const escaped = phrases.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const isMatch = phrases.some((p) => p.toLowerCase() === part.toLowerCase());
+        return isMatch
+          ? <mark key={i} className="bg-amber-100 text-amber-900 rounded-sm px-0.5 not-italic">{part}</mark>
+          : <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
+/** Parse [Section Header] blocks out of explanation text */
+function parseExplanationSections(text: string): Array<{ header: string; body: string }> {
+  const sectionRegex = /\[([^\]]+)\]\s*/g;
+  const sections: Array<{ header: string; body: string }> = [];
+  let lastIndex = 0;
+  let lastHeader = "";
+  let match: RegExpExecArray | null;
+
+  while ((match = sectionRegex.exec(text)) !== null) {
+    if (lastHeader) {
+      sections.push({ header: lastHeader, body: text.slice(lastIndex, match.index).trim() });
+    } else if (match.index > 0) {
+      // Text before the first section header — treat as unlabeled
+      const preface = text.slice(0, match.index).trim();
+      if (preface) sections.push({ header: "", body: preface });
+    }
+    lastHeader = match[1];
+    lastIndex = match.index + match[0].length;
+  }
+  if (lastHeader) {
+    sections.push({ header: lastHeader, body: text.slice(lastIndex).trim() });
+  }
+  // No section headers found — return as single block
+  if (sections.length === 0) {
+    sections.push({ header: "", body: text.trim() });
+  }
+  return sections;
+}
+
 interface Props {
   loading: boolean;
   result: AiExplainResponse | null;
@@ -132,7 +184,7 @@ export default function AiExplainPopup({
 
         {result && (
           <>
-            {/* Suggested answers */}
+            {/* Correct answer badges */}
             <div>
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
                 {t("aiSuggestedAnswer")}
@@ -149,17 +201,41 @@ export default function AiExplainPopup({
               </div>
             </div>
 
-            {/* Explanation */}
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
-                {t("aiExplanation")}
-              </p>
-              <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">
-                {result.explanation}
-              </p>
+            {/* Question with highlights */}
+            {question && result.highlights && result.highlights.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                  Key Phrases
+                </p>
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  <HighlightedText
+                    text={stripHtml(question)}
+                    phrases={result.highlights}
+                  />
+                </p>
+              </div>
+            )}
+
+            {/* Structured explanation sections */}
+            <div className="space-y-2.5">
+              {parseExplanationSections(result.explanation).map((sec, i) => (
+                <div key={i}>
+                  {sec.header && (
+                    <p className="text-[10px] font-semibold text-violet-500 uppercase tracking-wide mb-1">
+                      {sec.header}
+                    </p>
+                  )}
+                  {!sec.header && i === 0 && (
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1">
+                      {t("aiExplanation")}
+                    </p>
+                  )}
+                  <p className="text-xs text-gray-700 leading-relaxed whitespace-pre-wrap">{sec.body}</p>
+                </div>
+              ))}
             </div>
 
-            {/* Reasoning */}
+            {/* Reasoning: how to narrow down */}
             <div>
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
                 {t("aiReasoning")}

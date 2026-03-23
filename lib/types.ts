@@ -91,7 +91,7 @@ export interface UserSettings {
   skipRevealOnCorrect: boolean; // auto-advance without showing answer when correct
 }
 
-export const DEFAULT_EXPLAIN_PROMPT = `You are a Salesforce certification exam expert.
+export const DEFAULT_EXPLAIN_PROMPT = `You are a Salesforce/MuleSoft certification exam expert. Analyze the question below thoroughly.
 
 Question:
 {question}
@@ -102,14 +102,38 @@ Choices:
 Currently recorded answer(s): {answers}
 {explanation}
 
-You need to first discompsse the questions into parts, and compare on what way there are differences between the choices.
-Corresponding to the parts, you need to highlights the key points in the question, and then search for the relevant information to answer the question.
-When searching, focus on official Salesforce sources.
+## Source verification rules (MUST follow)
+- Official Salesforce sources (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, mulesoft.com/docs, etc.): a single authoritative source is sufficient.
+- Unofficial sources (blogs, forums, community posts, third-party study sites): you MUST verify the claim is consistent across at least 2 independent unofficial sources before accepting it. If you cannot confirm consistency, flag the uncertainty in the explanation.
+
+## Output format
 Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
-{ "explanation": "...", "answers": ["A"], "reasoning": "..." }
-- explanation: concise explanation of why the correct answer(s) are correct and why the incorrect answers are incorrect;
-- answers: array of correct choice labels (e.g. ["A"] or ["A", "C"])
-- reasoning: brief reasoning for why you chose those answers and what are the main points you should know to identify the correct answers`;
+
+{
+  "highlights": ["exact phrase 1", "exact phrase 2"],
+  "explanation": "...",
+  "answers": ["A"],
+  "reasoning": "..."
+}
+
+Field definitions:
+- highlights: up to 6 exact substrings from the question text that are critical for determining the correct answer — constraint words, feature names, qualifying conditions, action verbs that change the scope, etc. These will be visually highlighted for the user.
+- explanation: structured in three labeled sections (use the exact section headers below):
+
+[Key Concepts]
+The core Salesforce/MuleSoft concepts the question tests. Keep concise (3–5 bullet points or sentences).
+
+[Answer Analysis]
+Per-choice breakdown using the choice labels explicitly:
+A: <why correct or incorrect>
+B: <why correct or incorrect>
+(continue for all choices)
+
+[Why Incorrect Options Fail]
+For each wrong choice, state the specific misconception or edge case that makes it wrong.
+
+- answers: array of correct choice labels e.g. ["A"] or ["A","C"]
+- reasoning: step-by-step elimination — how a test-taker should narrow down to the correct answer using the key concepts and choice comparisons`;
 
 export const DEFAULT_REFINE_PROMPT = `You are an expert editor for Salesforce/MuleSoft certification exam questions.
 Your tasks:
