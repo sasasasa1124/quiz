@@ -70,7 +70,11 @@ async function csvQuestions(examId: string): Promise<Question[]> {
 
 export async function getExamList(): Promise<ExamMeta[]> {
   const d1 = getDB();
-  if (!d1) return csvExamList();
+  if (!d1) {
+    // csvExamList uses Node.js fs which is unavailable in edge runtime (Cloudflare Workers)
+    if (process.env.NEXT_RUNTIME === "edge") return [];
+    return csvExamList();
+  }
 
   // Complex GROUP BY + aggregation — keep as raw SQL via db.$client
   const result = await d1
