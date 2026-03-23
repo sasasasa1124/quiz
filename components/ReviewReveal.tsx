@@ -23,7 +23,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, qu
       <div className="flex-1 overflow-y-auto px-4 sm:px-8 py-5">
         <div className="max-w-3xl mx-auto w-full">
           <div className="flex items-center justify-between mb-3">
-            <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Answer</p>
+            <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Answer</p>
             {onAiExplain && (
               <button onClick={onAiExplain} className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-violet-500 hover:border-violet-200 transition-colors">
                 <Sparkles size={11} />
@@ -47,8 +47,10 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, qu
 
           {question.explanation && (
             <>
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Explanation</p>
-              <RichText text={question.explanation} block className="text-sm leading-relaxed text-gray-700" />
+              <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">Explanation</p>
+              <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
+                <RichText text={question.explanation} block className="text-sm leading-relaxed text-amber-900" />
+              </div>
             </>
           )}
           {/* Sources */}
