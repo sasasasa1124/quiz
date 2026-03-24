@@ -135,6 +135,7 @@ export default function GithubFeedbackPopup({
           body: body.trim(),
           images: imagePayload,
           labels,
+          pageUrl: window.location.href,
         }),
       });
 

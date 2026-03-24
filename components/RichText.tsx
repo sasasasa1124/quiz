@@ -9,27 +9,50 @@ type InlineToken =
   | { t: "text"; v: string }
   | { t: "bold"; v: string }
   | { t: "italic"; v: string }
-  | { t: "code"; v: string };
+  | { t: "code"; v: string }
+  | { t: "keyword"; v: string };
 
-function tokenizeInline(text: string): InlineToken[] {
+function splitByKeywords(text: string, kwRe: RegExp): InlineToken[] {
+  const result: InlineToken[] = [];
+  let last = 0;
+  let m: RegExpExecArray | null;
+  kwRe.lastIndex = 0;
+  while ((m = kwRe.exec(text)) !== null) {
+    if (m.index > last) result.push({ t: "text", v: text.slice(last, m.index) });
+    result.push({ t: "keyword", v: m[0] });
+    last = kwRe.lastIndex;
+  }
+  if (last < text.length) result.push({ t: "text", v: text.slice(last) });
+  return result;
+}
+
+function tokenizeInline(text: string, kwRe?: RegExp): InlineToken[] {
   const tokens: InlineToken[] = [];
   let last = 0;
   let m: RegExpExecArray | null;
   const re = new RegExp(INLINE_RE.source, INLINE_RE.flags); // reset lastIndex
   while ((m = re.exec(text)) !== null) {
-    if (m.index > last) tokens.push({ t: "text", v: text.slice(last, m.index) });
+    if (m.index > last) {
+      const raw = text.slice(last, m.index);
+      if (kwRe) tokens.push(...splitByKeywords(raw, kwRe));
+      else tokens.push({ t: "text", v: raw });
+    }
     if (m[0].startsWith("**"))     tokens.push({ t: "bold",    v: m[2] ?? "" });
     else if (m[0].startsWith("*")) tokens.push({ t: "italic",  v: m[3] ?? "" });
     else if (m[0].startsWith("`")) tokens.push({ t: "code",    v: m[4] ?? "" });
     else                            tokens.push({ t: "text", v: m[0] });
     last = re.lastIndex;
   }
-  if (last < text.length) tokens.push({ t: "text", v: text.slice(last) });
+  if (last < text.length) {
+    const remaining = text.slice(last);
+    if (kwRe) tokens.push(...splitByKeywords(remaining, kwRe));
+    else tokens.push({ t: "text", v: remaining });
+  }
   return tokens;
 }
 
-function renderInline(text: string): React.ReactNode {
-  const tokens = tokenizeInline(text);
+function renderInline(text: string, kwRe?: RegExp): React.ReactNode {
+  const tokens = tokenizeInline(text, kwRe);
   return tokens.map((tok, i) => {
     if (tok.t === "bold")
       return <strong key={i} className="font-semibold text-gray-950">{tok.v}</strong>;
@@ -40,6 +63,12 @@ function renderInline(text: string): React.ReactNode {
         <code key={i} className="font-mono text-[0.875em] bg-gray-100 px-1 py-0.5 rounded text-violet-700">
           {tok.v}
         </code>
+      );
+    if (tok.t === "keyword")
+      return (
+        <mark key={i} className="bg-amber-100 text-amber-900 rounded-sm px-0.5 font-medium not-italic">
+          {tok.v}
+        </mark>
       );
     return <React.Fragment key={i}>{tok.v}</React.Fragment>;
   });
@@ -95,21 +124,28 @@ interface RichTextProps {
   className?: string;
   /** Enable block-level parsing (lists). Use for question bodies and explanations. */
   block?: boolean;
+  /** Words to highlight inline (e.g. abbreviations extracted from question text). */
+  keywords?: string[];
 }
 
 /**
  * Renders text with:
  * - Inline markdown: **bold**, *italic*, `code`
+ * - Optional keyword highlighting (amber pill)
  * - Optional block parsing: bullet/numbered lists, paragraph breaks
  */
-export function RichText({ text, className, block = false }: RichTextProps) {
+export function RichText({ text, className, block = false, keywords }: RichTextProps) {
+  const kwRe = keywords?.length
+    ? new RegExp(`\\b(${keywords.map(k => k.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "g")
+    : undefined;
+
   if (!block) {
     const lines = text.split("\n");
     return (
       <span className={className}>
         {lines.map((line, i) => (
           <React.Fragment key={i}>
-            {renderInline(line)}
+            {renderInline(line, kwRe)}
             {i < lines.length - 1 && <br />}
           </React.Fragment>
         ))}
@@ -136,7 +172,7 @@ export function RichText({ text, className, block = false }: RichTextProps) {
           return (
             <ul key={bi} className="list-disc list-outside pl-5 space-y-0.5 my-1.5">
               {b.items.map((item, ii) => (
-                <li key={ii} className="leading-relaxed">{renderInline(item)}</li>
+                <li key={ii} className="leading-relaxed">{renderInline(item, kwRe)}</li>
               ))}
             </ul>
           );
@@ -145,7 +181,7 @@ export function RichText({ text, className, block = false }: RichTextProps) {
           return (
             <ol key={bi} className="list-decimal list-outside pl-5 space-y-0.5 my-1.5">
               {b.items.map((item, ii) => (
-                <li key={ii} className="leading-relaxed">{renderInline(item)}</li>
+                <li key={ii} className="leading-relaxed">{renderInline(item, kwRe)}</li>
               ))}
             </ol>
           );
@@ -155,7 +191,7 @@ export function RichText({ text, className, block = false }: RichTextProps) {
           <p key={bi} className={bi > 0 ? "mt-2" : undefined}>
             {b.lines.map((line, li) => (
               <React.Fragment key={li}>
-                {renderInline(line)}
+                {renderInline(line, kwRe)}
                 {li < b.lines.length - 1 && <br />}
               </React.Fragment>
             ))}

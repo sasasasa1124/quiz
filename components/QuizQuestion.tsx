@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Check, X } from "lucide-react";
 import type { Question, QuizStat } from "@/lib/types";
 import { RichText } from "@/components/RichText";
@@ -13,6 +14,41 @@ interface Props {
   reviewMode?: boolean;
 }
 
+/** Split question text into context (scenario) + final question sentence(s). */
+function splitQuestion(text: string): { context: string; finalQuestion: string } {
+  // Normalize missing space after period: "past.What" → "past. What"
+  const normalized = text.replace(/\.([A-Z'"])/g, ". $1");
+  const sentences = normalized.split(/(?<=[.!?])\s+/);
+
+  if (sentences.length <= 1) return { context: "", finalQuestion: text };
+
+  // Walk backward to find the first sentence in the trailing question run
+  let qStart = sentences.length - 1;
+  for (let i = sentences.length - 1; i >= 0; i--) {
+    const s = sentences[i].trim();
+    if (/\?/.test(s) || /^(What|Which|How|When|Who|Where|Why|Select)\b/i.test(s)) {
+      qStart = i;
+    } else {
+      break;
+    }
+  }
+
+  const context = sentences.slice(0, qStart).join(" ").trim();
+  const finalQuestion = sentences.slice(qStart).join(" ").trim();
+  return { context, finalQuestion };
+}
+
+/** Extract abbreviations like (UC), (API), (DMO) from the question text. */
+function extractKeywords(text: string): string[] {
+  const keywords = new Set<string>();
+  const re = /\(([A-Z][A-Z0-9]{1,})\)/g;
+  let m;
+  while ((m = re.exec(text)) !== null) {
+    keywords.add(m[1]);
+  }
+  return [...keywords];
+}
+
 export default function QuizQuestion({
   question,
   selected,
@@ -21,7 +57,16 @@ export default function QuizQuestion({
   stat,
   reviewMode = false,
 }: Props) {
-  const lastResult = stat; // 0 | 1 | undefined
+  const lastResult = stat;
+
+  const { context, finalQuestion } = useMemo(
+    () => splitQuestion(question.question),
+    [question.question]
+  );
+  const keywords = useMemo(
+    () => extractKeywords(question.question),
+    [question.question]
+  );
 
   return (
     <div className="flex flex-col h-full">
@@ -43,11 +88,30 @@ export default function QuizQuestion({
 
       {/* Question text — capped height, scrollable if very long */}
       <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0 max-h-[40vh] overflow-y-auto border-l-4 border-scholion-300">
-        <RichText
-          text={question.question}
-          block
-          className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
-        />
+        {context ? (
+          <>
+            <RichText
+              text={context}
+              block
+              keywords={keywords}
+              className="text-gray-700 text-sm lg:text-base leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
+            />
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+              <RichText
+                text={finalQuestion}
+                keywords={keywords}
+                className="text-amber-900 text-sm lg:text-base leading-relaxed font-medium"
+              />
+            </div>
+          </>
+        ) : (
+          <RichText
+            text={question.question}
+            block
+            keywords={keywords}
+            className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
+          />
+        )}
         {question.source && (
           <a href={question.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-300 hover:text-blue-400 mt-2 truncate block" title={question.source}>
             Source: {question.source}

@@ -11,6 +11,7 @@ interface RequestBody {
   body: string;
   images?: ImagePayload[];
   labels?: string[];
+  pageUrl?: string;
 }
 
 const GITHUB_API = "https://api.github.com";
@@ -91,7 +92,7 @@ export async function POST(request: Request): Promise<Response> {
     return Response.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const { title, body, images = [], labels } = payload;
+  const { title, body, images = [], labels, pageUrl } = payload;
 
   if (!title?.trim() || !body?.trim()) {
     return Response.json({ error: "title and body are required" }, { status: 400 });
@@ -109,8 +110,12 @@ export async function POST(request: Request): Promise<Response> {
     }
   }
 
-  const fullBody = imageMarkdownParts.length > 0
-    ? `${body.trim()}\n\n---\n\n${imageMarkdownParts.join("\n\n")}`
+  const metaParts: string[] = [];
+  if (pageUrl) metaParts.push(`**Reported from:** ${pageUrl}`);
+  if (imageMarkdownParts.length > 0) metaParts.push(imageMarkdownParts.join("\n\n"));
+
+  const fullBody = metaParts.length > 0
+    ? `${body.trim()}\n\n---\n\n${metaParts.join("\n\n")}`
     : body.trim();
 
   try {
