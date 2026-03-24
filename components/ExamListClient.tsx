@@ -345,7 +345,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
 
       {/* Daily progress banner */}
       {dailyProgress && (dailyProgress.todayCount > 0 || dailyProgress.streak > 0) && (() => {
-        const goal = settings.dailyGoal ?? 20;
+        const goal = settings.dailyGoal ?? 100;
         const { todayCount, streak } = dailyProgress;
         const pct = Math.min(100, Math.round((todayCount / goal) * 100));
         const done = todayCount >= goal;
