@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import {
   Brain, BookOpen, BookOpenCheck,
@@ -8,7 +8,7 @@ import {
   Pencil, Check, X, Lightbulb, Languages,
 } from "lucide-react";
 import type { CategoryStat, ExamMeta } from "@/lib/types";
-import PageHeader from "./PageHeader";
+import { useSetHeader } from "@/lib/header-context";
 import ExamQuestionTable from "./ExamQuestionTable";
 
 interface Props {
@@ -44,6 +44,17 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaSaving, setMetaSaving] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
+
+  const headerRight = useMemo(() => !editingMeta ? (
+    <button
+      onClick={() => setEditingMeta(true)}
+      className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+      title="Edit exam"
+    >
+      <Pencil size={12} /> 編集
+    </button>
+  ) : null, [editingMeta]);
+  useSetHeader({ back: { href: "/" }, title: examName, right: headerRight }, [examName, headerRight]);
 
   // Category rename
   const [renamingCategory, setRenamingCategory] = useState<string | null>(null);
@@ -245,22 +256,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   const translateOptions = allLangOptions.filter((o) => o.value !== exam.language);
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
-      <PageHeader
-        back={{ href: "/" }}
-        title={examName}
-        right={
-          !editingMeta ? (
-            <button
-              onClick={() => setEditingMeta(true)}
-              className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
-              title="Edit exam"
-            >
-              <Pencil size={12} /> 編集
-            </button>
-          ) : null
-        }
-      />
+    <div className="min-h-screen bg-[#f8f9fb] flex flex-col pt-14">
       {editingMeta && (
         <div className="bg-white border-b border-gray-200 px-4 sm:px-8 py-3">
           <div className="max-w-2xl mx-auto space-y-2">

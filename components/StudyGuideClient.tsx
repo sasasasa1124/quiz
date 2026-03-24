@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { Loader2, RefreshCw, AlertCircle, Lightbulb } from "lucide-react";
 import type { Question } from "@/lib/types";
-import PageHeader from "./PageHeader";
+import { useSetHeader } from "@/lib/header-context";
 import { useSettings } from "@/lib/settings-context";
 
 interface Props {
@@ -110,6 +110,7 @@ function MarkdownBlock({ text }: { text: string }) {
 
 export default function StudyGuideClient({ questions, examId, examName }: Props) {
   const { settings } = useSettings();
+  // header right is set after markdown/loading state is known — updated below
   const [markdown, setMarkdown] = useState<string | null>(null);
   const [generatedAt, setGeneratedAt] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,24 +219,20 @@ export default function StudyGuideClient({ questions, examId, examName }: Props)
 
   const isReady = !loading && !generating;
 
+  const regenButton = isReady && markdown ? (
+    <button
+      onClick={generate}
+      title="Regenerate"
+      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+    >
+      <RefreshCw size={12} />
+      Regenerate
+    </button>
+  ) : undefined;
+  useSetHeader({ back: { href: `/exam/${encodeURIComponent(examId)}` }, title: "Study Guide", right: regenButton }, [examId, isReady, !!markdown]);
+
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
-      <PageHeader
-        back={{ href: `/exam/${encodeURIComponent(examId)}` }}
-        title="Study Guide"
-        right={
-          isReady && markdown ? (
-            <button
-              onClick={generate}
-              title="Regenerate"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <RefreshCw size={12} />
-              Regenerate
-            </button>
-          ) : undefined
-        }
-      />
+    <div className="min-h-screen bg-[#f8f9fb] flex flex-col pt-14">
 
       <main className="flex-1 px-4 sm:px-8 py-6 max-w-3xl mx-auto w-full">
 

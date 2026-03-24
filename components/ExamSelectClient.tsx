@@ -4,7 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { RotateCcw, ChevronRight, Download, Upload, Plus, X } from "lucide-react";
 import type { ExamMeta } from "@/lib/types";
-import PageHeader from "./PageHeader";
+import { useSetHeader } from "@/lib/header-context";
 
 interface Props {
   exams: ExamMeta[];
@@ -147,6 +147,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
   }, [processFiles]);
 
   const modeLabel = mode === "quiz" ? "Quiz" : mode === "review" ? "Flashcard" : "Answers";
+  useSetHeader({ back: { href: "/" }, title: modeLabel }, [modeLabel]);
 
   const uploadStatusText =
     uploadStatus === "uploading"
@@ -158,7 +159,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
       : null;
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative">
+    <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative pt-14">
       {/* Drag & drop overlay */}
       {isDragging && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
@@ -169,8 +170,6 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
           </div>
         </div>
       )}
-
-      <PageHeader back={{ href: "/" }} title={modeLabel} />
 
       <div className="flex-1 px-4 sm:px-8 py-6 overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">

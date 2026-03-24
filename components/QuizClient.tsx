@@ -19,6 +19,7 @@ import AnswerRevealModal from "./AnswerRevealModal";
 import KeyboardHintToast from "./KeyboardHintToast";
 import QuizHeader from "./QuizHeader";
 import { useSettings } from "@/lib/settings-context";
+import { useSetHeader } from "@/lib/header-context";
 import { useAudio } from "@/hooks/useAudio";
 import { buildQuestionText, buildAnswerRevealText } from "@/lib/ttsText";
 import { recordDailySnapshot } from "@/lib/snapshots";
@@ -72,6 +73,7 @@ function saveLastQuestionId(examId: string, questionId: number) {
 
 export default function QuizClient({ questions: initialQuestions, examId, examName, mode, userEmail, activeCategory, initialFilter, invalidatedIds: initialInvalidatedIds = [], initialQuestionId }: Props) {
   const router = useRouter();
+  useSetHeader({ hidden: true }, []);
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stats, setStats] = useState<QuizStats>({});

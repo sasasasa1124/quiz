@@ -4,11 +4,11 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
-import PageHeader from "@/components/PageHeader";
+import { useSetHeader } from "@/lib/header-context";
 import type { PromptVersion } from "@/lib/types";
-import { DEFAULT_EXPLAIN_PROMPT, DEFAULT_REFINE_PROMPT, DEFAULT_STUDY_GUIDE_PROMPT } from "@/lib/types";
+import { DEFAULT_EXPLAIN_PROMPT, DEFAULT_REFINE_PROMPT, DEFAULT_STUDY_GUIDE_PROMPT, DEFAULT_FILL_PROMPT } from "@/lib/types";
 
-type PromptKey = "explain" | "refine" | "studyguide";
+type PromptKey = "explain" | "refine" | "studyguide" | "fill";
 
 interface PromptConfig {
   key: PromptKey;
@@ -235,6 +235,7 @@ function SettingsInner() {
   const returnTo = raw.startsWith("/") ? raw : "/";
 
   const { settings, updateSettings, t } = useSettings();
+  useSetHeader({ back: { href: returnTo }, title: t("settings"), hideSettingsIcon: true }, [returnTo]);
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
   const [aiPromptAuthor, setAiPromptAuthor] = useState(settings.aiPromptAuthor ?? "");
   const [aiPromptVersions, setAiPromptVersions] = useState<PromptVersion[]>(settings.aiPromptVersions ?? []);
@@ -244,6 +245,9 @@ function SettingsInner() {
   const [studyGuidePrompt, setStudyGuidePrompt] = useState(settings.studyGuidePrompt);
   const [studyGuidePromptAuthor, setStudyGuidePromptAuthor] = useState(settings.studyGuidePromptAuthor ?? "");
   const [studyGuidePromptVersions, setStudyGuidePromptVersions] = useState<PromptVersion[]>(settings.studyGuidePromptVersions ?? []);
+  const [aiFillPrompt, setAiFillPrompt] = useState(settings.aiFillPrompt);
+  const [aiFillPromptAuthor, setAiFillPromptAuthor] = useState(settings.aiFillPromptAuthor ?? "");
+  const [aiFillPromptVersions, setAiFillPromptVersions] = useState<PromptVersion[]>(settings.aiFillPromptVersions ?? []);
   const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 100);
   const [audioMode, setAudioMode] = useState(settings.audioMode ?? false);
   const [audioSpeed, setAudioSpeed] = useState(settings.audioSpeed ?? 1.0);
@@ -269,6 +273,9 @@ function SettingsInner() {
     setStudyGuidePrompt(settings.studyGuidePrompt);
     setStudyGuidePromptAuthor(settings.studyGuidePromptAuthor ?? "");
     setStudyGuidePromptVersions(settings.studyGuidePromptVersions ?? []);
+    setAiFillPrompt(settings.aiFillPrompt);
+    setAiFillPromptAuthor(settings.aiFillPromptAuthor ?? "");
+    setAiFillPromptVersions(settings.aiFillPromptVersions ?? []);
     setDailyGoal(settings.dailyGoal ?? 100);
     setAudioMode(settings.audioMode ?? false);
     setAudioSpeed(settings.audioSpeed ?? 1.0);
@@ -309,6 +316,7 @@ function SettingsInner() {
       aiPrompt, aiPromptAuthor, aiPromptVersions,
       aiRefinePrompt, aiRefinePromptAuthor, aiRefinePromptVersions,
       studyGuidePrompt, studyGuidePromptAuthor, studyGuidePromptVersions,
+      aiFillPrompt, aiFillPromptAuthor, aiFillPromptVersions,
       dailyGoal, audioMode, audioSpeed, audioPrefetch, skipRevealOnCorrect,
     });
     const saves: Promise<unknown>[] = [];
@@ -363,11 +371,19 @@ function SettingsInner() {
       defaultPrompt: DEFAULT_STUDY_GUIDE_PROMPT,
       defaultLabel: "default",
     },
+    {
+      key: "fill",
+      label: "AI Fill Prompt",
+      icon: <Sparkles size={13} className="text-sky-400" />,
+      accentClass: "text-sky-400",
+      ringClass: "focus:ring-sky-400",
+      defaultPrompt: DEFAULT_FILL_PROMPT,
+      defaultLabel: "default",
+    },
   ];
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
-      <PageHeader back={{ href: returnTo }} title={t("settings")} hideSettingsIcon />
+    <div className="min-h-screen bg-[#f8f9fb] flex flex-col pt-14">
       <main className="flex-1 px-4 sm:px-8 py-8 max-w-xl mx-auto w-full space-y-8">
 
         {/* Prompts (accordion) */}
@@ -400,6 +416,15 @@ function SettingsInner() {
               setAuthor={setStudyGuidePromptAuthor}
               versions={studyGuidePromptVersions}
               setVersions={setStudyGuidePromptVersions}
+            />
+            <PromptSection
+              config={promptConfigs[3]}
+              prompt={aiFillPrompt}
+              setPrompt={setAiFillPrompt}
+              author={aiFillPromptAuthor}
+              setAuthor={setAiFillPromptAuthor}
+              versions={aiFillPromptVersions}
+              setVersions={setAiFillPromptVersions}
             />
           </div>
         </section>

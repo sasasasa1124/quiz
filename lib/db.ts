@@ -6,7 +6,7 @@ import type {
 import { DEFAULT_USER_SETTINGS } from "./types";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, like, and, sql, asc, desc, isNotNull, lte, lt, gte } from "drizzle-orm";
+import { eq, like, and, sql, asc, desc, isNotNull, lte, lt, gte, inArray } from "drizzle-orm";
 import type { D1Database as CloudflareD1 } from "@cloudflare/workers-types";
 import * as schema from "./schema";
 import {
@@ -119,6 +119,35 @@ export async function updateExamMeta(
   if (fields.tags !== undefined) {
     await db.update(examsTable).set({ tags: JSON.stringify(fields.tags) }).where(eq(examsTable.id, examId));
   }
+}
+
+export async function deleteExam(examId: string): Promise<void> {
+  const db = getDrizzle();
+  if (!db) return;
+
+  // Collect question IDs
+  const qs = await db.select({ id: questionsTable.id }).from(questionsTable).where(eq(questionsTable.examId, examId));
+  const qIds = qs.map((q) => q.id);
+
+  if (qIds.length > 0) {
+    await db.delete(suggestionsTable).where(inArray(suggestionsTable.questionId, qIds));
+    await db.delete(userInvalidatedQuestions).where(inArray(userInvalidatedQuestions.questionId, qIds));
+    await db.delete(scores).where(inArray(scores.questionId, qIds));
+    await db.delete(questionHistory).where(inArray(questionHistory.questionId, qIds));
+  }
+
+  // Collect session IDs
+  const sess = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.examId, examId));
+  const sessIds = sess.map((s) => s.id);
+  if (sessIds.length > 0) {
+    await db.delete(sessionAnswers).where(inArray(sessionAnswers.sessionId, sessIds));
+  }
+
+  await db.delete(studyGuides).where(eq(studyGuides.examId, examId));
+  await db.delete(userSnapshots).where(eq(userSnapshots.examId, examId));
+  await db.delete(sessions).where(eq(sessions.examId, examId));
+  await db.delete(questionsTable).where(eq(questionsTable.examId, examId));
+  await db.delete(examsTable).where(eq(examsTable.id, examId));
 }
 
 export async function renameCategory(examId: string, oldName: string, newName: string): Promise<void> {

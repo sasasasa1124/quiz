@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight, Clock, CheckCircle2 } from "lucide-react";
 import type { Question } from "@/lib/types";
 import QuizQuestion from "./QuizQuestion";
 import QuizHeader from "./QuizHeader";
-import PageHeader from "./PageHeader";
+import { useHeaderConfig } from "@/lib/header-context";
 
 interface Props {
   questions: Question[];
@@ -32,6 +32,15 @@ export default function MockExamClient({ questions, examId, examName, timeLimitM
   const touchStartY = useRef<number | null>(null);
 
   const backHref = `/exam/${encodeURIComponent(examId)}`;
+  const { setConfig } = useHeaderConfig();
+  useEffect(() => {
+    if (submitted) {
+      setConfig({ back: { href: backHref }, title: "Mock Exam Results" });
+    } else {
+      setConfig({ hidden: true });
+    }
+    return () => setConfig({});
+  }, [submitted, backHref, setConfig]);
 
   const saveSession = useCallback(async (correctCount: number) => {
     if (sessionSavedRef.current) return;
@@ -145,8 +154,7 @@ export default function MockExamClient({ questions, examId, examName, timeLimitM
     const elapsedSec = elapsed % 60;
 
     return (
-      <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
-        <PageHeader back={{ href: backHref }} title="Mock Exam Results" />
+      <div className="min-h-screen bg-[#f8f9fb] flex flex-col pt-14">
         <main className="flex-1 px-4 sm:px-8 py-8 max-w-xl mx-auto w-full space-y-6">
 
           {/* Score banner */}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getUserEmail } from "@/lib/user";
 
 export const runtime = "edge";
 
@@ -178,10 +179,12 @@ export async function POST(req: NextRequest) {
     ? (explicitLang as Locale)
     : detectLanguage(records);
   const displayName = examId.replace(/_en$/, "").replace(/_/g, " ");
+  const uploaderEmail = await getUserEmail();
 
   if (db) {
     await db.prepare(
-      `INSERT OR REPLACE INTO exams (id, name, lang) VALUES ('${esc(examId)}', '${esc(displayName)}', '${language}')`
+      `INSERT INTO exams (id, name, lang, created_by) VALUES ('${esc(examId)}', '${esc(displayName)}', '${language}', '${esc(uploaderEmail)}')` +
+      ` ON CONFLICT(id) DO UPDATE SET name='${esc(displayName)}', lang='${language}'`
     ).run();
 
     for (let i = 0; i < records.length; i++) {
