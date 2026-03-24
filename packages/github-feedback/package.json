@@ -1,0 +1,43 @@
+{
+  "name": "@sasasasa1124/github-feedback",
+  "version": "0.1.0",
+  "description": "Floating GitHub issue feedback popup for Next.js apps",
+  "keywords": ["nextjs", "github", "issues", "feedback", "popup"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/sasasasa1124/claude-code"
+  },
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./handler": {
+      "import": "./dist/handler.mjs",
+      "require": "./dist/handler.js",
+      "types": "./dist/handler.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "peerDependencies": {
+    "lucide-react": ">=0.300.0",
+    "next": ">=14.0.0",
+    "react": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "tsup": "^8",
+    "typescript": "^5"
+  }
+}
