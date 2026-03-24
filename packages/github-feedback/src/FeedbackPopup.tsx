@@ -138,10 +138,10 @@ export function FeedbackPopup({
         }),
       });
 
-      const json = await res.json();
+      const json = await res.json() as { issueUrl?: string; error?: string };
       if (!res.ok) throw new Error(json.error ?? "Failed to create issue");
 
-      setIssueUrl(json.issueUrl);
+      setIssueUrl(json.issueUrl ?? "");
       setStatus("success");
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : "Unknown error");
