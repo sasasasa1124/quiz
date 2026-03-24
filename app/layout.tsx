@@ -4,7 +4,7 @@ import "./globals.css";
 import PageTransition from "@/components/PageTransition";
 import GlobalHeader from "@/components/GlobalHeader";
 import Providers from "./providers";
-import { FeedbackPopup } from "@sasasasa1124/github-feedback";
+import GithubFeedbackPopup from "@/components/GithubFeedbackPopup";
 import { ClerkProvider } from "@clerk/nextjs";
 
 const inter = Inter({
@@ -58,7 +58,7 @@ export default function RootLayout({
           <Providers>
             <GlobalHeader />
             <PageTransition>{children}</PageTransition>
-            <FeedbackPopup />
+            <GithubFeedbackPopup />
           </Providers>
         </body>
       </html>

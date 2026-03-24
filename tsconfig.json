@@ -26,12 +26,6 @@
       "@/*": [
         "./*"
       ],
-      "@sasasasa1124/github-feedback": [
-        "./packages/github-feedback/src/index.ts"
-      ],
-      "@sasasasa1124/github-feedback/handler": [
-        "./packages/github-feedback/src/handler.ts"
-      ]
     }
   },
   "include": [

@@ -21,7 +21,7 @@ interface FeedbackPopupProps {
 
 type Status = "idle" | "submitting" | "success" | "error";
 
-export function FeedbackPopup({
+export default function GithubFeedbackPopup({
   apiPath = "/api/feedback",
   labels,
   placeholder = "Describe the issue or feedback...\n\nSupports Markdown. Paste images with Ctrl+V.",
