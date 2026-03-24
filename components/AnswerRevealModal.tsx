@@ -67,18 +67,18 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
         flex flex-col
         max-h-[85vh]
         mt-auto sm:mt-0
-        ${isCorrect ? "bg-white" : "bg-rose-50"}
+        ${isCorrect ? "bg-white" : "bg-coral-50"}
       `}>
         {/* Header */}
-        <div className={`shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b ${isCorrect ? "bg-emerald-50 border-emerald-100 rounded-t-2xl sm:rounded-t-2xl" : "border-rose-100"}`}>
-          <div className={`icon-bounce w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? "bg-emerald-100" : "bg-rose-100"}`}>
+        <div className={`shrink-0 flex items-center gap-3 px-6 pt-5 pb-4 border-b ${isCorrect ? "bg-emerald-50 border-emerald-100 rounded-t-2xl sm:rounded-t-2xl" : "border-coral-100"}`}>
+          <div className={`icon-bounce w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${isCorrect ? "bg-emerald-100" : "bg-coral-100"}`}>
             {isCorrect
               ? <CheckCircle2 size={22} className="text-emerald-500" strokeWidth={2.5} />
-              : <XCircle size={22} className="text-rose-500" strokeWidth={2.5} />
+              : <XCircle size={22} className="text-coral-500" strokeWidth={2.5} />
             }
           </div>
           <div>
-            <p className={`font-bold text-lg leading-none ${isCorrect ? "text-emerald-600" : "text-rose-600"}`}>
+            <p className={`font-bold text-lg leading-none ${isCorrect ? "text-emerald-600" : "text-coral-600"}`}>
               {isCorrect ? "Correct!" : "Incorrect"}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">
@@ -153,17 +153,17 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
         </div>
 
         {/* Footer */}
-        <div className={`shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t ${isCorrect ? "border-gray-100" : "border-rose-100"}`}>
+        <div className={`shrink-0 flex items-center justify-between gap-3 px-6 py-4 border-t ${isCorrect ? "border-gray-100" : "border-coral-100"}`}>
           <button
             onClick={onAiExplain}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-violet-500 hover:border-violet-200 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-scholion-500 hover:border-scholion-200 transition-colors"
           >
             <Sparkles size={13} />
             {t("explain")}
           </button>
           <button
             onClick={onNext}
-            className="flex items-center gap-1.5 h-10 px-5 bg-gray-900 text-white text-sm font-semibold rounded-xl hover:bg-gray-700 transition-colors"
+            className="flex items-center gap-1.5 h-10 px-5 bg-scholion-500 text-white text-sm font-semibold rounded-xl hover:bg-scholion-600 transition-colors"
           >
             {isLast ? "Finish" : <><ChevronRight size={15} /> Next</>}
           </button>

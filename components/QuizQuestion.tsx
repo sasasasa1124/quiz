@@ -42,7 +42,7 @@ export default function QuizQuestion({
       </div>
 
       {/* Question text — capped height, scrollable if very long */}
-      <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0 max-h-[40vh] overflow-y-auto border-l-4 border-blue-300">
+      <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 shrink-0 max-h-[40vh] overflow-y-auto border-l-4 border-scholion-300">
         <RichText
           text={question.question}
           block
@@ -77,16 +77,16 @@ export default function QuizQuestion({
               badge = "border-emerald-600 bg-emerald-600 text-white";
               textColor = "text-emerald-950";
             } else if (isSelected) {
-              ring = "border-rose-400 bg-rose-100";
-              badge = "border-rose-600 bg-rose-600 text-white";
-              textColor = "text-rose-950";
+              ring = "border-coral-500 bg-coral-50";
+              badge = "border-coral-600 bg-coral-600 text-white";
+              textColor = "text-coral-900";
             } else {
               ring = "border-gray-100 bg-gray-50/60";
               textColor = "text-gray-300";
             }
           } else if (isSelected) {
-            ring = "border-blue-400 bg-blue-50";
-            badge = "border-blue-500 bg-blue-500 text-white";
+            ring = "border-scholion-500 bg-scholion-50";
+            badge = "border-scholion-500 bg-scholion-500 text-white";
           }
 
           return (

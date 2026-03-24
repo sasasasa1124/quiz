@@ -257,7 +257,7 @@ export default function MockExamClient({ questions, examId, examName, timeLimitM
         <div className="mb-3 flex items-center gap-2">
           <span className="text-xs text-gray-400">Question {currentIndex + 1} / {questions.length}</span>
           {q.isMultiple && (
-            <span className="text-xs px-2 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-600">
+            <span className="text-xs px-2 py-0.5 rounded-lg bg-scholion-50 border border-scholion-200 text-scholion-500">
               Select {q.answers.length}
             </span>
           )}

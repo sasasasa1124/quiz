@@ -1,21 +1,47 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8f9fb;
-  --foreground: #0f1117;
+  --background: #F5F3ED;
+  --foreground: #1A1830;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-body: var(--font-lora);
+  --font-display: var(--font-cormorant);
+  --font-mono: var(--font-jetbrains);
+  --font-jp: var(--font-noto-serif-jp);
+
+  /* Scholion primary (Alexandria purple) */
+  --color-scholion-50: #EEEDFE;
+  --color-scholion-100: #DEDCFD;
+  --color-scholion-200: #AFA9EC;
+  --color-scholion-300: #7F77DD;
+  --color-scholion-400: #6560CA;
+  --color-scholion-500: #534AB7;
+  --color-scholion-600: #3C3489;
+  --color-scholion-700: #2E2870;
+  --color-scholion-800: #26215C;
+  --color-scholion-900: #1A1840;
+
+  /* Scholion accent (coral / terracotta) */
+  --color-coral-50: #FAECE7;
+  --color-coral-100: #F5C4B3;
+  --color-coral-200: #F0997B;
+  --color-coral-500: #D85A30;
+  --color-coral-600: #B34826;
+  --color-coral-900: #4A1B0C;
+
+  /* Canvas background */
+  --color-canvas: #F5F3ED;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-inter), system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -30,7 +56,7 @@ body {
   border: none;
   background: linear-gradient(
     to right,
-    #111827 var(--fill, 0%),
+    #534AB7 var(--fill, 0%),
     #e5e7eb var(--fill, 0%)
   );
 }
@@ -39,7 +65,7 @@ body {
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #111827;
+  background: #534AB7;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
   transition: transform 120ms ease;
@@ -52,12 +78,12 @@ body {
   height: 16px;
   border: none;
   border-radius: 50%;
-  background: #111827;
+  background: #534AB7;
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.28);
 }
 .quiz-slider::-moz-range-progress {
-  background: #111827;
+  background: #534AB7;
   height: 4px;
   border-radius: 999px;
 }

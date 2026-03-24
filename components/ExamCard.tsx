@@ -38,7 +38,7 @@ export default function ExamCard({ exam, stats, mode }: Props) {
         </div>
         {pct !== null && (
           <div className="text-right shrink-0">
-            <div className={`text-2xl font-bold ${pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-500" : "text-rose-500"}`}>
+            <div className={`text-2xl font-bold ${pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-500" : "text-coral-500"}`}>
               {pct}%
             </div>
             <div className="text-xs text-gray-400">{stats!.answered}/{stats!.total}</div>
@@ -49,7 +49,7 @@ export default function ExamCard({ exam, stats, mode }: Props) {
       {stats && stats.answered > 0 && (
         <div className="h-1 bg-gray-100 rounded-full overflow-hidden mb-3">
           <div
-            className={`h-full rounded-full transition-[width] duration-700 ease-out ${pct! >= 80 ? "bg-emerald-500" : pct! >= 60 ? "bg-amber-400" : "bg-rose-400"}`}
+            className={`h-full rounded-full transition-[width] duration-700 ease-out ${pct! >= 80 ? "bg-emerald-500" : pct! >= 60 ? "bg-amber-400" : "bg-coral-500"}`}
             style={{ width: `${barWidth}%` }}
           />
         </div>
@@ -58,7 +58,7 @@ export default function ExamCard({ exam, stats, mode }: Props) {
       <div className="flex gap-2">
         <button
           onClick={() => go("all")}
-          className="flex-1 py-2 text-sm font-medium rounded-xl bg-gray-900 text-white hover:bg-gray-700 transition-colors"
+          className="flex-1 py-2 text-sm font-medium rounded-xl bg-scholion-500 text-white hover:bg-scholion-600 transition-colors"
         >
           {t("startAll")}
         </button>

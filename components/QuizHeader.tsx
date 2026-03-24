@@ -99,7 +99,7 @@ export default function QuizHeader({
   const showFilters = !!onFilterChange;
 
   return (
-    <header className="shrink-0 flex items-center justify-between px-4 sm:px-6 h-14 border-b border-gray-200 bg-white">
+    <header className="shrink-0 sticky top-0 z-40 flex items-center justify-between px-4 sm:px-6 h-14 border-b border-gray-200 bg-canvas">
       {/* Left: back, home, exam info */}
       <div className="flex items-center gap-3 sm:gap-4 min-w-0">
         {onBack ? (
@@ -135,7 +135,7 @@ export default function QuizHeader({
           {activeCategory && (
             <>
               <span className="text-gray-200 shrink-0">·</span>
-              <span className="truncate text-blue-500 font-medium">{activeCategory}</span>
+              <span className="truncate text-scholion-500 font-medium">{activeCategory}</span>
             </>
           )}
         </div>
@@ -173,7 +173,7 @@ export default function QuizHeader({
             {hasContinue && (
               <button
                 onClick={() => onFilterChange("continue")}
-                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "continue" ? "bg-white text-blue-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "continue" ? "bg-white text-scholion-500 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
               >
                 <History size={11} />
                 <span className="hidden sm:inline">{t("continueFrom")}</span>
@@ -220,7 +220,7 @@ export default function QuizHeader({
                 <button
                   key={opt.value}
                   onClick={() => { updateSettings({ language: opt.value }); setLangOpen(false); }}
-                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${settings.language === opt.value ? "font-semibold text-blue-600" : "text-gray-700"}`}
+                  className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors ${settings.language === opt.value ? "font-semibold text-scholion-500" : "text-gray-700"}`}
                 >
                   {opt.label}
                 </button>
