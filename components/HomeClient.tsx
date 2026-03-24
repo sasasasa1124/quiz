@@ -172,11 +172,11 @@ export default function HomeClient({ exams: initialExams }: Props) {
     <div className="relative">
       {/* Drag & drop overlay */}
       {isDragging && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
-          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-blue-400 rounded-2xl px-10 py-8 shadow-xl">
-            <Upload size={32} className="text-blue-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-blue-700">Drop CSV here</p>
-            <p className="text-xs text-blue-400">Multiple files supported</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-scholion-400 rounded-2xl px-10 py-8 shadow-xl">
+            <Upload size={32} className="text-scholion-500" strokeWidth={1.5} />
+            <p className="text-sm font-semibold text-scholion-600">Drop CSV here</p>
+            <p className="text-xs text-scholion-300">Multiple files supported</p>
           </div>
         </div>
       )}
@@ -189,7 +189,7 @@ export default function HomeClient({ exams: initialExams }: Props) {
             onClick={() => setMode("quiz")}
             className={`flex-1 py-3 rounded-xl border-2 font-medium text-sm transition-all ${
               mode === "quiz"
-                ? "border-blue-500 bg-blue-50 text-blue-700"
+                ? "border-scholion-500 bg-scholion-50 text-scholion-600"
                 : "border-gray-200 text-gray-500 hover:border-gray-300"
             }`}
           >
@@ -232,7 +232,7 @@ export default function HomeClient({ exams: initialExams }: Props) {
               className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors flex items-center justify-center gap-1 ${
                 uploadStatus === "done" ? "border-green-400 text-green-600 bg-green-50"
                 : uploadStatus === "error" ? "border-red-400 text-red-600 bg-red-50"
-                : "border-gray-300 text-gray-600 hover:border-blue-400 hover:text-blue-600"
+                : "border-gray-300 text-gray-600 hover:border-scholion-400 hover:text-scholion-500"
               }`}
             >
               {uploadStatus === "uploading"

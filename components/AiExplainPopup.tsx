@@ -156,9 +156,9 @@ export default function AiExplainPopup({
   return (
     <div className="fixed bottom-20 right-4 sm:right-8 z-60 w-80 sm:w-[22rem] bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-violet-50 to-white shrink-0">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-scholion-50 to-white shrink-0">
         <div className="flex items-center gap-2">
-          <Sparkles size={13} className="text-violet-500" />
+          <Sparkles size={13} className="text-scholion-500" />
           <span className="text-sm font-semibold text-gray-800">{t("explain")}</span>
         </div>
         <button
@@ -173,7 +173,7 @@ export default function AiExplainPopup({
       <div className="p-4 space-y-3 overflow-y-auto max-h-72">
         {loading && (
           <div className="flex flex-col items-center justify-center py-8 gap-2">
-            <Loader2 size={20} className="animate-spin text-violet-400" />
+            <Loader2 size={20} className="animate-spin text-scholion-400" />
             <span className="text-xs text-gray-400">{t("aiExplaining")}</span>
           </div>
         )}
@@ -193,7 +193,7 @@ export default function AiExplainPopup({
                 {result.answers.map((a) => (
                   <span
                     key={a}
-                    className="w-7 h-7 rounded-lg bg-violet-100 text-violet-700 text-xs font-bold flex items-center justify-center"
+                    className="w-7 h-7 rounded-lg bg-scholion-100 text-scholion-600 text-xs font-bold flex items-center justify-center"
                   >
                     {a}
                   </span>
@@ -221,7 +221,7 @@ export default function AiExplainPopup({
               {parseExplanationSections(result.explanation).map((sec, i) => (
                 <div key={i}>
                   {sec.header && (
-                    <p className="text-[10px] font-semibold text-violet-500 uppercase tracking-wide mb-1">
+                    <p className="text-[10px] font-semibold text-scholion-500 uppercase tracking-wide mb-1">
                       {sec.header}
                     </p>
                   )}
@@ -258,7 +258,7 @@ export default function AiExplainPopup({
                       href={url}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-1 text-xs text-violet-500 hover:text-violet-700 hover:underline"
+                      className="flex items-center gap-1 text-xs text-scholion-500 hover:text-scholion-600 hover:underline"
                     >
                       <ExternalLink size={10} className="shrink-0" />
                       <span className="truncate">{url}</span>
@@ -279,7 +279,7 @@ export default function AiExplainPopup({
                     <div
                       className={`max-w-[85%] rounded-xl px-3 py-2 text-xs leading-relaxed whitespace-pre-wrap ${
                         msg.role === "user"
-                          ? "bg-violet-600 text-white"
+                          ? "bg-scholion-500 text-white"
                           : "bg-gray-100 text-gray-700"
                       }`}
                     >
@@ -318,12 +318,12 @@ export default function AiExplainPopup({
               }}
               placeholder="Ask a follow-up question..."
               rows={1}
-              className="flex-1 text-xs text-gray-700 placeholder-gray-300 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 resize-none outline-none focus:border-violet-300 focus:ring-1 focus:ring-violet-200 transition-colors"
+              className="flex-1 text-xs text-gray-700 placeholder-gray-300 bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 resize-none outline-none focus:border-scholion-300 focus:ring-1 focus:ring-scholion-200 transition-colors"
             />
             <button
               onClick={handleChatSend}
               disabled={!chatInput.trim() || chatLoading}
-              className="shrink-0 w-8 h-8 rounded-xl bg-violet-600 text-white flex items-center justify-center hover:bg-violet-700 disabled:opacity-30 transition-colors"
+              className="shrink-0 w-8 h-8 rounded-xl bg-scholion-500 text-white flex items-center justify-center hover:bg-scholion-600 disabled:opacity-30 transition-colors"
             >
               <Send size={12} />
             </button>
@@ -341,7 +341,7 @@ export default function AiExplainPopup({
             <button
               onClick={onSuggest}
               disabled={suggesting}
-              className="flex-1 h-10 rounded-xl border border-violet-200 text-violet-600 bg-violet-50 text-sm font-semibold hover:bg-violet-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 h-10 rounded-xl border border-scholion-200 text-scholion-500 bg-scholion-50 text-sm font-semibold hover:bg-scholion-100 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
             >
               {suggesting ? (
                 <Loader2 size={13} className="animate-spin" />
@@ -353,7 +353,7 @@ export default function AiExplainPopup({
             <button
               onClick={onAdopt}
               disabled={adopting}
-              className="flex-1 h-10 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
+              className="flex-1 h-10 rounded-xl bg-scholion-500 text-white text-sm font-semibold hover:bg-scholion-600 disabled:opacity-50 transition-colors flex items-center justify-center gap-1.5"
             >
               {adopting ? (
                 <Loader2 size={13} className="animate-spin" />

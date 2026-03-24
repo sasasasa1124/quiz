@@ -25,7 +25,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, qu
           <div className="flex items-center justify-between mb-3">
             <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">Answer</p>
             {onAiExplain && (
-              <button onClick={onAiExplain} className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-violet-500 hover:border-violet-200 transition-colors">
+              <button onClick={onAiExplain} className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-scholion-500 hover:border-scholion-200 transition-colors">
                 <Sparkles size={11} />
                 {t("explain")}
               </button>
@@ -92,7 +92,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, qu
         <div className="max-w-3xl mx-auto w-full">
           <button
             onClick={onNext}
-            className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5"
+            className="w-full h-10 rounded-xl bg-scholion-500 text-white text-sm font-semibold hover:bg-scholion-600 transition-colors flex items-center justify-center gap-1.5"
           >
             {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /> <span className="text-xs opacity-40 hidden sm:inline">→ Enter</span></>}
           </button>

@@ -532,7 +532,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                   onClick={() => setSelectedMode("quiz")}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border-2 text-sm font-medium transition-all ${
                     selectedMode === "quiz"
-                      ? "border-blue-500 bg-blue-50 text-blue-700"
+                      ? "border-scholion-500 bg-scholion-50 text-scholion-600"
                       : "border-gray-200 text-gray-500 hover:border-gray-300"
                   }`}
                 >

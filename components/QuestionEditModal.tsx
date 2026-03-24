@@ -296,7 +296,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                 />
                 <button
                   onClick={() => csvInputRef.current?.click()}
-                  className="w-full flex flex-col items-center justify-center gap-2 py-8 border-2 border-dashed border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-colors text-gray-400 hover:text-blue-500"
+                  className="w-full flex flex-col items-center justify-center gap-2 py-8 border-2 border-dashed border-gray-200 rounded-xl hover:border-scholion-300 hover:bg-scholion-50 transition-colors text-gray-400 hover:text-scholion-500"
                 >
                   <FileText size={24} strokeWidth={1.5} />
                   <span className="text-sm font-medium">
@@ -321,7 +321,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                   value={questionText}
                   onChange={(e) => setQuestionText(e.target.value)}
                   rows={4}
-                  className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                  className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-scholion-500/30 focus:border-scholion-400 resize-none"
                 />
               </div>
 
@@ -348,7 +348,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                       <input
                         value={c.text}
                         onChange={(e) => updateChoiceText(i, e.target.value)}
-                        className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                        className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-scholion-500/30 focus:border-scholion-400"
                         placeholder={`Option ${c.label}`}
                       />
                       {choices.length > 2 && (
@@ -365,7 +365,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                 {choices.length < 8 && (
                   <button
                     onClick={addChoice}
-                    className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-500 transition-colors"
+                    className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 hover:text-scholion-500 transition-colors"
                   >
                     <Plus size={13} /> Add option
                   </button>
@@ -379,7 +379,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                   value={explanation}
                   onChange={(e) => setExplanation(e.target.value)}
                   rows={3}
-                  className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                  className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-scholion-500/30 focus:border-scholion-400 resize-none"
                   placeholder="Explanation (optional)"
                 />
               </div>
@@ -390,7 +390,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                 <input
                   value={source}
                   onChange={(e) => setSource(e.target.value)}
-                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                  className="w-full text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-scholion-500/30 focus:border-scholion-400"
                   placeholder="e.g. Official practice exam #3 Q12"
                 />
               </div>
@@ -412,7 +412,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                           next[i] = e.target.value;
                           setExplanationSources(next);
                         }}
-                        className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400"
+                        className="flex-1 text-sm border border-gray-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-scholion-500/30 focus:border-scholion-400"
                         placeholder="https://..."
                       />
                       <button
@@ -426,7 +426,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                 </div>
                 <button
                   onClick={() => setExplanationSources((prev) => [...prev, ""])}
-                  className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 hover:text-blue-500 transition-colors"
+                  className="mt-2 flex items-center gap-1.5 text-xs text-gray-400 hover:text-scholion-500 transition-colors"
                 >
                   <Plus size={13} /> Add reference URL
                 </button>
@@ -443,7 +443,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                     value={changeReason}
                     onChange={(e) => setChangeReason(e.target.value)}
                     rows={2}
-                    className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 resize-none"
+                    className="w-full text-sm border border-gray-200 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-scholion-500/30 focus:border-scholion-400 resize-none"
                     placeholder="e.g. 正解が誤っていたため修正"
                   />
                 </div>
@@ -479,7 +479,7 @@ export default function QuestionEditModal({ question, examId, onClose, onSave, o
                               <button
                                 onClick={() => handleRevert(h)}
                                 disabled={revertingId === h.id}
-                                className="flex items-center gap-1 px-2 py-0.5 text-xs text-gray-400 hover:text-blue-500 hover:bg-blue-50 border border-gray-200 rounded-lg transition-colors disabled:opacity-40"
+                                className="flex items-center gap-1 px-2 py-0.5 text-xs text-gray-400 hover:text-scholion-500 hover:bg-scholion-50 border border-gray-200 rounded-lg transition-colors disabled:opacity-40"
                                 title={`Revert to v${h.version}`}
                               >
                                 {revertingId === h.id ? <Loader2 size={10} className="animate-spin" /> : <RotateCcw size={10} />}

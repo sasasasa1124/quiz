@@ -161,11 +161,11 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative">
       {/* Drag & drop overlay */}
       {isDragging && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
-          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-blue-400 rounded-2xl px-10 py-8 shadow-xl">
-            <Upload size={32} className="text-blue-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-blue-700">Drop CSV here</p>
-            <p className="text-xs text-blue-400">Multiple files supported</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-scholion-400 rounded-2xl px-10 py-8 shadow-xl">
+            <Upload size={32} className="text-scholion-500" strokeWidth={1.5} />
+            <p className="text-sm font-semibold text-scholion-600">Drop CSV here</p>
+            <p className="text-xs text-scholion-300">Multiple files supported</p>
           </div>
         </div>
       )}
@@ -264,7 +264,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
                   className={`w-full py-4 rounded-xl border-2 border-dashed text-sm transition-all ${
                     uploadStatus === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-600"
                     : uploadStatus === "error" ? "border-rose-300 bg-rose-50 text-rose-500"
-                    : uploadStatus === "uploading" ? "border-blue-300 bg-blue-50 text-blue-500"
+                    : uploadStatus === "uploading" ? "border-scholion-300 bg-scholion-50 text-scholion-500"
                     : "border-gray-200 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
                   }`}
                 >

@@ -266,8 +266,8 @@ function SuggestionCard({
         <span
           className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold ${
             isAi
-              ? "bg-violet-50 text-violet-600 border border-violet-200"
-              : "bg-blue-50 text-blue-600 border border-blue-200"
+              ? "bg-scholion-50 text-scholion-500 border border-scholion-200"
+              : "bg-scholion-50 text-scholion-500 border border-scholion-200"
           }`}
         >
           {isAi ? <Bot size={10} /> : <User size={10} />}

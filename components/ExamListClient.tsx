@@ -235,15 +235,15 @@ export default function ExamListClient({ exams: initialExams }: Props) {
     });
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative">
+    <div className="min-h-screen bg-canvas flex flex-col relative">
       <OnboardingGuide />
       {/* Drag & drop overlay */}
       {isDragging && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-blue-500/10 backdrop-blur-[1px] pointer-events-none">
-          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-blue-400 rounded-2xl px-10 py-8 shadow-xl">
-            <Upload size={32} className="text-blue-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-blue-700">Drop CSV here</p>
-            <p className="text-xs text-blue-400">Multiple files supported</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-scholion-400 rounded-2xl px-10 py-8 shadow-xl">
+            <Upload size={32} className="text-scholion-500" strokeWidth={1.5} />
+            <p className="text-sm font-semibold text-scholion-600">Drop CSV here</p>
+            <p className="text-xs text-scholion-300">Multiple files supported</p>
           </div>
         </div>
       )}
@@ -314,7 +314,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                 </div>
                 <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
                   <div
-                    className={`h-full rounded-full transition-all ${done ? "bg-emerald-500" : "bg-gray-400"}`}
+                    className={`h-full rounded-full transition-all ${done ? "bg-emerald-500" : "bg-scholion-400"}`}
                     style={{ width: `${pct}%` }}
                   />
                 </div>
@@ -374,12 +374,12 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                       <div className="mt-2 flex items-center gap-2">
                         <div className="flex-1 h-1 bg-gray-100 rounded-full overflow-hidden">
                           <div
-                            className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-400" : "bg-rose-400"}`}
+                            className={`h-full rounded-full ${pct >= 80 ? "bg-emerald-500" : pct >= 60 ? "bg-amber-400" : "bg-coral-500"}`}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
                         {s.wrongCount > 0 && (
-                          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-rose-50 text-[10px] text-rose-400 font-medium leading-none shrink-0">
+                          <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-md bg-coral-50 text-[10px] text-coral-500 font-medium leading-none shrink-0">
                             <RotateCcw size={8} />
                             {s.wrongCount}
                           </span>
@@ -389,7 +389,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0 pt-0.5">
                     {pct !== null && (
-                      <span className={`text-base font-bold tabular-nums ${pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-500" : "text-rose-500"}`}>
+                      <span className={`text-base font-bold tabular-nums ${pct >= 80 ? "text-emerald-600" : pct >= 60 ? "text-amber-500" : "text-coral-500"}`}>
                         {pct}%
                       </span>
                     )}
@@ -437,7 +437,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                   className={`w-full py-4 rounded-xl border-2 border-dashed text-sm transition-all ${
                     uploadStatus === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-600"
                     : uploadStatus === "error" ? "border-rose-300 bg-rose-50 text-rose-500"
-                    : uploadStatus === "uploading" ? "border-blue-300 bg-blue-50 text-blue-500"
+                    : uploadStatus === "uploading" ? "border-scholion-300 bg-scholion-50 text-scholion-500"
                     : "border-gray-200 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
                   }`}
                 >
@@ -466,7 +466,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                         onClick={() => setPreviewLang(opt.value)}
                         className={`flex-1 py-1 rounded-lg text-xs font-medium transition-colors ${
                           previewLang === opt.value
-                            ? "bg-gray-900 text-white"
+                            ? "bg-scholion-500 text-white"
                             : "border border-gray-200 text-gray-500 hover:bg-gray-50"
                         }`}
                       >
@@ -511,7 +511,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                         ));
                         setUploadedExam(null);
                       }}
-                      className="flex-1 h-8 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-gray-700 transition-colors"
+                      className="flex-1 h-8 rounded-lg bg-scholion-500 text-white text-xs font-semibold hover:bg-scholion-600 transition-colors"
                     >
                       Save
                     </button>
@@ -567,7 +567,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                     className={`w-full py-2 rounded-lg border text-xs font-medium transition-all disabled:opacity-40 ${
                       translateStatus === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-600"
                       : translateStatus === "error" ? "border-rose-300 bg-rose-50 text-rose-500"
-                      : translateStatus === "translating" ? "border-blue-300 bg-blue-50 text-blue-500"
+                      : translateStatus === "translating" ? "border-scholion-300 bg-scholion-50 text-scholion-500"
                       : "border-gray-200 text-gray-600 hover:border-gray-400 hover:bg-gray-50"
                     }`}
                   >

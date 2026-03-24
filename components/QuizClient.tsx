@@ -694,7 +694,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           )}
         </div>
         {(filter === "wrong" || excludeDuplicates) && (
-          <button onClick={() => { setFilter("all"); setExcludeDuplicates(false); }} className="h-10 px-5 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors">
+          <button onClick={() => { setFilter("all"); setExcludeDuplicates(false); }} className="h-10 px-5 rounded-xl bg-scholion-500 text-white text-sm font-semibold hover:bg-scholion-600 transition-colors">
             {t("showAll")}
           </button>
         )}
@@ -709,7 +709,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const q = filteredQuestions[currentIndex];
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-[#f8f9fb]">
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-canvas">
       {/* Filter reset toast */}
       {filterResetToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-emerald-600 text-white text-xs font-medium px-4 py-2 rounded-xl shadow-lg pointer-events-none">
@@ -750,9 +750,9 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           border-b lg:border-b-0 lg:border-r border-gray-200
           transition-colors duration-300
           ${mode === "review"
-            ? revealed ? "bg-rose-100/70" : "bg-white"
+            ? revealed ? "bg-coral-50" : "bg-white"
             : isCorrect === true  ? "bg-emerald-100/70"
-            : isCorrect === false ? "bg-rose-100/70"
+            : isCorrect === false ? "bg-coral-50"
             : "bg-white"}
           ${submitted && isCorrect === false ? "shake-x" : ""}
         `}>
@@ -788,12 +788,12 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               <Wand2 size={12} />
                               {t("refine")}
                             </button>
-                            <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit — manually edit the question and answer choices">
+                            <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-scholion-50 border border-scholion-200 text-scholion-500 hover:bg-scholion-100 transition-colors" title="Edit — manually edit the question and answer choices">
                               <Pencil size={12} />
                               Edit
                             </button>
                           </div>
-                          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 max-h-[40vh] overflow-y-auto border-l-4 border-blue-300">
+                          <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 max-h-[40vh] overflow-y-auto border-l-4 border-scholion-300">
                             <div
                               className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
                               dangerouslySetInnerHTML={{ __html: q.question }}
@@ -854,7 +854,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                         <Wand2 size={12} />
                         {t("refine")}
                       </button>
-                      <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-100 transition-colors" title="Edit — manually edit the question and answer choices">
+                      <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-scholion-50 border border-scholion-200 text-scholion-500 hover:bg-scholion-100 transition-colors" title="Edit — manually edit the question and answer choices">
                         <Pencil size={12} />
                         Edit
                       </button>
@@ -874,7 +874,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       <button
                         onClick={handleSubmit}
                         disabled={selected.size === 0}
-                        className="w-full py-2.5 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                        className="w-full py-2.5 rounded-xl bg-scholion-500 text-white text-sm font-semibold disabled:opacity-20 hover:bg-scholion-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
                       >
                         <CheckCircle2 size={15} strokeWidth={2} />
                         Submit
@@ -902,7 +902,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                           <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-20 transition-all">
                             <ChevronLeft size={17} />
                           </button>
-                          <button onClick={goNext} disabled={isLast} className="flex-1 h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold disabled:opacity-20 hover:bg-gray-700 transition-colors flex items-center justify-center gap-1.5">
+                          <button onClick={goNext} disabled={isLast} className="flex-1 h-10 rounded-xl bg-scholion-500 text-white text-sm font-semibold disabled:opacity-20 hover:bg-scholion-600 transition-colors flex items-center justify-center gap-1.5">
                             {isLast ? <CheckCircle2 size={16} /> : <><ChevronRight size={15} /><span className="text-xs opacity-40 hidden sm:inline">Enter</span></>}
                           </button>
                         </div>
