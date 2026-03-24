@@ -643,12 +643,21 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
   const raw: Partial<UserSettings> = {};
   for (const row of rows) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (row.key === "dailyGoal" || row.key === "audioSpeed") {
+    if (row.key === "dailyGoal" || row.key === "audioSpeed" || row.key === "audioPrefetch") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (raw as any)[row.key] = Number(row.value);
-    } else if (row.key === "audioMode") {
+    } else if (row.key === "audioMode" || row.key === "skipRevealOnCorrect") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (raw as any)[row.key] = row.value === "true" || row.value === "1";
+    } else if (row.key === "aiPromptVersions" || row.key === "aiRefinePromptVersions" || row.key === "studyGuidePromptVersions") {
+      try {
+        const parsed = JSON.parse(row.value);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (raw as any)[row.key] = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (raw as any)[row.key] = [];
+      }
     } else {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (raw as any)[row.key] = row.value;
@@ -658,6 +667,9 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
   if (!merged.aiPrompt) merged.aiPrompt = DEFAULT_USER_SETTINGS.aiPrompt;
   if (!merged.aiRefinePrompt) merged.aiRefinePrompt = DEFAULT_USER_SETTINGS.aiRefinePrompt;
   if (!merged.studyGuidePrompt) merged.studyGuidePrompt = DEFAULT_USER_SETTINGS.studyGuidePrompt;
+  if (!Array.isArray(merged.aiPromptVersions)) merged.aiPromptVersions = [];
+  if (!Array.isArray(merged.aiRefinePromptVersions)) merged.aiRefinePromptVersions = [];
+  if (!Array.isArray(merged.studyGuidePromptVersions)) merged.studyGuidePromptVersions = [];
   return merged;
 }
 
@@ -666,14 +678,17 @@ export async function setUserSettings(userEmail: string, settings: Partial<UserS
   if (!db) return;
 
   for (const [key, value] of Object.entries(settings)) {
+    const serialized = (Array.isArray(value) || (typeof value === "object" && value !== null))
+      ? JSON.stringify(value)
+      : String(value);
     await db.insert(userSettings)
       .values({
-        userEmail, key, value: String(value),
+        userEmail, key, value: serialized,
         updatedAt: sql`datetime('now')` as unknown as string,
       })
       .onConflictDoUpdate({
         target: [userSettings.userEmail, userSettings.key],
-        set: { value: String(value), updatedAt: sql`datetime('now')` },
+        set: { value: serialized, updatedAt: sql`datetime('now')` },
       });
   }
 }
