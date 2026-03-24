@@ -4,44 +4,53 @@ import { getUserEmail } from "@/lib/user";
 export const runtime = "edge";
 
 
-// Minimal CSV parser (edge-compatible, no Node.js deps)
+// RFC 4180-compliant CSV parser (edge-compatible, no Node.js deps).
+// Handles both:
+//   1. Quoted cells with embedded real newlines  (Python csv.writer output)
+//   2. Cells containing the literal two-char sequence \n  (some manual exports)
 function parseCSV(text: string): Record<string, string>[] {
-  const lines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
-  if (lines.length < 2) return [];
+  const src = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-  function splitRow(row: string): string[] {
-    const cells: string[] = [];
+  function parseAllCells(s: string): string[][] {
+    const rows: string[][] = [];
+    let row: string[] = [];
     let i = 0;
-    while (i < row.length) {
-      if (row[i] === '"') {
+    while (i <= s.length) {
+      if (i === s.length || s[i] === "\n") {
+        rows.push(row);
+        row = [];
+        i++;
+      } else if (s[i] === ",") {
+        row.push("");
+        i++;
+      } else if (s[i] === '"') {
         i++;
         let cell = "";
-        while (i < row.length) {
-          if (row[i] === '"' && row[i + 1] === '"') { cell += '"'; i += 2; }
-          else if (row[i] === '"') { i++; break; }
-          else { cell += row[i++]; }
+        while (i < s.length) {
+          if (s[i] === '"' && s[i + 1] === '"') { cell += '"'; i += 2; }
+          else if (s[i] === '"') { i++; break; }
+          else { cell += s[i++]; } // real newlines inside quotes are kept as-is
         }
-        cells.push(cell);
-        if (row[i] === ",") i++;
+        row.push(cell);
+        if (s[i] === ",") i++;
       } else {
-        const end = row.indexOf(",", i);
-        if (end === -1) { cells.push(row.slice(i)); i = row.length; }
-        else { cells.push(row.slice(i, end)); i = end + 1; }
+        let cell = "";
+        while (i < s.length && s[i] !== "," && s[i] !== "\n") cell += s[i++];
+        row.push(cell);
+        if (s[i] === ",") i++;
       }
     }
-    return cells;
+    return rows.filter(r => r.some(c => c.trim()));
   }
 
-  const headers = splitRow(lines[0]);
-  const records: Record<string, string>[] = [];
-  for (let li = 1; li < lines.length; li++) {
-    if (!lines[li].trim()) continue;
-    const values = splitRow(lines[li]);
+  const [headerRow, ...dataRows] = parseAllCells(src);
+  if (!headerRow) return [];
+  return dataRows.map(cols => {
     const rec: Record<string, string> = {};
-    headers.forEach((h, idx) => { rec[h] = values[idx] ?? ""; });
-    records.push(rec);
-  }
-  return records;
+    // Also expand literal \n escape sequences produced by manual CSV writing
+    headerRow.forEach((h, idx) => { rec[h] = (cols[idx] ?? "").replace(/\\n/g, "\n"); });
+    return rec;
+  });
 }
 
 type Locale = "ja" | "en" | "zh" | "ko";

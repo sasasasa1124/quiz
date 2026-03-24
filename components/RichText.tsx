@@ -46,14 +46,17 @@ function renderInline(text: string): React.ReactNode {
 }
 
 // ── Block parser ──────────────────────────────────────────────────────────────
-// Groups lines into: plain text runs, bullet lists (- / *), numbered lists (1.)
+// Groups lines into: plain text runs, bullet lists (- / *), numbered lists (1.), images
 type Block =
   | { type: "text"; lines: string[] }
   | { type: "ul"; items: string[] }
-  | { type: "ol"; items: string[] };
+  | { type: "ol"; items: string[] }
+  | { type: "img"; src: string };
 
 const UL_RE = /^[ \t]*[-*]\s+(.+)$/;
 const OL_RE = /^[ \t]*\d+[.)]\s+(.+)$/;
+// [img: /path/to/image.jpg] — image embed
+const IMG_RE = /^\[img:\s*([^\]]+)\]$/;
 
 function parseBlocks(text: string): Block[] {
   const lines = text.split("\n");
@@ -63,10 +66,14 @@ function parseBlocks(text: string): Block[] {
   const flush = () => { if (cur) { blocks.push(cur); cur = null; } };
 
   for (const line of lines) {
-    const ulM = UL_RE.exec(line);
-    const olM = !ulM && OL_RE.exec(line);
+    const imgM = IMG_RE.exec(line.trim());
+    const ulM = !imgM && UL_RE.exec(line);
+    const olM = !imgM && !ulM && OL_RE.exec(line);
 
-    if (ulM) {
+    if (imgM) {
+      flush();
+      blocks.push({ type: "img", src: imgM[1].trim() });
+    } else if (ulM) {
       if (cur?.type !== "ul") { flush(); cur = { type: "ul", items: [] }; }
       (cur as { type: "ul"; items: string[] }).items.push(ulM[1]);
     } else if (olM) {
@@ -114,6 +121,17 @@ export function RichText({ text, className, block = false }: RichTextProps) {
   return (
     <div className={className}>
       {blocks.map((b, bi) => {
+        if (b.type === "img") {
+          return (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={bi}
+              src={b.src}
+              alt="Exhibit"
+              className="max-w-full rounded-lg mt-2 border border-gray-200"
+            />
+          );
+        }
         if (b.type === "ul") {
           return (
             <ul key={bi} className="list-disc list-outside pl-5 space-y-0.5 my-1.5">
