@@ -64,7 +64,23 @@ export type TranslationKey =
   | "suggestTypeManual"
   | "suggestSuccess"
   | "suggestNone"
-  | "invalidate";
+  | "invalidate"
+  | "edit"
+  | "knewIt"
+  | "didntKnow"
+  | "filter"
+  | "customFilter"
+  | "includeUnattempted"
+  | "sm2ReviewDue"
+  | "attemptsMax"
+  | "accuracyMax"
+  | "notSeenInDays"
+  | "reset"
+  | "apply"
+  | "noLimit"
+  | "answer"
+  | "correctAnswer"
+  | "source";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -125,6 +141,22 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestSuccess: "Suggestion submitted",
     suggestNone: "No suggestions yet",
     invalidate: "Invalidate",
+    edit: "Edit",
+    knewIt: "Knew it",
+    didntKnow: "Didn't know",
+    filter: "Filter",
+    customFilter: "Custom Filter",
+    includeUnattempted: "Include unattempted",
+    sm2ReviewDue: "SM-2 review due today",
+    attemptsMax: "Attempts ≤",
+    accuracyMax: "Accuracy ≤ (%)",
+    notSeenInDays: "Not seen ≥ (days)",
+    reset: "Reset",
+    apply: "Apply",
+    noLimit: "no limit",
+    answer: "Answer",
+    correctAnswer: "Correct Answer",
+    source: "Source",
   },
   ja: {
     settings: "設定",
@@ -184,6 +216,22 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestSuccess: "提案を送信しました",
     suggestNone: "まだ提案がありません",
     invalidate: "無効化",
+    edit: "編集",
+    knewIt: "知っていた",
+    didntKnow: "知らなかった",
+    filter: "フィルター",
+    customFilter: "カスタムフィルター",
+    includeUnattempted: "未挑戦を含む",
+    sm2ReviewDue: "本日の復習対象 (SM-2)",
+    attemptsMax: "試行回数 ≤",
+    accuracyMax: "正答率 ≤ (%)",
+    notSeenInDays: "未回答から ≥ 日",
+    reset: "リセット",
+    apply: "適用",
+    noLimit: "制限なし",
+    answer: "解答",
+    correctAnswer: "正解",
+    source: "出典",
   },
   zh: {
     settings: "设置",
@@ -243,6 +291,22 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestSuccess: "建议已提交",
     suggestNone: "暂无建议",
     invalidate: "作废",
+    edit: "编辑",
+    knewIt: "知道了",
+    didntKnow: "不知道",
+    filter: "筛选",
+    customFilter: "自定义筛选",
+    includeUnattempted: "包含未尝试",
+    sm2ReviewDue: "今日待复习 (SM-2)",
+    attemptsMax: "尝试次数 ≤",
+    accuracyMax: "正确率 ≤ (%)",
+    notSeenInDays: "未见 ≥ (天)",
+    reset: "重置",
+    apply: "应用",
+    noLimit: "无限制",
+    answer: "答案",
+    correctAnswer: "正确答案",
+    source: "来源",
   },
   ko: {
     settings: "설정",
@@ -302,6 +366,22 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     suggestSuccess: "제안 제출됨",
     suggestNone: "아직 제안 없음",
     invalidate: "무효화",
+    edit: "편집",
+    knewIt: "알고 있었음",
+    didntKnow: "몰랐음",
+    filter: "필터",
+    customFilter: "맞춤 필터",
+    includeUnattempted: "미시도 포함",
+    sm2ReviewDue: "오늘 복습 예정 (SM-2)",
+    attemptsMax: "시도 횟수 ≤",
+    accuracyMax: "정답률 ≤ (%)",
+    notSeenInDays: "미확인 ≥ (일)",
+    reset: "초기화",
+    apply: "적용",
+    noLimit: "제한 없음",
+    answer: "정답",
+    correctAnswer: "정답",
+    source: "출처",
   },
 };
 

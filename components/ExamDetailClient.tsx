@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import type { CategoryStat, ExamMeta } from "@/lib/types";
 import { useSetHeader } from "@/lib/header-context";
+import { useSettings } from "@/lib/settings-context";
 import ExamQuestionTable from "./ExamQuestionTable";
 
 interface Props {
@@ -30,6 +31,7 @@ function pctTextColor(pct: number) {
 }
 
 export default function ExamDetailClient({ exam, categoryStats: initialStats, userEmail }: Props) {
+  const { t } = useSettings();
   const [stats, setStats] = useState<CategoryStat[]>(initialStats);
   const [statsLoading, setStatsLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<"quiz" | "review">("quiz");
@@ -51,9 +53,9 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
       className="flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
       title="Edit exam"
     >
-      <Pencil size={12} /> 編集
+      <Pencil size={12} /> {t("edit")}
     </button>
-  ) : null, [editingMeta]);
+  ) : null, [editingMeta, t]);
   useSetHeader({ back: { href: "/" }, title: examName, right: headerRight }, [examName, headerRight]);
 
   // Category rename
@@ -506,7 +508,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                     selectedScope === "continue" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
                   }`}
                 >
-                  <History size={13} /> 続きから
+                  <History size={13} /> {t("continueFrom")}
                 </button>
                 <button
                   onClick={() => wrongCount > 0 && setSelectedScope("wrong")}

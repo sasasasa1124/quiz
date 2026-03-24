@@ -279,7 +279,7 @@ export default function QuizHeader({
                   title="Custom filter"
                 >
                   <SlidersHorizontal size={11} />
-                  <span className="hidden sm:inline">Filter</span>
+                  <span className="hidden sm:inline">{t("filter")}</span>
                   {filter === "custom" && customFilterCount !== undefined && (
                     <span className="ml-0.5">{customFilterCount}</span>
                   )}

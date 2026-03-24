@@ -421,7 +421,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           {/* Explanation */}
           <div className="bg-white rounded-xl border border-gray-100 px-5 py-4">
             <div className="flex items-center justify-between mb-2">
-              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">Explanation</p>
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t("aiExplanation")}</p>
               <button
                 onClick={handleAiExplain}
                 className="text-gray-300 hover:text-violet-500 transition-colors"
@@ -435,7 +435,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
             ) : (
               <p className="text-sm text-gray-300">—</p>
             )}
-            {q.source && <p className="text-xs text-gray-300 mt-3">Source: {q.source}</p>}
+            {q.source && <p className="text-xs text-gray-300 mt-3">{t("source")}: {q.source}</p>}
           </div>
         </div>
       </div>

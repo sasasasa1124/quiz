@@ -830,7 +830,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                             </button>
                             <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-scholion-50 border border-scholion-200 text-scholion-500 hover:bg-scholion-100 transition-colors" title="Edit — manually edit the question and answer choices">
                               <Pencil size={12} />
-                              Edit
+                              {t("edit")}
                             </button>
                           </div>
                           <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 max-h-[40vh] overflow-y-auto border-l-4 border-scholion-300">
@@ -860,11 +860,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                         <div className="max-w-3xl mx-auto w-full flex gap-2">
                           <button onClick={handleDontKnow} className="flex-1 h-10 rounded-xl border-2 border-rose-200 text-rose-500 bg-rose-50 hover:bg-rose-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
                             <ChevronLeft size={15} />
-                            <span>Didn&apos;t know</span>
+                            <span>{t("didntKnow")}</span>
                             <span className="text-xs opacity-40 hidden sm:inline">⌫</span>
                           </button>
                           <button onClick={handleKnow} className="flex-1 h-10 rounded-xl border-2 border-emerald-200 text-emerald-600 bg-emerald-50 hover:bg-emerald-100 font-semibold text-sm flex items-center justify-center gap-2 transition-colors">
-                            <span>Knew it</span>
+                            <span>{t("knewIt")}</span>
                             <span className="text-xs opacity-40 hidden sm:inline">→</span>
                             <ChevronRight size={15} />
                           </button>
@@ -896,7 +896,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       </button>
                       <button onClick={() => setEditingQuestion(q)} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-scholion-50 border border-scholion-200 text-scholion-500 hover:bg-scholion-100 transition-colors" title="Edit — manually edit the question and answer choices">
                         <Pencil size={12} />
-                        Edit
+                        {t("edit")}
                       </button>
                     </div>
                     <QuizQuestion

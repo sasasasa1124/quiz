@@ -95,7 +95,7 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           {/* Correct answers — only shown when incorrect */}
           {!isCorrect && (
             <div>
-              <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider mb-2">Correct Answer</p>
+              <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider mb-2">{t("correctAnswer")}</p>
               <div className="flex flex-col gap-2">
                 {correctChoices.map((c) => (
                   <div key={c.label} className="flex items-start gap-3 px-4 py-3 lg:px-5 lg:py-4 rounded-xl bg-emerald-50 border border-emerald-200">
@@ -110,14 +110,16 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
           )}
 
           {/* Explanation */}
-          {question.explanation && (
-            <div>
-              <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">Explanation</p>
+          <div>
+            <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">{t("aiExplanation")}</p>
+            {question.explanation ? (
               <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-4">
                 <RichText text={question.explanation} block className="text-sm leading-relaxed text-amber-900" />
               </div>
-            </div>
-          )}
+            ) : (
+              <p className="text-sm text-gray-300">—</p>
+            )}
+          </div>
 
           {/* Sources */}
           {question.explanationSources && question.explanationSources.length > 0 && (

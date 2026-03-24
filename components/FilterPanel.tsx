@@ -5,6 +5,7 @@ import { RotateCcw } from "lucide-react";
 import type { FilterConfig, RichQuizStats } from "@/lib/types";
 import { DEFAULT_FILTER_CONFIG } from "@/lib/types";
 import type { Question } from "@/lib/types";
+import { useSettings } from "@/lib/settings-context";
 
 interface FilterPanelProps {
   filterConfig: FilterConfig;
@@ -37,6 +38,7 @@ function countMatching(questions: Question[], config: FilterConfig, richStats: R
 }
 
 export default function FilterPanel({ filterConfig, onApply, questions, richStats }: FilterPanelProps) {
+  const { t } = useSettings();
   const [draft, setDraft] = useState<FilterConfig>(filterConfig);
 
   const previewCount = countMatching(questions, draft, richStats);
@@ -47,7 +49,7 @@ export default function FilterPanel({ filterConfig, onApply, questions, richStat
 
   return (
     <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-4 w-72">
-      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Custom Filter</p>
+      <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-3">{t("customFilter")}</p>
 
       {/* Never attempted */}
       <label className="flex items-center gap-2.5 mb-2.5 cursor-pointer">
@@ -57,7 +59,7 @@ export default function FilterPanel({ filterConfig, onApply, questions, richStat
           onChange={(e) => update("neverAttempted", e.target.checked)}
           className="rounded border-gray-300 accent-gray-800"
         />
-        <span className="text-sm text-gray-700">Include unattempted questions</span>
+        <span className="text-sm text-gray-700">{t("includeUnattempted")}</span>
       </label>
 
       {/* Due for review */}
@@ -68,18 +70,16 @@ export default function FilterPanel({ filterConfig, onApply, questions, richStat
           onChange={(e) => update("dueForReview", e.target.checked)}
           className="rounded border-gray-300 accent-gray-800"
         />
-        <span className="text-sm text-gray-700">SM-2 review due today</span>
+        <span className="text-sm text-gray-700">{t("sm2ReviewDue")}</span>
       </label>
 
       {/* Max attempts */}
       <div className="mb-3">
-        <label className="text-sm text-gray-700 block mb-1">
-          Attempts &le;
-        </label>
+        <label className="text-sm text-gray-700 block mb-1">{t("attemptsMax")}</label>
         <input
           type="number"
           min={1}
-          placeholder="no limit"
+          placeholder={t("noLimit")}
           value={draft.maxAttempts ?? ""}
           onChange={(e) => update("maxAttempts", e.target.value === "" ? null : Number(e.target.value))}
           className="w-full h-8 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
@@ -88,14 +88,12 @@ export default function FilterPanel({ filterConfig, onApply, questions, richStat
 
       {/* Max accuracy */}
       <div className="mb-3">
-        <label className="text-sm text-gray-700 block mb-1">
-          Accuracy &le; (%)
-        </label>
+        <label className="text-sm text-gray-700 block mb-1">{t("accuracyMax")}</label>
         <input
           type="number"
           min={0}
           max={100}
-          placeholder="no limit"
+          placeholder={t("noLimit")}
           value={draft.maxAccuracy ?? ""}
           onChange={(e) => update("maxAccuracy", e.target.value === "" ? null : Number(e.target.value))}
           className="w-full h-8 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
@@ -104,13 +102,11 @@ export default function FilterPanel({ filterConfig, onApply, questions, richStat
 
       {/* Not seen in N days */}
       <div className="mb-4">
-        <label className="text-sm text-gray-700 block mb-1">
-          Not seen in &ge; (days)
-        </label>
+        <label className="text-sm text-gray-700 block mb-1">{t("notSeenInDays")}</label>
         <input
           type="number"
           min={1}
-          placeholder="no limit"
+          placeholder={t("noLimit")}
           value={draft.notSeenInDays ?? ""}
           onChange={(e) => update("notSeenInDays", e.target.value === "" ? null : Number(e.target.value))}
           className="w-full h-8 px-3 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400"
@@ -124,13 +120,13 @@ export default function FilterPanel({ filterConfig, onApply, questions, richStat
           className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors"
         >
           <RotateCcw size={11} />
-          Reset
+          {t("reset")}
         </button>
         <button
           onClick={() => onApply(draft)}
           className="h-8 px-4 rounded-lg bg-gray-900 text-white text-xs font-semibold hover:bg-gray-700 transition-colors"
         >
-          Apply ({previewCount})
+          {t("apply")} ({previewCount})
         </button>
       </div>
     </div>
