@@ -1,11 +1,12 @@
 import type {
   CategoryStat, Choice, ExamMeta, ExamSnapshot,
-  Question, QuestionHistoryEntry, QuizStats, SessionRecord, Suggestion, UserSettings,
+  Question, QuestionHistoryEntry, QuizStats, RichQuizStats, RichScoreEntry,
+  SessionRecord, Suggestion, UserSettings,
 } from "./types";
 import { DEFAULT_USER_SETTINGS } from "./types";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { drizzle } from "drizzle-orm/d1";
-import { eq, like, and, sql, asc, desc, isNotNull, lte, lt, gte } from "drizzle-orm";
+import { eq, like, and, sql, asc, desc, isNotNull, lte, lt, gte, inArray } from "drizzle-orm";
 import type { D1Database as CloudflareD1 } from "@cloudflare/workers-types";
 import * as schema from "./schema";
 import {
@@ -118,6 +119,35 @@ export async function updateExamMeta(
   if (fields.tags !== undefined) {
     await db.update(examsTable).set({ tags: JSON.stringify(fields.tags) }).where(eq(examsTable.id, examId));
   }
+}
+
+export async function deleteExam(examId: string): Promise<void> {
+  const db = getDrizzle();
+  if (!db) return;
+
+  // Collect question IDs
+  const qs = await db.select({ id: questionsTable.id }).from(questionsTable).where(eq(questionsTable.examId, examId));
+  const qIds = qs.map((q) => q.id);
+
+  if (qIds.length > 0) {
+    await db.delete(suggestionsTable).where(inArray(suggestionsTable.questionId, qIds));
+    await db.delete(userInvalidatedQuestions).where(inArray(userInvalidatedQuestions.questionId, qIds));
+    await db.delete(scores).where(inArray(scores.questionId, qIds));
+    await db.delete(questionHistory).where(inArray(questionHistory.questionId, qIds));
+  }
+
+  // Collect session IDs
+  const sess = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.examId, examId));
+  const sessIds = sess.map((s) => s.id);
+  if (sessIds.length > 0) {
+    await db.delete(sessionAnswers).where(inArray(sessionAnswers.sessionId, sessIds));
+  }
+
+  await db.delete(studyGuides).where(eq(studyGuides.examId, examId));
+  await db.delete(userSnapshots).where(eq(userSnapshots.examId, examId));
+  await db.delete(sessions).where(eq(sessions.examId, examId));
+  await db.delete(questionsTable).where(eq(questionsTable.examId, examId));
+  await db.delete(examsTable).where(eq(examsTable.id, examId));
 }
 
 export async function renameCategory(examId: string, oldName: string, newName: string): Promise<void> {
@@ -390,6 +420,39 @@ export async function getScores(userEmail: string, examId: string): Promise<Quiz
   return stats;
 }
 
+export async function getRichScores(userEmail: string, examId: string): Promise<RichQuizStats> {
+  const db = getDrizzle();
+  if (!db) return {};
+
+  const prefix = `${examId}__`;
+  const rows = await db.select({
+    questionId: scores.questionId,
+    lastCorrect: scores.lastCorrect,
+    attempts: scores.attempts,
+    correctCount: scores.correctCount,
+    updatedAt: scores.updatedAt,
+    nextReviewAt: scores.nextReviewAt,
+  })
+    .from(scores)
+    .where(and(
+      eq(scores.userEmail, userEmail),
+      like(scores.questionId, `${prefix}%`)
+    ));
+
+  const stats: RichQuizStats = {};
+  for (const row of rows) {
+    const num = row.questionId.slice(prefix.length);
+    stats[num] = {
+      lastCorrect: row.lastCorrect as 0 | 1,
+      attempts: row.attempts ?? 0,
+      correctCount: row.correctCount ?? 0,
+      updatedAt: row.updatedAt ?? null,
+      nextReviewAt: row.nextReviewAt ?? null,
+    } as RichScoreEntry;
+  }
+  return stats;
+}
+
 export async function saveScore(userEmail: string, examId: string, questionNum: number, correct: boolean): Promise<void> {
   const db = getDrizzle();
   if (!db) return;
@@ -649,7 +712,7 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
     } else if (row.key === "audioMode" || row.key === "skipRevealOnCorrect") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (raw as any)[row.key] = row.value === "true" || row.value === "1";
-    } else if (row.key === "aiPromptVersions" || row.key === "aiRefinePromptVersions" || row.key === "studyGuidePromptVersions") {
+    } else if (row.key === "aiPromptVersions" || row.key === "aiRefinePromptVersions" || row.key === "studyGuidePromptVersions" || row.key === "aiFillPromptVersions") {
       try {
         const parsed = JSON.parse(row.value);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -667,9 +730,11 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
   if (!merged.aiPrompt) merged.aiPrompt = DEFAULT_USER_SETTINGS.aiPrompt;
   if (!merged.aiRefinePrompt) merged.aiRefinePrompt = DEFAULT_USER_SETTINGS.aiRefinePrompt;
   if (!merged.studyGuidePrompt) merged.studyGuidePrompt = DEFAULT_USER_SETTINGS.studyGuidePrompt;
+  if (!merged.aiFillPrompt) merged.aiFillPrompt = DEFAULT_USER_SETTINGS.aiFillPrompt;
   if (!Array.isArray(merged.aiPromptVersions)) merged.aiPromptVersions = [];
   if (!Array.isArray(merged.aiRefinePromptVersions)) merged.aiRefinePromptVersions = [];
   if (!Array.isArray(merged.studyGuidePromptVersions)) merged.studyGuidePromptVersions = [];
+  if (!Array.isArray(merged.aiFillPromptVersions)) merged.aiFillPromptVersions = [];
   return merged;
 }
 

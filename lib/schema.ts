@@ -9,6 +9,7 @@ export const exams = sqliteTable("exams", {
   name: text("name").notNull(),
   lang: text("lang").notNull(),
   tags: text("tags"), // JSON: string[]
+  createdBy: text("created_by"),
 });
 
 export const questions = sqliteTable("questions", {

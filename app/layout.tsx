@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Lora, Cormorant_Garamond, JetBrains_Mono, Noto_Serif_JP } from "next/font/google";
 import "./globals.css";
 import PageTransition from "@/components/PageTransition";
+import GlobalHeader from "@/components/GlobalHeader";
 import Providers from "./providers";
 import { ClerkProvider } from "@clerk/nextjs";
 
@@ -54,6 +55,7 @@ export default function RootLayout({
           className={`${inter.variable} ${lora.variable} ${cormorant.variable} ${jetbrains.variable} ${notoSerifJp.variable} antialiased`}
         >
           <Providers>
+            <GlobalHeader />
             <PageTransition>{children}</PageTransition>
           </Providers>
         </body>

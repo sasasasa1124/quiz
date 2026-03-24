@@ -84,6 +84,9 @@ export interface UserSettings {
   studyGuidePrompt: string;
   studyGuidePromptAuthor: string;
   studyGuidePromptVersions: PromptVersion[];
+  aiFillPrompt: string;
+  aiFillPromptAuthor: string;
+  aiFillPromptVersions: PromptVersion[];
   dailyGoal: number; // questions per day target
   audioMode: boolean; // read questions aloud
   audioSpeed: number; // playback rate 0.5–4.0
@@ -177,12 +180,38 @@ export interface SessionRecord {
   userEmail: string;
   examId: string;
   mode: "quiz" | "review";
-  filter: "all" | "continue" | "wrong";
+  filter: "all" | "continue" | "wrong" | "custom";
   startedAt: string;
   completedAt: string | null;
   questionCount: number;
   correctCount: number | null;
 }
+
+export interface FilterConfig {
+  neverAttempted: boolean;       // include questions never answered
+  dueForReview: boolean;         // SM-2 nextReviewAt <= today
+  maxAttempts: number | null;    // attempts <= N
+  maxAccuracy: number | null;    // (correctCount/attempts)*100 <= N%
+  notSeenInDays: number | null;  // last answered >= N days ago (includes never answered)
+}
+
+export const DEFAULT_FILTER_CONFIG: FilterConfig = {
+  neverAttempted: false,
+  dueForReview: false,
+  maxAttempts: null,
+  maxAccuracy: null,
+  notSeenInDays: null,
+};
+
+export interface RichScoreEntry {
+  lastCorrect: 0 | 1;
+  attempts: number;
+  correctCount: number;
+  updatedAt: string | null;    // ISO datetime
+  nextReviewAt: string | null; // YYYY-MM-DD
+}
+
+export type RichQuizStats = { [questionId: string]: RichScoreEntry };
 
 export const DEFAULT_STUDY_GUIDE_PROMPT = `
 You are an expert on the "{examName}" certification exam.
@@ -191,6 +220,21 @@ Analyze the exam questions provided below (grouped by category) and use Google S
 - The core knowledge and concepts required to uniquely determine the correct answers
 - Study priorities
 `;
+
+export const DEFAULT_FILL_PROMPT = `You are a Salesforce/MuleSoft certification exam expert with access to Google Search for fact verification.
+
+For each question in the JSON array below, fill in the fields listed in "missing":
+- "answers": array of correct choice labels (e.g. ["A"] or ["A","C"]). Verify with Google Search.
+- "explanation": 2-3 paragraph explanation of why the answers are correct and why incorrect options are wrong.
+- "category": short topic/domain label (e.g. "Data Management", "Security Model", "Automation", "Reporting").
+
+Return a JSON array (no markdown, no code blocks) with this exact structure for every question:
+[{ "id": "<question id>", "answers": [...], "explanation": "...", "category": "..." }]
+
+Even if a field is not in "missing", include it in your response (copy from input or infer).
+
+Questions:
+{questions}`;
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   language: "en",
@@ -203,6 +247,9 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   studyGuidePrompt: DEFAULT_STUDY_GUIDE_PROMPT,
   studyGuidePromptAuthor: "",
   studyGuidePromptVersions: [],
+  aiFillPrompt: DEFAULT_FILL_PROMPT,
+  aiFillPromptAuthor: "",
+  aiFillPromptVersions: [],
   dailyGoal: 100,
   audioMode: false,
   audioSpeed: 1.0,

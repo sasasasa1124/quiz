@@ -25,7 +25,7 @@ function ScholionLogo() {
 
 export default function PageHeader({ back, title, right, hideSettingsIcon }: Props) {
   return (
-    <header className="h-14 bg-canvas border-b border-gray-200 shrink-0 sticky top-0 z-40 flex items-center px-4 sm:px-8">
+    <header className="h-14 bg-canvas border-b border-gray-200 fixed top-0 left-0 right-0 z-40 flex items-center px-4 sm:px-8">
       <div className="flex items-center gap-3 w-full">
         {back ? (
           <Link

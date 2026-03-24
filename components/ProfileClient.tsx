@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronRight, RotateCcw, ChevronDown, Loader2 } from "lucide-react";
 import type { ExamMeta, QuizStats, CategoryStat, ExamSnapshot, SessionRecord } from "@/lib/types";
-import PageHeader from "./PageHeader";
+import { useSetHeader } from "@/lib/header-context";
 import ExamTrendChart from "./ExamTrendChart";
 import CategoryChart from "./CategoryChart";
 import { loadServerSnapshots } from "@/lib/snapshots";
@@ -22,6 +22,7 @@ interface ExamStats {
 
 export default function ProfileClient({ exams }: Props) {
   const router = useRouter();
+  useSetHeader({ back: { href: "/" }, title: "Profile" }, []);
   const [statsMap, setStatsMap] = useState<Record<string, ExamStats>>({});
   const [expandedExamId, setExpandedExamId] = useState<string | null>(null);
   const [categoryCache, setCategoryCache] = useState<Record<string, CategoryStat[]>>({});
@@ -107,8 +108,7 @@ export default function ProfileClient({ exams }: Props) {
   const overallPct = totalAnswered > 0 ? Math.round((totalCorrect / totalAnswered) * 100) : null;
 
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex flex-col">
-      <PageHeader back={{ href: "/" }} title="Profile" />
+    <div className="min-h-screen bg-[#f8f9fb] flex flex-col pt-14">
 
       <div className="flex-1 px-4 sm:px-8 py-6 max-w-3xl mx-auto w-full space-y-6">
 

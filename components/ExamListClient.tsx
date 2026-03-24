@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame } from "lucide-react";
+import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import type { ExamMeta } from "@/lib/types";
 import type { Locale } from "@/lib/i18n";
 import { LANG_OPTIONS } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-context";
-import PageHeader from "./PageHeader";
+import { useSetHeader } from "@/lib/header-context";
 import OnboardingGuide from "./OnboardingGuide";
 
 interface Props {
@@ -49,7 +49,11 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const langFilter = settings.language;
   const [search, setSearch] = useState("");
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
+  const [uploadErrorMsg, setUploadErrorMsg] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fillStatus, setFillStatus] = useState<"idle" | "filling" | "done" | "error">("idle");
+  const [fillProgress, setFillProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fillResult, setFillResult] = useState<{ filled: number; skipped: number } | null>(null);
   const [uploadedExam, setUploadedExam] = useState<ExamMeta | null>(null);
   const [previewName, setPreviewName] = useState("");
   const [previewLang, setPreviewLang] = useState<Locale>("en");
@@ -65,6 +69,35 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   const [translateSearch, setTranslateSearch] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const dragCountRef = useRef(0);
+
+  const headerRight = useMemo(() => (
+    <>
+      <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg">
+        {LANG_OPTIONS.map((opt) => (
+          <button
+            key={opt.value}
+            onClick={() => updateSettings({ language: opt.value })}
+            className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
+              settings.language === opt.value
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
+      <Link
+        href="/profile"
+        className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+        title="Profile"
+      >
+        <User size={14} />
+      </Link>
+    </>
+  ), [settings.language, updateSettings]);
+
+  useSetHeader({ right: headerRight }, [headerRight]);
 
   useEffect(() => {
     fetch("/api/sessions/summary")
@@ -121,7 +154,11 @@ export default function ExamListClient({ exams: initialExams }: Props) {
 
     setShowAdd(true);
     setUploadStatus("uploading");
+    setUploadErrorMsg(null);
     setUploadProgress({ done: 0, total: csvFiles.length });
+    setFillStatus("idle");
+    setFillProgress(null);
+    setFillResult(null);
 
     let hasError = false;
     let lastExam: ExamMeta | null = null;
@@ -133,7 +170,12 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           const exists = prev.find((e) => e.id === exam.id);
           return exists ? prev.map((e) => (e.id === exam.id ? exam : e)) : [...prev, exam];
         });
-      } catch { hasError = true; }
+      } catch (e) {
+        hasError = true;
+        let msg = e instanceof Error ? e.message : String(e);
+        try { msg = JSON.parse(msg).error ?? msg; } catch { /* keep raw */ }
+        setUploadErrorMsg(msg);
+      }
       setUploadProgress({ done: i + 1, total: csvFiles.length });
     }
 
@@ -149,6 +191,40 @@ export default function ExamListClient({ exams: initialExams }: Props) {
     setTimeout(() => setUploadStatus("idle"), 2000);
     if (fileRef.current) fileRef.current.value = "";
   }, []);
+
+  const startFill = useCallback(async (examId: string) => {
+    setFillStatus("filling");
+    setFillProgress(null);
+    setFillResult(null);
+    try {
+      const res = await fetch(`/api/admin/exams/${examId}/fill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userPrompt: settings.aiFillPrompt }),
+      });
+      if (!res.body) { setFillStatus("error"); return; }
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; filled?: number; skipped?: number };
+          if (evt.error) { setFillStatus("error"); return; }
+          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total });
+          if (evt.filled !== undefined) setFillResult({ filled: evt.filled, skipped: evt.skipped ?? 0 });
+        }
+      }
+      setFillStatus("done");
+    } catch {
+      setFillStatus("error");
+    }
+  }, [settings.aiFillPrompt]);
 
   // Global drag & drop
   useEffect(() => {
@@ -235,7 +311,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
     });
 
   return (
-    <div className="min-h-screen bg-canvas flex flex-col relative">
+    <div className="min-h-screen bg-canvas flex flex-col relative pt-14">
       <OnboardingGuide />
       {/* Drag & drop overlay */}
       {isDragging && (
@@ -247,35 +323,6 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           </div>
         </div>
       )}
-
-      <PageHeader
-        right={
-          <>
-            <div className="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg">
-              {LANG_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => updateSettings({ language: opt.value })}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-all ${
-                    settings.language === opt.value
-                      ? "bg-white text-gray-900 shadow-sm"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                >
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-            <Link
-              href="/profile"
-              className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              title="Profile"
-            >
-              <User size={14} />
-            </Link>
-          </>
-        }
-      />
 
       {/* Controls: search */}
       <div className="px-4 sm:px-8 pt-3 pb-3 max-w-3xl mx-auto w-full">
@@ -345,7 +392,7 @@ export default function ExamListClient({ exams: initialExams }: Props) {
             const s = statsMap[exam.id];
             const pct = s?.pct ?? null;
             return (
-              <div key={exam.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col">
+              <div key={exam.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden flex flex-col group/card">
                 <button
                   onClick={() => router.push(`/exam/${exam.id}`)}
                   className="flex-1 text-left px-5 py-4 flex items-start gap-3 hover:bg-gray-50 transition-colors group"
@@ -396,6 +443,20 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                     <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-400 transition-colors" />
                   </div>
                 </button>
+                <div className="opacity-0 group-hover/card:opacity-100 transition-opacity px-3 pb-2 flex justify-end">
+                  <button
+                    onClick={async () => {
+                      if (!confirm(`Delete "${exam.name}"? This will remove all questions, scores, and sessions.`)) return;
+                      await fetch(`/api/admin/exams/${exam.id}`, { method: "DELETE" });
+                      setExams((prev) => prev.filter((e) => e.id !== exam.id));
+                    }}
+                    className="flex items-center gap-1 px-2 py-1 rounded-lg text-gray-300 hover:text-rose-400 hover:bg-rose-50 transition-colors text-xs"
+                    title="Delete exam"
+                  >
+                    <Trash2 size={11} />
+                    Delete
+                  </button>
+                </div>
               </div>
             );
           })}
@@ -447,6 +508,9 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                     {uploadStatus === "idle" && <span className="text-xs text-gray-300">Multiple files</span>}
                   </div>
                 </button>
+                {uploadStatus === "error" && uploadErrorMsg && (
+                  <p className="mt-2 text-xs text-rose-500 text-center">{uploadErrorMsg}</p>
+                )}
               </div>
 
               {/* Upload preview panel */}
@@ -521,6 +585,31 @@ export default function ExamListClient({ exams: initialExams }: Props) {
                     >
                       Skip
                     </button>
+                  </div>
+                  <div className="border-t border-gray-100 pt-2.5 flex flex-col gap-2">
+                    <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">AI Fill</p>
+                    {fillStatus === "idle" && (
+                      <button
+                        onClick={() => startFill(uploadedExam.id)}
+                        className="w-full h-8 rounded-lg border border-gray-200 text-xs text-gray-500 hover:bg-gray-50 transition-colors flex items-center justify-center gap-1.5"
+                      >
+                        <Sparkles size={12} />
+                        Fill missing fields
+                      </button>
+                    )}
+                    {fillStatus === "filling" && (
+                      <p className="text-xs text-gray-400 text-center">
+                        {fillProgress ? `${fillProgress.done} / ${fillProgress.total}` : "Starting..."}
+                      </p>
+                    )}
+                    {fillStatus === "done" && fillResult && (
+                      <p className="text-xs text-emerald-600 text-center">
+                        Filled {fillResult.filled} · Skipped {fillResult.skipped}
+                      </p>
+                    )}
+                    {fillStatus === "error" && (
+                      <p className="text-xs text-rose-500 text-center">Fill failed</p>
+                    )}
                   </div>
                 </div>
               )}

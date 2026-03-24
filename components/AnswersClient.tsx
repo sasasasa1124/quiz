@@ -331,8 +331,8 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           totalQuestions={questions.length}
           overallRate={overallRate}
           streak={streak}
-          filter={filter as "all" | "continue" | "wrong"}
-          onFilterChange={(f) => setFilter(f === "continue" ? "all" : f)}
+          filter={filter as "all" | "continue" | "wrong" | "custom"}
+          onFilterChange={(f) => setFilter(f === "continue" || f === "custom" ? "all" : f)}
           wrongCount={wrongCount}
           onReplay={handleReplay}
           audioPlaying={audioPlaying || audioLoading}
@@ -356,8 +356,8 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
         totalQuestions={questions.length}
         overallRate={overallRate}
         streak={streak}
-        filter={filter as "all" | "continue" | "wrong"}
-        onFilterChange={(f) => setFilter(f === "continue" ? "all" : f)}
+        filter={filter as "all" | "continue" | "wrong" | "custom"}
+        onFilterChange={(f) => setFilter(f === "continue" || f === "custom" ? "all" : f)}
         wrongCount={wrongCount}
       />
 

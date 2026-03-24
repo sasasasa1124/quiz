@@ -5,11 +5,13 @@ import Link from "next/link";
 import {
   ArrowLeft, Home, Brain, BookOpen, BookOpenCheck, ClipboardList,
   Layers, AlertCircle, History, Copy, Globe, Volume2, VolumeOff,
-  Loader2, Settings, Zap, RotateCcw,
+  Loader2, Settings, Zap, RotateCcw, SlidersHorizontal, Sparkles,
 } from "lucide-react";
 import { LANG_OPTIONS } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-context";
 import { useAudio } from "@/hooks/useAudio";
+import FilterPanel from "./FilterPanel";
+import type { FilterConfig, RichQuizStats, Question } from "@/lib/types";
 
 interface QuizHeaderProps {
   examId: string;
@@ -30,14 +32,21 @@ interface QuizHeaderProps {
   streak?: number;
 
   // Filter buttons (optional — rendered when onFilterChange is provided)
-  filter?: "all" | "continue" | "wrong";
-  onFilterChange?: (f: "all" | "continue" | "wrong") => void;
+  filter?: "all" | "continue" | "wrong" | "custom";
+  onFilterChange?: (f: "all" | "continue" | "wrong" | "custom") => void;
   wrongCount?: number;
   hasContinue?: boolean;
   continueDisplayNum?: number | null;
   duplicateCount?: number;
   excludeDuplicates?: boolean;
   onToggleDuplicates?: () => void;
+
+  // Custom filter
+  filterConfig?: FilterConfig;
+  onFilterConfigChange?: (c: FilterConfig) => void;
+  allQuestions?: Question[];
+  richStats?: RichQuizStats;
+  customFilterCount?: number;
 
   // Audio replay
   onReplay?: () => void;
@@ -74,6 +83,11 @@ export default function QuizHeader({
   duplicateCount = 0,
   excludeDuplicates,
   onToggleDuplicates,
+  filterConfig,
+  onFilterConfigChange,
+  allQuestions = [],
+  richStats = {},
+  customFilterCount,
   onReplay,
   audioPlaying,
   rightExtra,
@@ -82,8 +96,50 @@ export default function QuizHeader({
   const { loading: audioLoading } = useAudio();
   const backHref = `/exam/${encodeURIComponent(examId)}`;
 
+  const [fillStatus, setFillStatus] = useState<"idle" | "filling" | "done" | "error">("idle");
+  const [fillProgress, setFillProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fillResult, setFillResult] = useState<{ filled: number; skipped: number } | null>(null);
+
+  const startFill = useCallback(async () => {
+    setFillStatus("filling");
+    setFillProgress(null);
+    setFillResult(null);
+    try {
+      const res = await fetch(`/api/admin/exams/${examId}/fill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userPrompt: settings.aiFillPrompt }),
+      });
+      if (!res.body) { setFillStatus("error"); return; }
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; filled?: number; skipped?: number };
+          if (evt.error) { setFillStatus("error"); return; }
+          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total });
+          if (evt.filled !== undefined) setFillResult({ filled: evt.filled, skipped: evt.skipped ?? 0 });
+        }
+      }
+      setFillStatus("done");
+      setTimeout(() => { setFillStatus("idle"); setFillResult(null); }, 4000);
+    } catch {
+      setFillStatus("error");
+      setTimeout(() => setFillStatus("idle"), 3000);
+    }
+  }, [examId, settings.aiFillPrompt]);
+
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const filterPanelRef = useRef<HTMLDivElement>(null);
 
   const handleLangOutside = useCallback((e: MouseEvent) => {
     if (langRef.current && !langRef.current.contains(e.target as Node)) setLangOpen(false);
@@ -93,6 +149,15 @@ export default function QuizHeader({
     document.addEventListener("mousedown", handleLangOutside);
     return () => document.removeEventListener("mousedown", handleLangOutside);
   }, [handleLangOutside]);
+
+  const handleFilterPanelOutside = useCallback((e: MouseEvent) => {
+    if (filterPanelRef.current && !filterPanelRef.current.contains(e.target as Node)) setFilterPanelOpen(false);
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener("mousedown", handleFilterPanelOutside);
+    return () => document.removeEventListener("mousedown", handleFilterPanelOutside);
+  }, [handleFilterPanelOutside]);
 
   const ModeIcon = MODE_ICONS[mode];
   const showStats = totalCorrect !== undefined && totalQuestions !== undefined;
@@ -161,43 +226,76 @@ export default function QuizHeader({
 
         {/* Filter buttons */}
         {showFilters && (
-          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
-            <button
-              onClick={() => onFilterChange("all")}
-              className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              <Layers size={11} />
-              <span className="hidden sm:inline">{t("all")}</span>
-              {totalQuestions}
-            </button>
-            {hasContinue && (
+          <div className="flex items-center gap-1">
+            <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
               <button
-                onClick={() => onFilterChange("continue")}
-                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "continue" ? "bg-white text-scholion-500 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                onClick={() => onFilterChange("all")}
+                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
               >
-                <History size={11} />
-                <span className="hidden sm:inline">{t("continueFrom")}</span>
-                <span className="hidden sm:inline text-gray-400 ml-0.5">Q{continueDisplayNum}</span>
+                <Layers size={11} />
+                <span className="hidden sm:inline">{t("all")}</span>
+                {totalQuestions}
               </button>
-            )}
-            <button
-              onClick={() => onFilterChange("wrong")}
-              disabled={wrongCount === 0}
-              className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-            >
-              <AlertCircle size={11} />
-              <span className="hidden sm:inline">{t("wrong")}</span>
-              {wrongCount}
-            </button>
-            {duplicateCount > 0 && (
+              {hasContinue && (
+                <button
+                  onClick={() => onFilterChange("continue")}
+                  className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "continue" ? "bg-white text-scholion-500 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                >
+                  <History size={11} />
+                  <span className="hidden sm:inline">{t("continueFrom")}</span>
+                  <span className="hidden sm:inline text-gray-400 ml-0.5">Q{continueDisplayNum}</span>
+                </button>
+              )}
               <button
-                onClick={onToggleDuplicates}
-                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${excludeDuplicates ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
-                title={excludeDuplicates ? "Include duplicates" : "Exclude duplicates"}
+                onClick={() => onFilterChange("wrong")}
+                disabled={wrongCount === 0}
+                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
               >
-                <Copy size={11} />
-                <span className="hidden sm:inline">{t("uniq")}</span>
+                <AlertCircle size={11} />
+                <span className="hidden sm:inline">{t("wrong")}</span>
+                {wrongCount}
               </button>
+              {duplicateCount > 0 && (
+                <button
+                  onClick={onToggleDuplicates}
+                  className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${excludeDuplicates ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                  title={excludeDuplicates ? "Include duplicates" : "Exclude duplicates"}
+                >
+                  <Copy size={11} />
+                  <span className="hidden sm:inline">{t("uniq")}</span>
+                </button>
+              )}
+            </div>
+
+            {/* Custom filter button */}
+            {onFilterConfigChange && (
+              <div ref={filterPanelRef} className="relative">
+                <button
+                  onClick={() => {
+                    onFilterChange("custom");
+                    setFilterPanelOpen((o) => !o);
+                  }}
+                  className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors ${filter === "custom" ? "bg-white text-scholion-500 shadow-sm border border-gray-200" : "text-gray-500 hover:text-gray-700"}`}
+                  title="Custom filter"
+                >
+                  <SlidersHorizontal size={11} />
+                  <span className="hidden sm:inline">Filter</span>
+                  {filter === "custom" && customFilterCount !== undefined && (
+                    <span className="ml-0.5">{customFilterCount}</span>
+                  )}
+                </button>
+                {filterPanelOpen && filterConfig && (
+                  <FilterPanel
+                    filterConfig={filterConfig}
+                    onApply={(cfg) => {
+                      onFilterConfigChange(cfg);
+                      setFilterPanelOpen(false);
+                    }}
+                    questions={allQuestions}
+                    richStats={richStats}
+                  />
+                )}
+              </div>
             )}
           </div>
         )}
@@ -253,6 +351,28 @@ export default function QuizHeader({
             : settings.audioMode
             ? <Volume2 size={13} className="text-sky-500" />
             : <VolumeOff size={13} />}
+        </button>
+
+        {/* AI Fill */}
+        <button
+          onClick={fillStatus === "idle" ? startFill : undefined}
+          disabled={fillStatus === "filling"}
+          title={
+            fillStatus === "filling" ? (fillProgress ? `Filling ${fillProgress.done}/${fillProgress.total}…` : "Starting…")
+            : fillStatus === "done" ? (fillResult ? `Filled ${fillResult.filled} · Skipped ${fillResult.skipped}` : "Done")
+            : fillStatus === "error" ? "Fill failed"
+            : "Fill missing fields with AI"
+          }
+          className={`p-1.5 rounded-lg transition-colors ${
+            fillStatus === "filling" ? "text-sky-400 hover:bg-gray-100"
+            : fillStatus === "done" ? "text-emerald-500 hover:bg-gray-100"
+            : fillStatus === "error" ? "text-rose-400 hover:bg-gray-100"
+            : "text-gray-300 hover:text-gray-600 hover:bg-gray-100"
+          }`}
+        >
+          {fillStatus === "filling"
+            ? <Loader2 size={13} className="animate-spin" />
+            : <Sparkles size={13} />}
         </button>
 
         {/* Settings */}
