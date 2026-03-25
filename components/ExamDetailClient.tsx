@@ -76,10 +76,11 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
 
   // AI Fill
   const [fillStatus, setFillStatus] = useState<"idle" | "filling" | "done" | "error">("idle");
-  const [fillProgress, setFillProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fillProgress, setFillProgress] = useState<{ done: number; total: number; skipped: number } | null>(null);
   const [fillResult, setFillResult] = useState<{ filled: number; skipped: number } | null>(null);
   const [generateTts, setGenerateTts] = useState(false);
   const [ttsProgress, setTtsProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fillForce, setFillForce] = useState(false);
 
   // Wording Fix (bulk refine)
   const [refineStatus, setRefineStatus] = useState<"idle" | "running" | "done" | "error">("idle");
@@ -101,7 +102,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
       const res = await fetch(`/api/admin/exams/${encodeURIComponent(exam.id)}/fill`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userPrompt: settings.aiFillPrompt }),
+        body: JSON.stringify({ userPrompt: settings.aiFillPrompt, forceRefill: fillForce }),
       });
       if (!res.body) { setFillStatus("error"); return; }
       const reader = res.body.getReader();
@@ -117,7 +118,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
           if (!part.startsWith("data: ")) continue;
           const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; filled?: number; skipped?: number };
           if (evt.error) { setFillStatus("error"); return; }
-          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total });
+          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total, skipped: evt.skipped ?? 0 });
           if (evt.filled !== undefined) setFillResult({ filled: evt.filled, skipped: evt.skipped ?? 0 });
         }
       }
@@ -146,7 +147,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
       setFillStatus("error");
       setTimeout(() => setFillStatus("idle"), 3000);
     }
-  }, [exam.id, settings.aiFillPrompt, generateTts, fetchAudio, settings.language]);
+  }, [exam.id, settings.aiFillPrompt, fillForce, generateTts, fetchAudio, settings.language]);
 
   const startRefine = useCallback(async () => {
     setRefineStatus("running");
@@ -760,23 +761,35 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                 }`}
               >
                 {fillStatus === "filling"
-                  ? <><Loader2 size={14} className="animate-spin" /> AI Fill {fillProgress ? `${fillProgress.done}/${fillProgress.total}` : "…"}</>
+                  ? <><Loader2 size={14} className="animate-spin" /> AI Fill {fillProgress ? `${fillProgress.done}/${fillProgress.total}${fillProgress.skipped ? ` (${fillProgress.skipped} skipped)` : ""}` : "…"}</>
                   : fillStatus === "done"
                   ? <><Sparkles size={14} /> {fillResult ? `Filled ${fillResult.filled} · Skipped ${fillResult.skipped}` : "Done"}</>
                   : fillStatus === "error"
                   ? <><Sparkles size={14} /> Fill failed</>
                   : <><Sparkles size={14} /> AI Fill</>}
               </button>
-              <label className="flex items-center gap-2 cursor-pointer select-none self-start">
-                <input
-                  type="checkbox"
-                  checked={generateTts}
-                  onChange={(e) => setGenerateTts(e.target.checked)}
-                  disabled={fillStatus === "filling"}
-                  className="w-3.5 h-3.5 rounded accent-gray-700"
-                />
-                <span className="text-xs text-gray-400">TTS も生成する</span>
-              </label>
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={generateTts}
+                    onChange={(e) => setGenerateTts(e.target.checked)}
+                    disabled={fillStatus === "filling"}
+                    className="w-3.5 h-3.5 rounded accent-gray-700"
+                  />
+                  <span className="text-xs text-gray-400">TTS も生成する</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={fillForce}
+                    onChange={(e) => setFillForce(e.target.checked)}
+                    disabled={fillStatus === "filling"}
+                    className="w-3.5 h-3.5 rounded accent-gray-700"
+                  />
+                  <span className="text-xs text-gray-400">Re-fill already filled</span>
+                </label>
+              </div>
               {ttsProgress && (
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between text-xs text-gray-400">

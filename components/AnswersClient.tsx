@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, ShieldCheck, RotateCcw, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, ShieldCheck, Pencil, RotateCcw, Loader2 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import { RichText } from "./RichText";
 import QuestionEditModal from "./QuestionEditModal";
@@ -466,6 +466,13 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
                   title={t("refine")}
                 >
                   <Wand2 size={12} />
+                </button>
+                <button
+                  onClick={() => setEditingQuestion(q)}
+                  className="text-gray-300 hover:text-gray-600 transition-colors"
+                  title={t("edit")}
+                >
+                  <Pencil size={12} />
                 </button>
               </div>
             </div>
