@@ -3,6 +3,12 @@ name: Claude Issue Agent
 on:
   issues:
     types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to process'
+        required: true
+        type: string
 
 jobs:
   claude-agent:
@@ -23,16 +29,17 @@ jobs:
           direct_prompt: |
             Please implement the following GitHub issue:
 
-            Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
+            Issue number: ${{ github.event.issue.number || inputs.issue_number }}
 
-            ${{ github.event.issue.body }}
+            First, fetch the issue details with:
+              gh issue view ${{ github.event.issue.number || inputs.issue_number }} --repo ${{ github.repository }}
 
-            Steps:
+            Then follow these steps:
             1. Analyze the issue and form a clear implementation plan
-            2. Create a new branch named `agent/issue-${{ github.event.issue.number }}`
+            2. Create a new branch named `agent/issue-${{ github.event.issue.number || inputs.issue_number }}`
             3. Implement the required changes (application code lives under quiz/)
             4. Commit your changes with a descriptive English/ASCII commit message
-            5. Open a pull request that references and closes issue #${{ github.event.issue.number }}
+            5. Open a pull request that references and closes issue #${{ github.event.issue.number || inputs.issue_number }}
 
             Project guidelines:
             - Follow CLAUDE.md in the repo root and quiz/CLAUDE.md
