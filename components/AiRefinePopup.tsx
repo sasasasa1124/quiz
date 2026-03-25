@@ -18,6 +18,24 @@ interface Props {
   onDismiss: () => void;
 }
 
+/** Highlights matching phrases in text with amber pill */
+function HighlightedText({ text, phrases }: { text: string; phrases: string[] }) {
+  if (!phrases.length) return <>{text}</>;
+  const escaped = phrases.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const isMatch = phrases.some((p) => p.toLowerCase() === part.toLowerCase());
+        return isMatch
+          ? <mark key={i} className="bg-amber-100 text-amber-900 rounded-sm px-0.5 not-italic">{part}</mark>
+          : <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
+
 /** Renders a word-level diff with added/removed highlights */
 function DiffText({ original, refined }: { original: string; refined: string }) {
   const parts = diffWords(original, refined);
@@ -185,6 +203,20 @@ export default function AiRefinePopup({
           ) : (
             /* Diff view */
             <>
+              {/* Key phrase highlights */}
+              {result.highlights && result.highlights.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                    Key Phrases
+                  </p>
+                  <div className="bg-gray-50 rounded-xl p-3 leading-relaxed">
+                    <span className="text-xs text-gray-700">
+                      <HighlightedText text={result.question} phrases={result.highlights} />
+                    </span>
+                  </div>
+                </div>
+              )}
+
               {questionChanged && (
                 <div>
                   <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">

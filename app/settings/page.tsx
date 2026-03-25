@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { useSettings } from "@/lib/settings-context";
 import { useSetHeader } from "@/lib/header-context";
 import type { PromptVersion } from "@/lib/types";
@@ -36,8 +37,8 @@ function VersionSelector({
     ...versions,
   ];
 
-  // Find the currently selected version name
-  const selectedName = allOptions.find((v) => v.prompt === currentPrompt)?.name ?? "custom";
+  // Find the currently selected version name (trim to tolerate DB whitespace normalization)
+  const selectedName = allOptions.find((v) => v.prompt.trim() === currentPrompt.trim())?.name ?? "custom";
 
   return (
     <select
@@ -234,7 +235,9 @@ function SettingsInner() {
   const raw = searchParams.get("returnTo") ?? "/";
   const returnTo = raw.startsWith("/") ? raw : "/";
 
+  const { user } = useUser();
   const { settings, updateSettings, t } = useSettings();
+  const userDisplayName = user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
   useSetHeader({ back: { href: returnTo }, title: t("settings"), hideSettingsIcon: true }, [returnTo]);
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
   const [aiPromptAuthor, setAiPromptAuthor] = useState(settings.aiPromptAuthor ?? "");
@@ -265,16 +268,16 @@ function SettingsInner() {
   // Sync local state when settings load from localStorage
   useEffect(() => {
     setAiPrompt(settings.aiPrompt);
-    setAiPromptAuthor(settings.aiPromptAuthor ?? "");
+    setAiPromptAuthor(settings.aiPromptAuthor || userDisplayName);
     setAiPromptVersions(settings.aiPromptVersions ?? []);
     setAiRefinePrompt(settings.aiRefinePrompt);
-    setAiRefinePromptAuthor(settings.aiRefinePromptAuthor ?? "");
+    setAiRefinePromptAuthor(settings.aiRefinePromptAuthor || userDisplayName);
     setAiRefinePromptVersions(settings.aiRefinePromptVersions ?? []);
     setStudyGuidePrompt(settings.studyGuidePrompt);
-    setStudyGuidePromptAuthor(settings.studyGuidePromptAuthor ?? "");
+    setStudyGuidePromptAuthor(settings.studyGuidePromptAuthor || userDisplayName);
     setStudyGuidePromptVersions(settings.studyGuidePromptVersions ?? []);
     setAiFillPrompt(settings.aiFillPrompt);
-    setAiFillPromptAuthor(settings.aiFillPromptAuthor ?? "");
+    setAiFillPromptAuthor(settings.aiFillPromptAuthor || userDisplayName);
     setAiFillPromptVersions(settings.aiFillPromptVersions ?? []);
     setDailyGoal(settings.dailyGoal ?? 100);
     setAudioMode(settings.audioMode ?? false);
@@ -282,7 +285,7 @@ function SettingsInner() {
     setAudioPrefetch(settings.audioPrefetch ?? 0);
     setSkipRevealOnCorrect(settings.skipRevealOnCorrect ?? false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.studyGuidePrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect]);
+  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.studyGuidePrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect, userDisplayName]);
 
   // Load current gemini model and tts model from DB
   useEffect(() => {

@@ -17,6 +17,7 @@ const AiRefineResponseSchema = z.object({
   question: z.string(),
   choices: z.array(ChoiceSchema),
   changesSummary: z.string(),
+  highlights: z.array(z.string()).optional(),
 });
 
 export type AiRefineResponse = z.infer<typeof AiRefineResponseSchema>;
@@ -25,6 +26,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json() as {
     question: string;
     choices: Choice[];
+    answers?: string[];
     userPrompt?: string;
   };
 
@@ -35,11 +37,13 @@ export async function POST(req: NextRequest) {
   }
 
   const choicesText = body.choices.map((c) => `${c.label}. ${c.text}`).join("\n");
+  const answersText = (body.answers ?? []).join(", ");
 
   const template = body.userPrompt || DEFAULT_REFINE_PROMPT;
   const prompt = template
     .replace("{question}", body.question)
-    .replace("{choices}", choicesText);
+    .replace("{choices}", choicesText)
+    .replace("{answers}", answersText);
 
   const ai = new GoogleGenAI({ apiKey });
   const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";

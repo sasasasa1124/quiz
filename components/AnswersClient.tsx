@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ChevronLeft, ChevronRight, Sparkles, Wand2, RotateCcw, Loader2 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
+import { RichText } from "./RichText";
 import QuestionEditModal from "./QuestionEditModal";
 import AiExplainPopup from "./AiExplainPopup";
 import AiRefinePopup from "./AiRefinePopup";
@@ -225,6 +226,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
         body: JSON.stringify({
           question: q.question,
           choices: q.choices,
+          answers: q.answers,
           userPrompt: settings.aiRefinePrompt,
         }),
       });
@@ -433,7 +435,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
               </button>
             </div>
             {q.explanation ? (
-              <p className="text-sm lg:text-base leading-relaxed text-gray-700 whitespace-pre-wrap">{q.explanation}</p>
+              <RichText text={q.explanation} block className="text-sm lg:text-base leading-relaxed text-gray-700" />
             ) : (
               <p className="text-sm text-gray-300">—</p>
             )}

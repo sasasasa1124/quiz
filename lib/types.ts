@@ -157,11 +157,14 @@ Question:
 Choices:
 {choices}
 
+Currently recorded answer(s): {answers}
+
 Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
-{ "question": "...", "choices": [{"label": "A", "text": "..."}], "changesSummary": "..." }
+{ "question": "...", "choices": [{"label": "A", "text": "..."}], "changesSummary": "...", "highlights": ["phrase1", "phrase2"] }
 - question: the corrected question text with **bold** highlights (identical to input if no changes needed)
 - choices: array of corrected choices in the same order (identical to input if no changes needed)
-- changesSummary: a brief human-readable summary of what was changed, or empty string if nothing changed`;
+- changesSummary: a brief human-readable summary of what was changed, or empty string if nothing changed
+- highlights: up to 6 exact substrings from the (refined) question text that are critical for determining the correct answer — constraint words, feature names, qualifying conditions, action verbs that change the scope, etc. These will be visually highlighted for the user.`;
 
 export interface Suggestion {
   id: number;
@@ -213,8 +216,7 @@ export interface RichScoreEntry {
 
 export type RichQuizStats = { [questionId: string]: RichScoreEntry };
 
-export const DEFAULT_STUDY_GUIDE_PROMPT = `
-You are an expert on the "{examName}" certification exam.
+export const DEFAULT_STUDY_GUIDE_PROMPT = `You are an expert on the "{examName}" certification exam.
 Analyze the exam questions provided below (grouped by category) and use Google Search to find the latest relevant official documentation. Then, produce a comprehensive Study Guide in Markdown format. For each category, your guide must cover:
 - Key topics and frequently asked concepts
 - The core knowledge and concepts required to uniquely determine the correct answers

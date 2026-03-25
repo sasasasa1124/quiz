@@ -592,6 +592,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
         body: JSON.stringify({
           question: q.question,
           choices: q.choices,
+          answers: q.answers,
           userPrompt: settings.aiRefinePrompt,
         }),
       });
