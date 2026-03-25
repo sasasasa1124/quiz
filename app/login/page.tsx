@@ -82,6 +82,10 @@ function LoginForm() {
         >
           {loading ? "処理中..." : "ログイン"}
         </button>
+        <p className="text-xs text-center text-gray-400">
+          アカウントをお持ちでない方は{" "}
+          <a href="/sign-up" className="text-gray-700 font-medium hover:underline">新規登録</a>
+        </p>
       </form>
     </div>
   );
