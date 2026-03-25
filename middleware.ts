@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 
 const ALLOWED_DOMAINS = ["salesforce.com"];
 
-const isPublicRoute = createRouteMatcher(["/login", "/sign-in", "/unauthorized"]);
+const isPublicRoute = createRouteMatcher(["/login", "/sign-in", "/sign-up", "/unauthorized"]);
 
 export default clerkMiddleware(async (auth, req) => {
   if (isPublicRoute(req)) return;
