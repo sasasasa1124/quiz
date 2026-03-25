@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X, Save } from "lucide-react";
+import { Check, Sparkles, Wand2, ShieldCheck, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X, Save } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useSettings } from "@/lib/settings-context";
 import { useSetHeader } from "@/lib/header-context";
 import type { PromptVersion } from "@/lib/types";
-import { DEFAULT_EXPLAIN_PROMPT, DEFAULT_REFINE_PROMPT, DEFAULT_STUDY_GUIDE_PROMPT, DEFAULT_FILL_PROMPT } from "@/lib/types";
+import { DEFAULT_EXPLAIN_PROMPT, DEFAULT_REFINE_PROMPT, DEFAULT_STUDY_GUIDE_PROMPT, DEFAULT_FILL_PROMPT, DEFAULT_FACTCHECK_PROMPT } from "@/lib/types";
 
-type PromptKey = "explain" | "refine" | "studyguide" | "fill";
+type PromptKey = "explain" | "refine" | "studyguide" | "fill" | "factcheck";
 
 interface PromptConfig {
   key: PromptKey;
@@ -274,6 +274,9 @@ function SettingsInner() {
   const [aiFillPrompt, setAiFillPrompt] = useState(settings.aiFillPrompt);
   const [aiFillPromptAuthor, setAiFillPromptAuthor] = useState(settings.aiFillPromptAuthor ?? "");
   const [aiFillPromptVersions, setAiFillPromptVersions] = useState<PromptVersion[]>(settings.aiFillPromptVersions ?? []);
+  const [aiFactCheckPrompt, setAiFactCheckPrompt] = useState(settings.aiFactCheckPrompt ?? DEFAULT_FACTCHECK_PROMPT);
+  const [aiFactCheckPromptAuthor, setAiFactCheckPromptAuthor] = useState(settings.aiFactCheckPromptAuthor ?? "");
+  const [aiFactCheckPromptVersions, setAiFactCheckPromptVersions] = useState<PromptVersion[]>(settings.aiFactCheckPromptVersions ?? []);
   const [dailyGoal, setDailyGoal] = useState(settings.dailyGoal ?? 100);
   const [audioMode, setAudioMode] = useState(settings.audioMode ?? false);
   const [audioSpeed, setAudioSpeed] = useState(settings.audioSpeed ?? 1.0);
@@ -302,13 +305,16 @@ function SettingsInner() {
     setAiFillPrompt(settings.aiFillPrompt);
     setAiFillPromptAuthor(settings.aiFillPromptAuthor || userDisplayName);
     setAiFillPromptVersions(settings.aiFillPromptVersions ?? []);
+    setAiFactCheckPrompt(settings.aiFactCheckPrompt ?? DEFAULT_FACTCHECK_PROMPT);
+    setAiFactCheckPromptAuthor(settings.aiFactCheckPromptAuthor || userDisplayName);
+    setAiFactCheckPromptVersions(settings.aiFactCheckPromptVersions ?? []);
     setDailyGoal(settings.dailyGoal ?? 100);
     setAudioMode(settings.audioMode ?? false);
     setAudioSpeed(settings.audioSpeed ?? 1.0);
     setAudioPrefetch(settings.audioPrefetch ?? 0);
     setSkipRevealOnCorrect(settings.skipRevealOnCorrect ?? false);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.studyGuidePrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect, userDisplayName]);
+  }, [settings.aiPrompt, settings.aiRefinePrompt, settings.studyGuidePrompt, settings.aiFactCheckPrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect, userDisplayName]);
 
   // Load current gemini model and tts model from DB
   useEffect(() => {
@@ -343,6 +349,7 @@ function SettingsInner() {
       aiRefinePrompt, aiRefinePromptAuthor, aiRefinePromptVersions,
       studyGuidePrompt, studyGuidePromptAuthor, studyGuidePromptVersions,
       aiFillPrompt, aiFillPromptAuthor, aiFillPromptVersions,
+      aiFactCheckPrompt, aiFactCheckPromptAuthor, aiFactCheckPromptVersions,
       dailyGoal, audioMode, audioSpeed, audioPrefetch, skipRevealOnCorrect,
     });
     const saves: Promise<unknown>[] = [];
@@ -406,6 +413,15 @@ function SettingsInner() {
       defaultPrompt: DEFAULT_FILL_PROMPT,
       defaultLabel: "default",
     },
+    {
+      key: "factcheck",
+      label: t("aiFactCheckPrompt"),
+      icon: <ShieldCheck size={13} className="text-indigo-400" />,
+      accentClass: "text-indigo-400",
+      ringClass: "focus:ring-indigo-400",
+      defaultPrompt: DEFAULT_FACTCHECK_PROMPT,
+      defaultLabel: "default",
+    },
   ];
 
   return (
@@ -451,6 +467,15 @@ function SettingsInner() {
               setAuthor={setAiFillPromptAuthor}
               versions={aiFillPromptVersions}
               setVersions={setAiFillPromptVersions}
+            />
+            <PromptSection
+              config={promptConfigs[4]}
+              prompt={aiFactCheckPrompt}
+              setPrompt={setAiFactCheckPrompt}
+              author={aiFactCheckPromptAuthor}
+              setAuthor={setAiFactCheckPromptAuthor}
+              versions={aiFactCheckPromptVersions}
+              setVersions={setAiFactCheckPromptVersions}
             />
           </div>
         </section>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Brain, BookOpen, BookOpenCheck,
   ChevronRight, AlertCircle, TrendingUp, Tag, Timer, History,
-  Pencil, Check, X, Lightbulb, Languages, Sparkles, Loader2, Wand2,
+  Pencil, Check, X, Lightbulb, Languages, Sparkles, Loader2, Wand2, ShieldCheck,
 } from "lucide-react";
 import type { CategoryStat, ExamMeta, Question } from "@/lib/types";
 import { useSetHeader } from "@/lib/header-context";
@@ -85,6 +85,12 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   const [refineStatus, setRefineStatus] = useState<"idle" | "running" | "done" | "error">("idle");
   const [refineProgress, setRefineProgress] = useState<{ done: number; total: number } | null>(null);
   const [refineResult, setRefineResult] = useState<{ refined: number } | null>(null);
+
+  // Fact Check (bulk)
+  const [factCheckStatus, setFactCheckStatus] = useState<"idle" | "running" | "done" | "error">("idle");
+  const [factCheckProgress, setFactCheckProgress] = useState<{ done: number; total: number; skipped: number } | null>(null);
+  const [factCheckResult, setFactCheckResult] = useState<{ fixed: number; skipped: number } | null>(null);
+  const [factCheckForce, setFactCheckForce] = useState(false);
 
   const startFill = useCallback(async () => {
     setFillStatus("filling");
@@ -177,6 +183,42 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
       setTimeout(() => setRefineStatus("idle"), 3000);
     }
   }, [exam.id, settings.aiRefinePrompt]);
+
+  const startFactCheck = useCallback(async () => {
+    setFactCheckStatus("running");
+    setFactCheckProgress(null);
+    setFactCheckResult(null);
+    try {
+      const res = await fetch(`/api/admin/exams/${encodeURIComponent(exam.id)}/factcheck`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userPrompt: settings.aiFactCheckPrompt, forceRecheck: factCheckForce }),
+      });
+      if (!res.body) { setFactCheckStatus("error"); return; }
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; fixed?: number; skipped?: number };
+          if (evt.error) { setFactCheckStatus("error"); return; }
+          if (evt.total !== undefined) setFactCheckProgress({ done: evt.done ?? 0, total: evt.total, skipped: evt.skipped ?? 0 });
+          if (evt.fixed !== undefined) setFactCheckResult({ fixed: evt.fixed, skipped: evt.skipped ?? 0 });
+        }
+      }
+      setFactCheckStatus("done");
+      setTimeout(() => { setFactCheckStatus("idle"); setFactCheckResult(null); }, 4000);
+    } catch {
+      setFactCheckStatus("error");
+      setTimeout(() => setFactCheckStatus("idle"), 3000);
+    }
+  }, [exam.id, settings.aiFactCheckPrompt, factCheckForce]);
 
   useEffect(() => {
     if (editingMeta) nameInputRef.current?.focus();
@@ -777,6 +819,44 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                   ? <><Wand2 size={14} /> Wording Fix failed</>
                   : <><Wand2 size={14} /> Wording Fix</>}
               </button>
+            </div>
+
+            {/* Fact Check (bulk) */}
+            <div className="border-t border-gray-100 pt-3 space-y-2">
+              <button
+                onClick={factCheckStatus === "idle" ? startFactCheck : undefined}
+                disabled={factCheckStatus === "running"}
+                title={
+                  factCheckStatus === "running" ? (factCheckProgress ? `Checking ${factCheckProgress.done}/${factCheckProgress.total}…` : "Starting…")
+                  : factCheckStatus === "done" ? (factCheckResult ? `Fixed ${factCheckResult.fixed} · Skipped ${factCheckResult.skipped}` : "Done")
+                  : factCheckStatus === "error" ? "Fact Check failed — click to retry"
+                  : "Verify all answers against official sources with AI"
+                }
+                className={`w-full h-10 rounded-xl border text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                  factCheckStatus === "running" ? "border-indigo-200 text-indigo-500 bg-indigo-50"
+                  : factCheckStatus === "done" ? "border-emerald-200 text-emerald-600 bg-emerald-50"
+                  : factCheckStatus === "error" ? "border-rose-200 text-rose-500 bg-rose-50"
+                  : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                {factCheckStatus === "running"
+                  ? <><Loader2 size={14} className="animate-spin" /> Fact Check {factCheckProgress ? `${factCheckProgress.done}/${factCheckProgress.total}` : "…"}{factCheckProgress?.skipped ? ` (${factCheckProgress.skipped} skipped)` : ""}</>
+                  : factCheckStatus === "done"
+                  ? <><ShieldCheck size={14} /> {factCheckResult ? `Fixed ${factCheckResult.fixed} · Skipped ${factCheckResult.skipped}` : "Done"}</>
+                  : factCheckStatus === "error"
+                  ? <><ShieldCheck size={14} /> Fact Check failed</>
+                  : <><ShieldCheck size={14} /> Fact Check</>}
+              </button>
+              <label className="flex items-center gap-2 text-xs text-gray-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={factCheckForce}
+                  onChange={(e) => setFactCheckForce(e.target.checked)}
+                  className="rounded"
+                  disabled={factCheckStatus === "running"}
+                />
+                Re-check already verified questions
+              </label>
             </div>
 
             {/* Translation panel */}

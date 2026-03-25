@@ -80,7 +80,12 @@ export type TranslationKey =
   | "noLimit"
   | "answer"
   | "correctAnswer"
-  | "source";
+  | "source"
+  | "factCheck"
+  | "aiFactChecking"
+  | "aiFactCheckCorrect"
+  | "aiFactCheckWrong"
+  | "aiFactCheckPrompt";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -157,6 +162,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     answer: "Answer",
     correctAnswer: "Correct Answer",
     source: "Source",
+    factCheck: "AI Fact Check",
+    aiFactChecking: "Fact checking...",
+    aiFactCheckCorrect: "Answers verified correct",
+    aiFactCheckWrong: "Answer issue found",
+    aiFactCheckPrompt: "AI Fact Check Prompt",
   },
   ja: {
     settings: "設定",
@@ -232,6 +242,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     answer: "解答",
     correctAnswer: "正解",
     source: "出典",
+    factCheck: "AIファクトチェック",
+    aiFactChecking: "ファクトチェック中...",
+    aiFactCheckCorrect: "正解が確認されました",
+    aiFactCheckWrong: "問題が見つかりました",
+    aiFactCheckPrompt: "AIファクトチェックプロンプト",
   },
   zh: {
     settings: "设置",
@@ -307,6 +322,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     answer: "答案",
     correctAnswer: "正确答案",
     source: "来源",
+    factCheck: "AI事实核查",
+    aiFactChecking: "事实核查中...",
+    aiFactCheckCorrect: "答案已验证正确",
+    aiFactCheckWrong: "发现答案问题",
+    aiFactCheckPrompt: "AI事实核查提示词",
   },
   ko: {
     settings: "설정",
@@ -382,6 +402,11 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     answer: "정답",
     correctAnswer: "정답",
     source: "출처",
+    factCheck: "AI 팩트체크",
+    aiFactChecking: "팩트체크 중...",
+    aiFactCheckCorrect: "답변 확인됨",
+    aiFactCheckWrong: "답변 문제 발견",
+    aiFactCheckPrompt: "AI 팩트체크 프롬프트",
   },
 };
 
