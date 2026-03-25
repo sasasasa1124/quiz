@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   ArrowLeft, Home, Brain, BookOpen, BookOpenCheck, ClipboardList,
   Layers, AlertCircle, History, Copy, Globe, Volume2, VolumeOff,
-  Loader2, Settings, Zap, RotateCcw, SlidersHorizontal, Sparkles,
+  Loader2, Settings, Zap, RotateCcw, SlidersHorizontal,
 } from "lucide-react";
 import { LANG_OPTIONS } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings-context";
@@ -95,46 +95,6 @@ export default function QuizHeader({
   const { settings, updateSettings, t } = useSettings();
   const { loading: audioLoading } = useAudio();
   const backHref = `/exam/${encodeURIComponent(examId)}`;
-
-  const [fillStatus, setFillStatus] = useState<"idle" | "filling" | "done" | "error">("idle");
-  const [fillProgress, setFillProgress] = useState<{ done: number; total: number } | null>(null);
-  const [fillResult, setFillResult] = useState<{ filled: number; skipped: number } | null>(null);
-
-  const startFill = useCallback(async () => {
-    setFillStatus("filling");
-    setFillProgress(null);
-    setFillResult(null);
-    try {
-      const res = await fetch(`/api/admin/exams/${examId}/fill`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userPrompt: settings.aiFillPrompt }),
-      });
-      if (!res.body) { setFillStatus("error"); return; }
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const parts = buf.split("\n\n");
-        buf = parts.pop() ?? "";
-        for (const part of parts) {
-          if (!part.startsWith("data: ")) continue;
-          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; filled?: number; skipped?: number };
-          if (evt.error) { setFillStatus("error"); return; }
-          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total });
-          if (evt.filled !== undefined) setFillResult({ filled: evt.filled, skipped: evt.skipped ?? 0 });
-        }
-      }
-      setFillStatus("done");
-      setTimeout(() => { setFillStatus("idle"); setFillResult(null); }, 4000);
-    } catch {
-      setFillStatus("error");
-      setTimeout(() => setFillStatus("idle"), 3000);
-    }
-  }, [examId, settings.aiFillPrompt]);
 
   const [langOpen, setLangOpen] = useState(false);
   const langRef = useRef<HTMLDivElement>(null);
@@ -351,28 +311,6 @@ export default function QuizHeader({
             : settings.audioMode
             ? <Volume2 size={13} className="text-sky-500" />
             : <VolumeOff size={13} />}
-        </button>
-
-        {/* AI Fill */}
-        <button
-          onClick={fillStatus === "idle" ? startFill : undefined}
-          disabled={fillStatus === "filling"}
-          title={
-            fillStatus === "filling" ? (fillProgress ? `Filling ${fillProgress.done}/${fillProgress.total}…` : "Starting…")
-            : fillStatus === "done" ? (fillResult ? `Filled ${fillResult.filled} · Skipped ${fillResult.skipped}` : "Done")
-            : fillStatus === "error" ? "Fill failed"
-            : "Fill missing fields with AI"
-          }
-          className={`p-1.5 rounded-lg transition-colors ${
-            fillStatus === "filling" ? "text-sky-400 hover:bg-gray-100"
-            : fillStatus === "done" ? "text-emerald-500 hover:bg-gray-100"
-            : fillStatus === "error" ? "text-rose-400 hover:bg-gray-100"
-            : "text-gray-300 hover:text-gray-600 hover:bg-gray-100"
-          }`}
-        >
-          {fillStatus === "filling"
-            ? <Loader2 size={13} className="animate-spin" />
-            : <Sparkles size={13} />}
         </button>
 
         {/* Settings */}

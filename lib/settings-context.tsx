@@ -27,9 +27,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         const merged: UserSettings = { ...DEFAULT_USER_SETTINGS, ...remote };
         if (!merged.aiPrompt) merged.aiPrompt = DEFAULT_USER_SETTINGS.aiPrompt;
         if (!merged.aiRefinePrompt) merged.aiRefinePrompt = DEFAULT_USER_SETTINGS.aiRefinePrompt;
+        if (!merged.aiFillPrompt) merged.aiFillPrompt = DEFAULT_USER_SETTINGS.aiFillPrompt;
         if (!Array.isArray(merged.aiPromptVersions)) merged.aiPromptVersions = [];
         if (!Array.isArray(merged.aiRefinePromptVersions)) merged.aiRefinePromptVersions = [];
         if (!Array.isArray(merged.studyGuidePromptVersions)) merged.studyGuidePromptVersions = [];
+        if (!Array.isArray(merged.aiFillPromptVersions)) merged.aiFillPromptVersions = [];
         setSettings(merged);
         // Sync to localStorage as cache
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
@@ -43,9 +45,11 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             const merged = { ...DEFAULT_USER_SETTINGS, ...parsed };
             if (!parsed.aiPrompt) merged.aiPrompt = DEFAULT_USER_SETTINGS.aiPrompt;
             if (!parsed.aiRefinePrompt) merged.aiRefinePrompt = DEFAULT_USER_SETTINGS.aiRefinePrompt;
+            if (!parsed.aiFillPrompt) merged.aiFillPrompt = DEFAULT_USER_SETTINGS.aiFillPrompt;
             if (!Array.isArray(merged.aiPromptVersions)) merged.aiPromptVersions = [];
             if (!Array.isArray(merged.aiRefinePromptVersions)) merged.aiRefinePromptVersions = [];
             if (!Array.isArray(merged.studyGuidePromptVersions)) merged.studyGuidePromptVersions = [];
+            if (!Array.isArray(merged.aiFillPromptVersions)) merged.aiFillPromptVersions = [];
             setSettings(merged);
           }
         } catch { /* ignore */ }

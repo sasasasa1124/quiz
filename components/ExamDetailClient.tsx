@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import Link from "next/link";
 import {
   Brain, BookOpen, BookOpenCheck,
   ChevronRight, AlertCircle, TrendingUp, Tag, Timer, History,
-  Pencil, Check, X, Lightbulb, Languages,
+  Pencil, Check, X, Lightbulb, Languages, Sparkles, Loader2,
 } from "lucide-react";
 import type { CategoryStat, ExamMeta } from "@/lib/types";
 import { useSetHeader } from "@/lib/header-context";
@@ -31,7 +31,7 @@ function pctTextColor(pct: number) {
 }
 
 export default function ExamDetailClient({ exam, categoryStats: initialStats, userEmail }: Props) {
-  const { t } = useSettings();
+  const { settings, t } = useSettings();
   const [stats, setStats] = useState<CategoryStat[]>(initialStats);
   const [statsLoading, setStatsLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<"quiz" | "review">("quiz");
@@ -70,6 +70,47 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   const [translateProgress, setTranslateProgress] = useState<{ done: number; total: number } | null>(null);
   const [translateError, setTranslateError] = useState<string | null>(null);
   const [newExamId, setNewExamId] = useState<string | null>(null);
+
+  // AI Fill
+  const [fillStatus, setFillStatus] = useState<"idle" | "filling" | "done" | "error">("idle");
+  const [fillProgress, setFillProgress] = useState<{ done: number; total: number } | null>(null);
+  const [fillResult, setFillResult] = useState<{ filled: number; skipped: number } | null>(null);
+
+  const startFill = useCallback(async () => {
+    setFillStatus("filling");
+    setFillProgress(null);
+    setFillResult(null);
+    try {
+      const res = await fetch(`/api/admin/exams/${encodeURIComponent(exam.id)}/fill`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userPrompt: settings.aiFillPrompt }),
+      });
+      if (!res.body) { setFillStatus("error"); return; }
+      const reader = res.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() ?? "";
+        for (const part of parts) {
+          if (!part.startsWith("data: ")) continue;
+          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; filled?: number; skipped?: number };
+          if (evt.error) { setFillStatus("error"); return; }
+          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total });
+          if (evt.filled !== undefined) setFillResult({ filled: evt.filled, skipped: evt.skipped ?? 0 });
+        }
+      }
+      setFillStatus("done");
+      setTimeout(() => { setFillStatus("idle"); setFillResult(null); }, 4000);
+    } catch {
+      setFillStatus("error");
+      setTimeout(() => setFillStatus("idle"), 3000);
+    }
+  }, [exam.id, settings.aiFillPrompt]);
 
   useEffect(() => {
     if (editingMeta) nameInputRef.current?.focus();
@@ -590,6 +631,34 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                   <Languages size={14} /> 翻訳して作成
                 </button>
               )}
+            </div>
+
+            {/* AI Fill */}
+            <div className="border-t border-gray-100 pt-3">
+              <button
+                onClick={fillStatus === "idle" ? startFill : undefined}
+                disabled={fillStatus === "filling"}
+                title={
+                  fillStatus === "filling" ? (fillProgress ? `Filling ${fillProgress.done}/${fillProgress.total}…` : "Starting…")
+                  : fillStatus === "done" ? (fillResult ? `Filled ${fillResult.filled} · Skipped ${fillResult.skipped}` : "Done")
+                  : fillStatus === "error" ? "Fill failed — click to retry"
+                  : "Fill missing answers, explanations and categories with AI"
+                }
+                className={`w-full h-10 rounded-xl border text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+                  fillStatus === "filling" ? "border-sky-200 text-sky-500 bg-sky-50"
+                  : fillStatus === "done" ? "border-emerald-200 text-emerald-600 bg-emerald-50"
+                  : fillStatus === "error" ? "border-rose-200 text-rose-500 bg-rose-50"
+                  : "border-gray-200 text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                {fillStatus === "filling"
+                  ? <><Loader2 size={14} className="animate-spin" /> AI Fill {fillProgress ? `${fillProgress.done}/${fillProgress.total}` : "…"}</>
+                  : fillStatus === "done"
+                  ? <><Sparkles size={14} /> {fillResult ? `Filled ${fillResult.filled} · Skipped ${fillResult.skipped}` : "Done"}</>
+                  : fillStatus === "error"
+                  ? <><Sparkles size={14} /> Fill failed</>
+                  : <><Sparkles size={14} /> AI Fill</>}
+              </button>
             </div>
 
             {/* Translation panel */}
