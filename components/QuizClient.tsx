@@ -4,17 +4,19 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, Plus, Copy, Loader2,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, ShieldCheck, Plus, Copy, Loader2,
 } from "lucide-react";
 import type { Question, QuizStats, FilterConfig, RichQuizStats } from "@/lib/types";
 import { DEFAULT_FILTER_CONFIG } from "@/lib/types";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
 import type { AiRefineResponse } from "@/app/api/ai/refine/route";
+import type { AiFactCheckResponse } from "@/app/api/ai/factcheck/route";
 import QuizQuestion from "./QuizQuestion";
 import ReviewReveal from "./ReviewReveal";
 import QuestionEditModal from "./QuestionEditModal";
 import AiExplainPopup from "./AiExplainPopup";
 import AiRefinePopup from "./AiRefinePopup";
+import AiFactCheckPopup from "./AiFactCheckPopup";
 import AnswerRevealModal from "./AnswerRevealModal";
 import KeyboardHintToast from "./KeyboardHintToast";
 import QuizHeader from "./QuizHeader";
@@ -102,12 +104,16 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [aiAdopting, setAiAdopting] = useState(false);
   const [aiSuggesting, setAiSuggesting] = useState(false);
 
-  // Reset AI popup when moving to a different question
+  // Reset AI popups when moving to a different question
   useEffect(() => {
     setAiPopupOpen(false);
     setAiResult(null);
     setAiLoading(false);
     setAiError(null);
+    setFactCheckPopupOpen(false);
+    setFactCheckResult(null);
+    setFactCheckLoading(false);
+    setFactCheckError(null);
   }, [currentIndex]);
 
   const [refinePopupOpen, setRefinePopupOpen] = useState(false);
@@ -115,6 +121,12 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [refineResult, setRefineResult] = useState<AiRefineResponse | null>(null);
   const [refineError, setRefineError] = useState<string | null>(null);
   const [refineAdopting, setRefineAdopting] = useState(false);
+
+  const [factCheckPopupOpen, setFactCheckPopupOpen] = useState(false);
+  const [factCheckLoading, setFactCheckLoading] = useState(false);
+  const [factCheckResult, setFactCheckResult] = useState<AiFactCheckResponse | null>(null);
+  const [factCheckError, setFactCheckError] = useState<string | null>(null);
+  const [factCheckAdopting, setFactCheckAdopting] = useState(false);
 
   const [shakeKey, setShakeKey] = useState(0);
   const [sessionId] = useState<string>(() => crypto.randomUUID());
@@ -642,6 +654,70 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
   }, [filteredQuestions, currentIndex]);
 
+  const handleAiFactCheck = useCallback(async () => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    setFactCheckPopupOpen(true);
+    setFactCheckLoading(true);
+    setFactCheckResult(null);
+    setFactCheckError(null);
+    try {
+      const res = await fetch("/api/ai/factcheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q.question,
+          choices: q.choices,
+          answers: q.answers,
+          userPrompt: settings.aiFactCheckPrompt,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error: string };
+        throw new Error(err.error ?? "Request failed");
+      }
+      const data = await res.json() as AiFactCheckResponse;
+      setFactCheckResult(data);
+    } catch (e) {
+      setFactCheckError(e instanceof Error ? e.message : "Failed to fact check");
+    } finally {
+      setFactCheckLoading(false);
+    }
+  }, [filteredQuestions, currentIndex, settings.aiFactCheckPrompt]);
+
+  const handleFactCheckAdopt = useCallback(async (newAnswers: string[]) => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    setFactCheckAdopting(true);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: q.question,
+          options: q.choices,
+          answers: newAnswers,
+          explanation: factCheckResult?.explanation || q.explanation,
+          change_reason: "AI fact-check: answer corrected",
+        }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      setQuestions((prev) =>
+        prev.map((pq) =>
+          pq.dbId === q.dbId
+            ? { ...pq, answers: newAnswers, explanation: factCheckResult?.explanation || pq.explanation }
+            : pq
+        )
+      );
+      setFactCheckPopupOpen(false);
+      setFactCheckResult(null);
+    } catch (e) {
+      setFactCheckError(e instanceof Error ? e.message : "Failed to adopt fact check");
+    } finally {
+      setFactCheckAdopting(false);
+    }
+  }, [factCheckResult, filteredQuestions, currentIndex]);
+
   const handleToggleInvalidate = useCallback(async () => {
     const q = filteredQuestions[currentIndex];
     if (!q?.dbId) return;
@@ -663,7 +739,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     const handler = (e: KeyboardEvent) => {
       if (e.isComposing) return;
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (editingQuestion || aiPopupOpen || refinePopupOpen) return;
+      if (editingQuestion || aiPopupOpen || refinePopupOpen || factCheckPopupOpen) return;
       if (mode === "quiz" && submitted) return; // modal handles keys
 
       if (mode === "review") {
@@ -685,7 +761,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [filteredQuestions, currentIndex, submitted, revealed, mode, editingQuestion, aiPopupOpen, refinePopupOpen, handleToggle, handleSubmit, goNext, goPrev, handleKnow, handleDontKnow, handleRevealNext]);
+  }, [filteredQuestions, currentIndex, submitted, revealed, mode, editingQuestion, aiPopupOpen, refinePopupOpen, factCheckPopupOpen, handleToggle, handleSubmit, goNext, goPrev, handleKnow, handleDontKnow, handleRevealNext]);
 
   const isLast = currentIndex === filteredQuestions.length - 1;
   const sliderPct = filteredQuestions.length > 1
@@ -826,6 +902,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               <Copy size={12} />
                               {t("invalidate")}
                             </button>
+                            <button onClick={handleAiFactCheck} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors" title="AI Fact Check — verify answers against official sources">
+                              <ShieldCheck size={12} />
+                              {t("factCheck")}
+                            </button>
                             <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Wording Fix — fix typos and phrasing (does not change meaning or answers)">
                               <Wand2 size={12} />
                               {t("refine")}
@@ -891,6 +971,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       <button onClick={handleToggleInvalidate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${userInvalidated.has(q.dbId) ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={userInvalidated.has(q.dbId) ? "Restore — this question will reappear in your quiz" : "Invalidate — hide this question from your quiz"}>
                         <Copy size={12} />
                         {t("invalidate")}
+                      </button>
+                      <button onClick={handleAiFactCheck} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors" title="AI Fact Check — verify answers against official sources">
+                        <ShieldCheck size={12} />
+                        {t("factCheck")}
                       </button>
                       <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Wording Fix — fix typos and phrasing (does not change meaning or answers)">
                         <Wand2 size={12} />
@@ -1067,6 +1151,23 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
             setRefinePopupOpen(false);
             setRefineResult(null);
             setRefineError(null);
+          }}
+        />
+      )}
+
+      {/* AI Fact Check popup */}
+      {factCheckPopupOpen && (
+        <AiFactCheckPopup
+          loading={factCheckLoading}
+          result={factCheckResult}
+          error={factCheckError}
+          adopting={factCheckAdopting}
+          currentAnswers={q.answers}
+          onAdopt={handleFactCheckAdopt}
+          onDismiss={() => {
+            setFactCheckPopupOpen(false);
+            setFactCheckResult(null);
+            setFactCheckError(null);
           }}
         />
       )}

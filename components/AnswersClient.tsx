@@ -1,18 +1,20 @@
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
-import { ChevronLeft, ChevronRight, Sparkles, Wand2, RotateCcw, Loader2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Wand2, ShieldCheck, RotateCcw, Loader2 } from "lucide-react";
 import type { Question, QuizStats } from "@/lib/types";
 import { RichText } from "./RichText";
 import QuestionEditModal from "./QuestionEditModal";
 import AiExplainPopup from "./AiExplainPopup";
 import AiRefinePopup from "./AiRefinePopup";
+import AiFactCheckPopup from "./AiFactCheckPopup";
 import QuizHeader from "./QuizHeader";
 import { useSettings } from "@/lib/settings-context";
 import { useAudio } from "@/hooks/useAudio";
 import { buildAnswerText } from "@/lib/ttsText";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
 import type { AiRefineResponse } from "@/app/api/ai/refine/route";
+import type { AiFactCheckResponse } from "@/app/api/ai/factcheck/route";
 
 interface Props {
   questions: Question[];
@@ -116,6 +118,12 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const [refineResult, setRefineResult] = useState<AiRefineResponse | null>(null);
   const [refineError, setRefineError] = useState<string | null>(null);
   const [refineAdopting, setRefineAdopting] = useState(false);
+
+  const [factCheckPopupOpen, setFactCheckPopupOpen] = useState(false);
+  const [factCheckLoading, setFactCheckLoading] = useState(false);
+  const [factCheckResult, setFactCheckResult] = useState<AiFactCheckResponse | null>(null);
+  const [factCheckError, setFactCheckError] = useState<string | null>(null);
+  const [factCheckAdopting, setFactCheckAdopting] = useState(false);
 
   const handleQuestionSave = useCallback((updated: Question) => {
     setQuestions((prev) => prev.map((q) => (q.dbId === updated.dbId ? updated : q)));
@@ -277,6 +285,70 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
     }
   }, [refineResult, filteredQuestions, currentIndex]);
 
+  const handleAiFactCheck = useCallback(async () => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    setFactCheckPopupOpen(true);
+    setFactCheckLoading(true);
+    setFactCheckResult(null);
+    setFactCheckError(null);
+    try {
+      const res = await fetch("/api/ai/factcheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q.question,
+          choices: q.choices,
+          answers: q.answers,
+          userPrompt: settings.aiFactCheckPrompt,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json() as { error: string };
+        throw new Error(err.error ?? "Request failed");
+      }
+      const data = await res.json() as AiFactCheckResponse;
+      setFactCheckResult(data);
+    } catch (e) {
+      setFactCheckError(e instanceof Error ? e.message : "Failed to fact check");
+    } finally {
+      setFactCheckLoading(false);
+    }
+  }, [filteredQuestions, currentIndex, settings.aiFactCheckPrompt]);
+
+  const handleFactCheckAdopt = useCallback(async (newAnswers: string[]) => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    setFactCheckAdopting(true);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: q.question,
+          options: q.choices,
+          answers: newAnswers,
+          explanation: factCheckResult?.explanation || q.explanation,
+          change_reason: "AI fact-check: answer corrected",
+        }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      setQuestions((prev) =>
+        prev.map((pq) =>
+          pq.dbId === q.dbId
+            ? { ...pq, answers: newAnswers, explanation: factCheckResult?.explanation || pq.explanation }
+            : pq
+        )
+      );
+      setFactCheckPopupOpen(false);
+      setFactCheckResult(null);
+    } catch (e) {
+      setFactCheckError(e instanceof Error ? e.message : "Failed to adopt fact check");
+    } finally {
+      setFactCheckAdopting(false);
+    }
+  }, [factCheckResult, filteredQuestions, currentIndex]);
+
   const goNext = useCallback(() => setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1)), [filteredQuestions.length]);
   const goPrev = useCallback(() => setCurrentIndex((i) => Math.max(i - 1, 0)), []);
 
@@ -288,13 +360,13 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (editingQuestion || aiPopupOpen || refinePopupOpen) return;
+      if (editingQuestion || aiPopupOpen || refinePopupOpen || factCheckPopupOpen) return;
       if (e.key === "ArrowRight" || e.key === "Enter") goNext();
       else if (e.key === "ArrowLeft") goPrev();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [editingQuestion, aiPopupOpen, refinePopupOpen, goNext, goPrev]);
+  }, [editingQuestion, aiPopupOpen, refinePopupOpen, factCheckPopupOpen, goNext, goPrev]);
 
   // Touch swipe
   const touchStartX = useRef<number | null>(null);
@@ -380,13 +452,22 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
                 {q.isMultiple && <span className="ml-2 text-violet-500 font-semibold">Multi</span>}
                 <span className="ml-2 text-gray-300">v{q.version}</span>
               </p>
-              <button
-                onClick={handleAiRefine}
-                className="text-gray-300 hover:text-amber-500 transition-colors"
-                title={t("refine")}
-              >
-                <Wand2 size={12} />
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleAiFactCheck}
+                  className="text-gray-300 hover:text-indigo-500 transition-colors"
+                  title={t("factCheck")}
+                >
+                  <ShieldCheck size={12} />
+                </button>
+                <button
+                  onClick={handleAiRefine}
+                  className="text-gray-300 hover:text-amber-500 transition-colors"
+                  title={t("refine")}
+                >
+                  <Wand2 size={12} />
+                </button>
+              </div>
             </div>
             <div
               className="text-sm lg:text-base leading-relaxed text-gray-900 font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
@@ -526,6 +607,23 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
             setRefinePopupOpen(false);
             setRefineResult(null);
             setRefineError(null);
+          }}
+        />
+      )}
+
+      {/* AI Fact Check popup */}
+      {factCheckPopupOpen && (
+        <AiFactCheckPopup
+          loading={factCheckLoading}
+          result={factCheckResult}
+          error={factCheckError}
+          adopting={factCheckAdopting}
+          currentAnswers={q.answers}
+          onAdopt={handleFactCheckAdopt}
+          onDismiss={() => {
+            setFactCheckPopupOpen(false);
+            setFactCheckResult(null);
+            setFactCheckError(null);
           }}
         />
       )}

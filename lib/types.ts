@@ -87,6 +87,9 @@ export interface UserSettings {
   aiFillPrompt: string;
   aiFillPromptAuthor: string;
   aiFillPromptVersions: PromptVersion[];
+  aiFactCheckPrompt: string;
+  aiFactCheckPromptAuthor: string;
+  aiFactCheckPromptVersions: PromptVersion[];
   dailyGoal: number; // questions per day target
   audioMode: boolean; // read questions aloud
   audioSpeed: number; // playback rate 0.5–4.0
@@ -252,6 +255,43 @@ For each category, write a detailed section covering all 4 elements above.
 Important: Use Google Search to look up "{examName} exam guide" and "{examName} certification" for the latest official information. Limit searches to official Salesforce and MuleSoft sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com).
 {langInstruction}`;
 
+export const DEFAULT_FACTCHECK_PROMPT = `You are a Salesforce/MuleSoft certification exam fact-checker with access to Google Search.
+
+Given the question and currently recorded answers below, verify whether the answers are correct using official sources.
+
+Question:
+{question}
+
+Choices:
+{choices}
+
+Currently recorded answer(s): {answers}
+
+## Your tasks
+1. Use Google Search to verify the correct answer(s) using official sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com).
+2. Determine whether the recorded answer(s) match the correct answers.
+3. If incorrect or uncertain, identify the correct answer(s).
+
+Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
+{
+  "isCorrect": true,
+  "correctAnswers": ["A"],
+  "confidence": "high",
+  "issues": [],
+  "explanation": "...",
+  "sources": ["https://..."]
+}
+
+Field definitions:
+- isCorrect: true if the recorded answers exactly match the correct answers
+- correctAnswers: array of correct choice labels according to your research (e.g. ["A"] or ["A","C"])
+- confidence: "high" if confirmed by official source, "medium" if inferred, "low" if uncertain
+- issues: list of problems found (empty array if isCorrect is true)
+- explanation: brief explanation of why the answers are correct/incorrect (2–3 sentences)
+- sources: 1–3 official URLs that directly support your finding
+
+IMPORTANT: Write the explanation in the same language as the question text. If the question is in Japanese, write in Japanese. If in English, write in English.`;
+
 export const DEFAULT_FILL_PROMPT = `You are a Salesforce/MuleSoft certification exam expert with access to Google Search for fact verification.
 
 For each question in the JSON array below, fill in the fields listed in "missing":
@@ -283,6 +323,9 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   aiFillPrompt: DEFAULT_FILL_PROMPT,
   aiFillPromptAuthor: "",
   aiFillPromptVersions: [],
+  aiFactCheckPrompt: DEFAULT_FACTCHECK_PROMPT,
+  aiFactCheckPromptAuthor: "",
+  aiFactCheckPromptVersions: [],
   dailyGoal: 100,
   audioMode: false,
   audioSpeed: 1.0,

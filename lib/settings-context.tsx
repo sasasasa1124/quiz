@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { UserSettings } from "./types";
-import { DEFAULT_USER_SETTINGS } from "./types";
+import { DEFAULT_USER_SETTINGS, DEFAULT_FACTCHECK_PROMPT } from "./types";
 import { t as translate, type TranslationKey } from "./i18n";
 
 const STORAGE_KEY = "user-settings";
@@ -43,10 +43,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         merged.aiRefinePrompt = upgradeIfOldDefault(merged.aiRefinePrompt, DEFAULT_USER_SETTINGS.aiRefinePrompt);
         merged.studyGuidePrompt = upgradeIfOldDefault(merged.studyGuidePrompt, DEFAULT_USER_SETTINGS.studyGuidePrompt);
         merged.aiFillPrompt = upgradeIfOldDefault(merged.aiFillPrompt, DEFAULT_USER_SETTINGS.aiFillPrompt);
+        merged.aiFactCheckPrompt = upgradeIfOldDefault(merged.aiFactCheckPrompt ?? DEFAULT_FACTCHECK_PROMPT, DEFAULT_USER_SETTINGS.aiFactCheckPrompt);
         if (!Array.isArray(merged.aiPromptVersions)) merged.aiPromptVersions = [];
         if (!Array.isArray(merged.aiRefinePromptVersions)) merged.aiRefinePromptVersions = [];
         if (!Array.isArray(merged.studyGuidePromptVersions)) merged.studyGuidePromptVersions = [];
         if (!Array.isArray(merged.aiFillPromptVersions)) merged.aiFillPromptVersions = [];
+        if (!Array.isArray(merged.aiFactCheckPromptVersions)) merged.aiFactCheckPromptVersions = [];
         setSettings(merged);
         // Sync to localStorage as cache
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(merged)); } catch { /* ignore */ }
@@ -63,10 +65,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             merged.aiRefinePrompt = upgradeIfOldDefault(merged.aiRefinePrompt, DEFAULT_USER_SETTINGS.aiRefinePrompt);
             merged.studyGuidePrompt = upgradeIfOldDefault(merged.studyGuidePrompt, DEFAULT_USER_SETTINGS.studyGuidePrompt);
             merged.aiFillPrompt = upgradeIfOldDefault(merged.aiFillPrompt, DEFAULT_USER_SETTINGS.aiFillPrompt);
+            merged.aiFactCheckPrompt = upgradeIfOldDefault(merged.aiFactCheckPrompt ?? DEFAULT_FACTCHECK_PROMPT, DEFAULT_USER_SETTINGS.aiFactCheckPrompt);
             if (!Array.isArray(merged.aiPromptVersions)) merged.aiPromptVersions = [];
             if (!Array.isArray(merged.aiRefinePromptVersions)) merged.aiRefinePromptVersions = [];
             if (!Array.isArray(merged.studyGuidePromptVersions)) merged.studyGuidePromptVersions = [];
             if (!Array.isArray(merged.aiFillPromptVersions)) merged.aiFillPromptVersions = [];
+            if (!Array.isArray(merged.aiFactCheckPromptVersions)) merged.aiFactCheckPromptVersions = [];
             setSettings(merged);
           }
         } catch { /* ignore */ }
