@@ -62,7 +62,7 @@ export interface QuestionHistoryEntry {
 }
 
 // 0 = last answer wrong, 1 = last answer correct, undefined = never answered
-export type QuizStat = 0 | 1;
+export type QuizStat = 0 | 1 | undefined;
 
 export type QuizStats = Record<string, QuizStat>; // key: String(question.id)
 

@@ -76,21 +76,21 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
 
   // AI Fill
   const [fillStatus, setFillStatus] = useState<"idle" | "filling" | "done" | "error">("idle");
-  const [fillProgress, setFillProgress] = useState<{ done: number; total: number; skipped: number } | null>(null);
-  const [fillResult, setFillResult] = useState<{ filled: number; skipped: number } | null>(null);
+  const [fillProgress, setFillProgress] = useState<{ done: number; total: number; skipped: number; failed: number } | null>(null);
+  const [fillResult, setFillResult] = useState<{ filled: number; skipped: number; failed: number } | null>(null);
   const [generateTts, setGenerateTts] = useState(false);
   const [ttsProgress, setTtsProgress] = useState<{ done: number; total: number } | null>(null);
   const [fillForce, setFillForce] = useState(false);
 
   // Wording Fix (bulk refine)
   const [refineStatus, setRefineStatus] = useState<"idle" | "running" | "done" | "error">("idle");
-  const [refineProgress, setRefineProgress] = useState<{ done: number; total: number } | null>(null);
-  const [refineResult, setRefineResult] = useState<{ refined: number } | null>(null);
+  const [refineProgress, setRefineProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
+  const [refineResult, setRefineResult] = useState<{ refined: number; failed: number } | null>(null);
 
   // Fact Check (bulk)
   const [factCheckStatus, setFactCheckStatus] = useState<"idle" | "running" | "done" | "error">("idle");
-  const [factCheckProgress, setFactCheckProgress] = useState<{ done: number; total: number; skipped: number } | null>(null);
-  const [factCheckResult, setFactCheckResult] = useState<{ fixed: number; skipped: number } | null>(null);
+  const [factCheckProgress, setFactCheckProgress] = useState<{ done: number; total: number; skipped: number; failed: number } | null>(null);
+  const [factCheckResult, setFactCheckResult] = useState<{ fixed: number; skipped: number; failed: number } | null>(null);
   const [factCheckForce, setFactCheckForce] = useState(false);
 
   const startFill = useCallback(async () => {
@@ -116,10 +116,10 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
         buf = parts.pop() ?? "";
         for (const part of parts) {
           if (!part.startsWith("data: ")) continue;
-          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; filled?: number; skipped?: number };
+          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; filled?: number; skipped?: number; failed?: number };
           if (evt.error) { setFillStatus("error"); return; }
-          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total, skipped: evt.skipped ?? 0 });
-          if (evt.filled !== undefined) setFillResult({ filled: evt.filled, skipped: evt.skipped ?? 0 });
+          if (evt.total !== undefined) setFillProgress({ done: evt.done ?? 0, total: evt.total, skipped: evt.skipped ?? 0, failed: evt.failed ?? 0 });
+          if (evt.filled !== undefined) setFillResult({ filled: evt.filled, skipped: evt.skipped ?? 0, failed: evt.failed ?? 0 });
         }
       }
       setFillStatus("done");
@@ -171,10 +171,10 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
         buf = parts.pop() ?? "";
         for (const part of parts) {
           if (!part.startsWith("data: ")) continue;
-          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; refined?: number };
+          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; refined?: number; failed?: number };
           if (evt.error) { setRefineStatus("error"); return; }
-          if (evt.total !== undefined) setRefineProgress({ done: evt.done ?? 0, total: evt.total });
-          if (evt.refined !== undefined) setRefineResult({ refined: evt.refined });
+          if (evt.total !== undefined) setRefineProgress({ done: evt.done ?? 0, total: evt.total, failed: evt.failed ?? 0 });
+          if (evt.refined !== undefined) setRefineResult({ refined: evt.refined, failed: evt.failed ?? 0 });
         }
       }
       setRefineStatus("done");
@@ -207,10 +207,10 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
         buf = parts.pop() ?? "";
         for (const part of parts) {
           if (!part.startsWith("data: ")) continue;
-          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; fixed?: number; skipped?: number };
+          const evt = JSON.parse(part.slice(6)) as { error?: string; done?: number; total?: number; fixed?: number; skipped?: number; failed?: number };
           if (evt.error) { setFactCheckStatus("error"); return; }
-          if (evt.total !== undefined) setFactCheckProgress({ done: evt.done ?? 0, total: evt.total, skipped: evt.skipped ?? 0 });
-          if (evt.fixed !== undefined) setFactCheckResult({ fixed: evt.fixed, skipped: evt.skipped ?? 0 });
+          if (evt.total !== undefined) setFactCheckProgress({ done: evt.done ?? 0, total: evt.total, skipped: evt.skipped ?? 0, failed: evt.failed ?? 0 });
+          if (evt.fixed !== undefined) setFactCheckResult({ fixed: evt.fixed, skipped: evt.skipped ?? 0, failed: evt.failed ?? 0 });
         }
       }
       setFactCheckStatus("done");
@@ -761,9 +761,9 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                 }`}
               >
                 {fillStatus === "filling"
-                  ? <><Loader2 size={14} className="animate-spin" /> AI Fill {fillProgress ? `${fillProgress.done}/${fillProgress.total}${fillProgress.skipped ? ` (${fillProgress.skipped} skipped)` : ""}` : "…"}</>
+                  ? <><Loader2 size={14} className="animate-spin" /> AI Fill {fillProgress ? `${fillProgress.done}/${fillProgress.total}${fillProgress.skipped ? ` (${fillProgress.skipped} skipped)` : ""}${fillProgress.failed ? ` · ${fillProgress.failed} failed` : ""}` : "…"}</>
                   : fillStatus === "done"
-                  ? <><Sparkles size={14} /> {fillResult ? `Filled ${fillResult.filled} · Skipped ${fillResult.skipped}` : "Done"}</>
+                  ? <><Sparkles size={14} /> {fillResult ? `Filled ${fillResult.filled} · Skipped ${fillResult.skipped}${fillResult.failed ? ` · ${fillResult.failed} failed` : ""}` : "Done"}</>
                   : fillStatus === "error"
                   ? <><Sparkles size={14} /> Fill failed</>
                   : <><Sparkles size={14} /> AI Fill</>}
@@ -825,9 +825,9 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                 }`}
               >
                 {refineStatus === "running"
-                  ? <><Loader2 size={14} className="animate-spin" /> Wording Fix {refineProgress ? `${refineProgress.done}/${refineProgress.total}` : "…"}</>
+                  ? <><Loader2 size={14} className="animate-spin" /> Wording Fix {refineProgress ? `${refineProgress.done}/${refineProgress.total}${refineProgress.failed ? ` · ${refineProgress.failed} failed` : ""}` : "…"}</>
                   : refineStatus === "done"
-                  ? <><Wand2 size={14} /> {refineResult ? `Refined ${refineResult.refined}` : "Done"}</>
+                  ? <><Wand2 size={14} /> {refineResult ? `Refined ${refineResult.refined}${refineResult.failed ? ` · ${refineResult.failed} failed` : ""}` : "Done"}</>
                   : refineStatus === "error"
                   ? <><Wand2 size={14} /> Wording Fix failed</>
                   : <><Wand2 size={14} /> Wording Fix</>}
@@ -853,9 +853,9 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                 }`}
               >
                 {factCheckStatus === "running"
-                  ? <><Loader2 size={14} className="animate-spin" /> Fact Check {factCheckProgress ? `${factCheckProgress.done}/${factCheckProgress.total}` : "…"}{factCheckProgress?.skipped ? ` (${factCheckProgress.skipped} skipped)` : ""}</>
+                  ? <><Loader2 size={14} className="animate-spin" /> Fact Check {factCheckProgress ? `${factCheckProgress.done}/${factCheckProgress.total}${factCheckProgress.skipped ? ` (${factCheckProgress.skipped} skipped)` : ""}${factCheckProgress.failed ? ` · ${factCheckProgress.failed} failed` : ""}` : "…"}</>
                   : factCheckStatus === "done"
-                  ? <><ShieldCheck size={14} /> {factCheckResult ? `Fixed ${factCheckResult.fixed} · Skipped ${factCheckResult.skipped}` : "Done"}</>
+                  ? <><ShieldCheck size={14} /> {factCheckResult ? `Fixed ${factCheckResult.fixed} · Skipped ${factCheckResult.skipped}${factCheckResult.failed ? ` · ${factCheckResult.failed} failed` : ""}` : "Done"}</>
                   : factCheckStatus === "error"
                   ? <><ShieldCheck size={14} /> Fact Check failed</>
                   : <><ShieldCheck size={14} /> Fact Check</>}

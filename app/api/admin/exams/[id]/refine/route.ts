@@ -6,6 +6,7 @@ import { getDB, getQuestions, getSetting } from "@/lib/db";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { DEFAULT_REFINE_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
+import { requireAdmin } from "@/lib/auth";
 
 interface RefineResult {
   question: string;
@@ -17,6 +18,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requireAdmin();
+  if (authError) return authError;
+
   const { id: examId } = await params;
   let userPrompt: string | undefined;
   try {
@@ -51,15 +55,16 @@ export async function POST(
       };
 
       if (total === 0) {
-        send({ done: 0, total: 0, refined: 0 });
+        send({ done: 0, total: 0, refined: 0, failed: 0 });
         controller.close();
         return;
       }
 
-      send({ done: 0, total });
+      send({ done: 0, total, failed: 0 });
 
       let done = 0;
       let refined = 0;
+      let failed = 0;
 
       try {
         for (const q of candidates) {
@@ -100,13 +105,13 @@ export async function POST(
                 .run();
               refined++;
             }
-          } catch { /* skip individual failures */ }
+          } catch { failed++; }
 
           done++;
-          send({ done, total });
+          send({ done, total, failed });
         }
 
-        send({ done: total, total, refined });
+        send({ done: total, total, refined, failed });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         send({ error: msg });

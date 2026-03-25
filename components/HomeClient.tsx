@@ -53,16 +53,15 @@ export default function HomeClient({ exams: initialExams }: Props) {
 
   useEffect(() => {
     fetch("/api/scores")
-      .then((r) => r.json() as Promise<{ statsMap: Record<string, Record<string, 0 | 1>> }>)
+      .then((r) => r.json() as Promise<{ statsMap: Record<string, { answered: number; correct: number }> }>)
       .then(({ statsMap: remote }) => {
         const map: typeof statsMap = {};
         for (const exam of exams) {
-          const stats = remote[exam.id] ?? {};
-          const keys = Object.keys(stats).filter((k) => stats[k] === 0 || stats[k] === 1);
+          const s = remote[exam.id] ?? { answered: 0, correct: 0 };
           map[exam.id] = {
-            answered: keys.length,
+            answered: s.answered,
             total: exam.questionCount,
-            correct: keys.filter((k) => stats[k] === 1).length,
+            correct: s.correct,
           };
         }
         setStatsMap(map);

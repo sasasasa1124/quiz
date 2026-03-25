@@ -2,28 +2,30 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import {
   ArrowLeft, AlertCircle,
   CheckCircle2, XCircle, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, ShieldCheck, Plus, Copy, Loader2,
 } from "lucide-react";
 import type { Question, QuizStats, FilterConfig, RichQuizStats } from "@/lib/types";
 import { DEFAULT_FILTER_CONFIG } from "@/lib/types";
-import type { AiExplainResponse } from "@/app/api/ai/explain/route";
-import type { AiRefineResponse } from "@/app/api/ai/refine/route";
-import type { AiFactCheckResponse } from "@/app/api/ai/factcheck/route";
 import QuizQuestion from "./QuizQuestion";
 import ReviewReveal from "./ReviewReveal";
 import { RichText } from "./RichText";
-import QuestionEditModal from "./QuestionEditModal";
-import AiExplainPopup from "./AiExplainPopup";
-import AiRefinePopup from "./AiRefinePopup";
-import AiFactCheckPopup from "./AiFactCheckPopup";
-import AnswerRevealModal from "./AnswerRevealModal";
 import KeyboardHintToast from "./KeyboardHintToast";
 import QuizHeader from "./QuizHeader";
+
+const QuestionEditModal = dynamic(() => import("./QuestionEditModal"), { ssr: false });
+const AiExplainPopup = dynamic(() => import("./AiExplainPopup"), { ssr: false });
+const AiRefinePopup = dynamic(() => import("./AiRefinePopup"), { ssr: false });
+const AiFactCheckPopup = dynamic(() => import("./AiFactCheckPopup"), { ssr: false });
+const AnswerRevealModal = dynamic(() => import("./AnswerRevealModal"), { ssr: false });
 import { useSettings } from "@/lib/settings-context";
 import { useSetHeader } from "@/lib/header-context";
 import { useAudio } from "@/hooks/useAudio";
+import { useStatsSync } from "@/hooks/useStatsSync";
+import { useAiPopups } from "@/hooks/useAiPopups";
+import { saveLocalStats } from "@/lib/statsStorage";
 import { buildQuestionText, buildAnswerRevealText } from "@/lib/ttsText";
 import { recordDailySnapshot } from "@/lib/snapshots";
 
@@ -38,24 +40,6 @@ interface Props {
   initialFilter?: "all" | "continue" | "wrong" | "custom";
   invalidatedIds?: string[];
   initialQuestionId?: number;
-}
-
-const statsKey = (id: string) => `quiz-stats-${id}`;
-
-function loadLocalStats(examId: string): QuizStats {
-  if (typeof window === "undefined") return {};
-  try {
-    const raw = JSON.parse(localStorage.getItem(statsKey(examId)) ?? "{}");
-    const migrated: QuizStats = {};
-    for (const [k, v] of Object.entries(raw)) {
-      if (v === 0 || v === 1) migrated[k] = v as 0 | 1;
-    }
-    return migrated;
-  } catch { return {}; }
-}
-
-function saveLocalStats(examId: string, stats: QuizStats) {
-  localStorage.setItem(statsKey(examId), JSON.stringify(stats));
 }
 
 const lastQKey = (id: string) => `quiz-last-index-${id}`;
@@ -79,7 +63,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   useSetHeader({ hidden: true }, []);
   const [questions, setQuestions] = useState<Question[]>(initialQuestions);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [stats, setStats] = useState<QuizStats>({});
+  const { stats, setStats, statsLoaded } = useStatsSync(examId);
   const [filter, setFilter] = useState<"all" | "continue" | "wrong" | "custom">(initialFilter ?? "all");
   const [filterConfig, setFilterConfig] = useState<FilterConfig>(DEFAULT_FILTER_CONFIG);
   const [richStats, setRichStats] = useState<RichQuizStats>({});
@@ -98,42 +82,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [createMode, setCreateMode] = useState(false);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
-  const [aiPopupOpen, setAiPopupOpen] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
-  const [aiResult, setAiResult] = useState<AiExplainResponse | null>(null);
-  const [aiError, setAiError] = useState<string | null>(null);
-  const [aiAdopting, setAiAdopting] = useState(false);
-  const [aiSuggesting, setAiSuggesting] = useState(false);
-
-  // Reset AI popups when moving to a different question
-  useEffect(() => {
-    setAiPopupOpen(false);
-    setAiResult(null);
-    setAiLoading(false);
-    setAiError(null);
-    setFactCheckPopupOpen(false);
-    setFactCheckResult(null);
-    setFactCheckLoading(false);
-    setFactCheckError(null);
-  }, [currentIndex]);
-
-  const [refinePopupOpen, setRefinePopupOpen] = useState(false);
-  const [refineLoading, setRefineLoading] = useState(false);
-  const [refineResult, setRefineResult] = useState<AiRefineResponse | null>(null);
-  const [refineError, setRefineError] = useState<string | null>(null);
-  const [refineAdopting, setRefineAdopting] = useState(false);
-
-  const [factCheckPopupOpen, setFactCheckPopupOpen] = useState(false);
-  const [factCheckLoading, setFactCheckLoading] = useState(false);
-  const [factCheckResult, setFactCheckResult] = useState<AiFactCheckResponse | null>(null);
-  const [factCheckError, setFactCheckError] = useState<string | null>(null);
-  const [factCheckAdopting, setFactCheckAdopting] = useState(false);
-
   const [shakeKey, setShakeKey] = useState(0);
   const [sessionId] = useState<string>(() => crypto.randomUUID());
   const [sessionCorrectCount, setSessionCorrectCount] = useState(0);
   const [filterResetToast, setFilterResetToast] = useState(false);
-  const [statsLoaded, setStatsLoaded] = useState(false);
   const sessionCompletedRef = useRef(false);
   const touchStartX = useRef<number | null>(null);
   const touchStartY = useRef<number | null>(null);
@@ -160,24 +112,11 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load local stats then merge with DB stats (DB wins)
+  // Load last visited question ID from localStorage on mount
   useEffect(() => {
-    const local = loadLocalStats(examId);
-    setStats(local);
-    setStatsLoaded(true);
     setSavedLastQuestionId(loadLastQuestionId(examId));
-
-    fetch(`/api/scores?examId=${encodeURIComponent(examId)}`)
-      .then((r) => r.json() as Promise<QuizStats>)
-      .then((db) => {
-        setStats((prev) => {
-          const merged = { ...prev, ...db };
-          saveLocalStats(examId, merged);
-          return merged;
-        });
-      })
-      .catch(() => {}); // silently fail – local stats still work
-  }, [examId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     setSelected(new Set());
@@ -269,6 +208,21 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     }
     if (excludeDuplicates && q.isDuplicate) return false;
     return true;
+  });
+
+  const {
+    aiPopupOpen, aiLoading, aiResult, aiError, aiAdopting, aiSuggesting,
+    handleAiExplain, handleAiAdopt, handleAiSuggest, dismissExplain,
+    refinePopupOpen, refineLoading, refineResult, refineError, refineAdopting,
+    handleAiRefine, handleRefineAdopt, dismissRefine,
+    factCheckPopupOpen, factCheckLoading, factCheckResult, factCheckError, factCheckAdopting,
+    handleAiFactCheck, handleFactCheckAdopt, dismissFactCheck,
+  } = useAiPopups({
+    currentQuestion: filteredQuestions[currentIndex],
+    aiPrompt: settings.aiPrompt,
+    aiRefinePrompt: settings.aiRefinePrompt,
+    aiFactCheckPrompt: settings.aiFactCheckPrompt,
+    onQuestionUpdate: (updated) => setQuestions((prev) => prev.map((q) => q.dbId === updated.dbId ? updated : q)),
   });
 
   // currentQId enables re-fire when invalidate replaces same-index question without index change
@@ -499,225 +453,6 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const handleQuestionDelete = useCallback((dbId: string) => {
     setQuestions((prev) => prev.filter((q) => q.dbId !== dbId));
   }, []);
-
-  const handleAiExplain = useCallback(async () => {
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    setAiPopupOpen(true);
-    setAiLoading(true);
-    setAiResult(null);
-    setAiError(null);
-    try {
-      const res = await fetch("/api/ai/explain", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: q.question,
-          choices: q.choices,
-          answers: q.answers,
-          explanation: q.explanation,
-          userPrompt: settings.aiPrompt,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        throw new Error(err.error ?? "Request failed");
-      }
-      const data = await res.json() as AiExplainResponse;
-      setAiResult(data);
-    } catch (e) {
-      setAiError(e instanceof Error ? e.message : "Failed to get AI explanation");
-    } finally {
-      setAiLoading(false);
-    }
-  }, [filteredQuestions, currentIndex, settings.aiPrompt]);
-
-  const handleAiAdopt = useCallback(async () => {
-    if (!aiResult) return;
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    setAiAdopting(true);
-    try {
-      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question_text: q.question,
-          options: q.choices,
-          answers: aiResult.answers,
-          explanation: aiResult.explanation,
-          change_reason: "AI-generated via Gemini",
-        }),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      setQuestions((prev) =>
-        prev.map((pq) =>
-          pq.dbId === q.dbId
-            ? { ...pq, answers: aiResult.answers, explanation: aiResult.explanation }
-            : pq
-        )
-      );
-      setAiPopupOpen(false);
-      setAiResult(null);
-    } catch (e) {
-      setAiError(e instanceof Error ? e.message : "Failed to adopt answer");
-    } finally {
-      setAiAdopting(false);
-    }
-  }, [aiResult, filteredQuestions, currentIndex]);
-
-  const handleAiSuggest = useCallback(async () => {
-    if (!aiResult) return;
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    setAiSuggesting(true);
-    try {
-      await fetch("/api/suggestions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          questionId: q.dbId,
-          type: "ai",
-          suggestedAnswers: aiResult.answers,
-          suggestedExplanation: aiResult.explanation,
-          aiModel: aiResult.model ?? null,
-          comment: null,
-        }),
-      });
-      setAiPopupOpen(false);
-      setAiResult(null);
-    } finally {
-      setAiSuggesting(false);
-    }
-  }, [aiResult, filteredQuestions, currentIndex]);
-
-  const handleAiRefine = useCallback(async () => {
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    setRefinePopupOpen(true);
-    setRefineLoading(true);
-    setRefineResult(null);
-    setRefineError(null);
-    try {
-      const res = await fetch("/api/ai/refine", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: q.question,
-          choices: q.choices,
-          answers: q.answers,
-          userPrompt: settings.aiRefinePrompt,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        throw new Error(err.error ?? "Request failed");
-      }
-      const data = await res.json() as AiRefineResponse;
-      setRefineResult(data);
-    } catch (e) {
-      setRefineError(e instanceof Error ? e.message : "Failed to refine question");
-    } finally {
-      setRefineLoading(false);
-    }
-  }, [filteredQuestions, currentIndex, settings.aiRefinePrompt]);
-
-  const handleRefineAdopt = useCallback(async (edited: { question: string; choices: typeof initialQuestions[0]["choices"] }) => {
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    setRefineAdopting(true);
-    try {
-      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question_text: edited.question,
-          options: edited.choices,
-          answers: q.answers,
-          explanation: q.explanation,
-          change_reason: `AI refined: ${refineResult?.changesSummary || "typo/grammar fix"}`,
-        }),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      setQuestions((prev) =>
-        prev.map((pq) =>
-          pq.dbId === q.dbId
-            ? { ...pq, question: edited.question, choices: edited.choices }
-            : pq
-        )
-      );
-      setRefinePopupOpen(false);
-      setRefineResult(null);
-    } catch (e) {
-      setRefineError(e instanceof Error ? e.message : "Failed to adopt refinement");
-    } finally {
-      setRefineAdopting(false);
-    }
-  }, [filteredQuestions, currentIndex]);
-
-  const handleAiFactCheck = useCallback(async () => {
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    setFactCheckPopupOpen(true);
-    setFactCheckLoading(true);
-    setFactCheckResult(null);
-    setFactCheckError(null);
-    try {
-      const res = await fetch("/api/ai/factcheck", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question: q.question,
-          choices: q.choices,
-          answers: q.answers,
-          userPrompt: settings.aiFactCheckPrompt,
-        }),
-      });
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        throw new Error(err.error ?? "Request failed");
-      }
-      const data = await res.json() as AiFactCheckResponse;
-      setFactCheckResult(data);
-    } catch (e) {
-      setFactCheckError(e instanceof Error ? e.message : "Failed to fact check");
-    } finally {
-      setFactCheckLoading(false);
-    }
-  }, [filteredQuestions, currentIndex, settings.aiFactCheckPrompt]);
-
-  const handleFactCheckAdopt = useCallback(async (newAnswers: string[]) => {
-    const q = filteredQuestions[currentIndex];
-    if (!q) return;
-    setFactCheckAdopting(true);
-    try {
-      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          question_text: q.question,
-          options: q.choices,
-          answers: newAnswers,
-          explanation: factCheckResult?.explanation || q.explanation,
-          change_reason: "AI fact-check: answer corrected",
-        }),
-      });
-      if (!res.ok) throw new Error("Update failed");
-      setQuestions((prev) =>
-        prev.map((pq) =>
-          pq.dbId === q.dbId
-            ? { ...pq, answers: newAnswers, explanation: factCheckResult?.explanation || pq.explanation }
-            : pq
-        )
-      );
-      setFactCheckPopupOpen(false);
-      setFactCheckResult(null);
-    } catch (e) {
-      setFactCheckError(e instanceof Error ? e.message : "Failed to adopt fact check");
-    } finally {
-      setFactCheckAdopting(false);
-    }
-  }, [factCheckResult, filteredQuestions, currentIndex]);
 
   const handleToggleInvalidate = useCallback(async () => {
     const q = filteredQuestions[currentIndex];
@@ -1126,11 +861,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           error={aiError}
           adopting={aiAdopting}
           onAdopt={handleAiAdopt}
-          onDismiss={() => {
-            setAiPopupOpen(false);
-            setAiResult(null);
-            setAiError(null);
-          }}
+          onDismiss={dismissExplain}
           onSuggest={handleAiSuggest}
           suggesting={aiSuggesting}
           question={filteredQuestions[currentIndex]?.question}
@@ -1149,11 +880,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           error={refineError}
           adopting={refineAdopting}
           onAdopt={handleRefineAdopt}
-          onDismiss={() => {
-            setRefinePopupOpen(false);
-            setRefineResult(null);
-            setRefineError(null);
-          }}
+          onDismiss={dismissRefine}
         />
       )}
 
@@ -1166,11 +893,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           adopting={factCheckAdopting}
           currentAnswers={q.answers}
           onAdopt={handleFactCheckAdopt}
-          onDismiss={() => {
-            setFactCheckPopupOpen(false);
-            setFactCheckResult(null);
-            setFactCheckError(null);
-          }}
+          onDismiss={dismissFactCheck}
         />
       )}
 

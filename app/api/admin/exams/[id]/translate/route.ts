@@ -4,6 +4,7 @@ import { NextRequest } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getDB, getQuestions, getSetting } from "@/lib/db";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { requireAdmin } from "@/lib/auth";
 import type { Choice } from "@/lib/types";
 
 const LANG_NAMES: Record<string, string> = {
@@ -32,6 +33,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requireAdmin();
+  if (authError) return authError;
+
   const { id: examId } = await params;
   const { targetLanguage } = await req.json() as { targetLanguage: string };
 

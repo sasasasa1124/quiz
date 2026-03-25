@@ -39,16 +39,19 @@ export default async function QuizPage({ params, searchParams }: Props) {
   if (mode !== "quiz" && mode !== "review" && mode !== "answers" && mode !== "mock" && mode !== "study-guide") notFound();
 
   const examId = decodeURIComponent(exam);
-  const exams = await getExamList();
+
+  const [exams, allQuestions, userEmail] = await Promise.all([
+    getExamList(),
+    getQuestions(examId),
+    getUserEmail(),
+  ]);
+
   const meta = exams.find((e) => e.id === examId);
   if (!meta) notFound();
 
-  const allQuestions = await getQuestions(examId);
   const questions = category
     ? allQuestions.filter((q) => q.category === category)
     : allQuestions;
-
-  const userEmail = await getUserEmail();
 
   if (mode === "mock") {
     const config = getMockConfig(examId);

@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import { ChevronRight, RotateCcw, ChevronDown, Loader2 } from "lucide-react";
-import type { ExamMeta, QuizStats, CategoryStat, ExamSnapshot, SessionRecord } from "@/lib/types";
+import type { ExamMeta, CategoryStat, ExamSnapshot, SessionRecord } from "@/lib/types";
 import { useSetHeader } from "@/lib/header-context";
-import ExamTrendChart from "./ExamTrendChart";
-import CategoryChart from "./CategoryChart";
 import { loadServerSnapshots } from "@/lib/snapshots";
+
+const ExamTrendChart = dynamic(() => import("./ExamTrendChart"), { ssr: false });
+const CategoryChart = dynamic(() => import("./CategoryChart"), { ssr: false });
 
 interface Props {
   exams: ExamMeta[];
@@ -33,17 +35,15 @@ export default function ProfileClient({ exams }: Props) {
   useEffect(() => {
     // Load stats from server (all exams at once)
     fetch("/api/scores")
-      .then((r) => r.json() as Promise<{ statsMap: Record<string, QuizStats> }>)
+      .then((r) => r.json() as Promise<{ statsMap: Record<string, { answered: number; correct: number }> }>)
       .then(({ statsMap: remote }) => {
         const map: Record<string, ExamStats> = {};
         for (const exam of exams) {
-          const stats = remote[exam.id] ?? {};
-          const keys = Object.keys(stats).filter((k) => stats[k] === 0 || stats[k] === 1);
-          const correct = keys.filter((k) => stats[k] === 1).length;
-          const wrongCount = keys.filter((k) => stats[k] === 0).length;
+          const s = remote[exam.id] ?? { answered: 0, correct: 0 };
+          const wrongCount = s.answered - s.correct;
           map[exam.id] = {
-            pct: keys.length > 0 ? Math.round((correct / exam.questionCount) * 100) : null,
-            answered: keys.length,
+            pct: s.answered > 0 ? Math.round((s.correct / exam.questionCount) * 100) : null,
+            answered: s.answered,
             total: exam.questionCount,
             wrongCount,
           };

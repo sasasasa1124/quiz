@@ -6,6 +6,7 @@ import { getDB, getSetting } from "@/lib/db";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { DEFAULT_FILL_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
+import { requireAdmin } from "@/lib/auth";
 
 interface FillResult {
   id: string;
@@ -28,6 +29,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requireAdmin();
+  if (authError) return authError;
+
   const { id: examId } = await params;
   let userPrompt: string | undefined;
   let forceRefill = false;
@@ -81,15 +85,16 @@ export async function POST(
       };
 
       if (total === 0) {
-        send({ done: 0, total: 0, filled: 0, skipped });
+        send({ done: 0, total: 0, filled: 0, skipped, failed: 0 });
         controller.close();
         return;
       }
 
-      send({ done: 0, total, skipped });
+      send({ done: 0, total, skipped, failed: 0 });
 
       let done = 0;
       let filled = 0;
+      let failed = 0;
 
       try {
         for (const q of candidates) {
@@ -168,13 +173,13 @@ export async function POST(
                 await db.prepare("UPDATE questions SET filled_at = datetime('now') WHERE id = ?").bind(q.id).run();
               }
             }
-          } catch { /* skip individual failures, move to next */ }
+          } catch { failed++; }
 
           done++;
-          send({ done, total });
+          send({ done, total, failed });
         }
 
-        send({ done: total, total, filled, skipped });
+        send({ done: total, total, filled, skipped, failed });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         send({ error: msg });

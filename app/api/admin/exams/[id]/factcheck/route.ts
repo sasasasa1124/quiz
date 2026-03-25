@@ -6,6 +6,7 @@ import { getDB, getSetting } from "@/lib/db";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { DEFAULT_FACTCHECK_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
+import { requireAdmin } from "@/lib/auth";
 
 interface FactCheckResult {
   isCorrect: boolean;
@@ -28,6 +29,9 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const authError = await requireAdmin();
+  if (authError) return authError;
+
   const { id: examId } = await params;
   let userPrompt: string | undefined;
   let forceRecheck = false;
@@ -90,15 +94,16 @@ export async function POST(
       };
 
       if (total === 0) {
-        send({ done: 0, total: 0, fixed: 0, skipped: skippedCount });
+        send({ done: 0, total: 0, fixed: 0, skipped: skippedCount, failed: 0 });
         controller.close();
         return;
       }
 
-      send({ done: 0, total, skipped: skippedCount });
+      send({ done: 0, total, skipped: skippedCount, failed: 0 });
 
       let done = 0;
       let fixed = 0;
+      let failed = 0;
 
       try {
         for (const q of candidates) {
@@ -146,13 +151,13 @@ export async function POST(
                 .bind(q.id)
                 .run();
             }
-          } catch { /* skip individual failures */ }
+          } catch { failed++; }
 
           done++;
-          send({ done, total });
+          send({ done, total, failed });
         }
 
-        send({ done: total, total, fixed, skipped: skippedCount });
+        send({ done: total, total, fixed, skipped: skippedCount, failed });
       } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
         send({ error: msg });

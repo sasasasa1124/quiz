@@ -671,22 +671,25 @@ export async function getDueCount(userEmail: string, examId: string): Promise<nu
 
 // ── All scores (cross-exam) ─────────────────────────────────────────────────
 
-export async function getAllScores(userEmail: string): Promise<Record<string, QuizStats>> {
+export async function getAllScores(userEmail: string): Promise<Record<string, { answered: number; correct: number }>> {
   const db = getDrizzle();
   if (!db) return {};
 
-  const rows = await db.select({ questionId: scores.questionId, lastCorrect: scores.lastCorrect })
-    .from(scores)
-    .where(eq(scores.userEmail, userEmail));
+  // Aggregate per-exam using the examId prefix (format: "examId__questionNum")
+  const rows = await db.all<{ exam_id: string; answered: number; correct: number }>(sql`
+    SELECT
+      substr(question_id, 1, instr(question_id, '__') - 1) AS exam_id,
+      COUNT(*) AS answered,
+      SUM(CASE WHEN last_correct = 1 THEN 1 ELSE 0 END) AS correct
+    FROM scores
+    WHERE user_email = ${userEmail}
+      AND instr(question_id, '__') > 0
+    GROUP BY exam_id
+  `);
 
-  const statsMap: Record<string, QuizStats> = {};
+  const statsMap: Record<string, { answered: number; correct: number }> = {};
   for (const row of rows) {
-    const sep = row.questionId.indexOf("__");
-    if (sep < 0) continue;
-    const examId = row.questionId.slice(0, sep);
-    const num = row.questionId.slice(sep + 2);
-    if (!statsMap[examId]) statsMap[examId] = {};
-    statsMap[examId][num] = row.lastCorrect as 0 | 1;
+    statsMap[row.exam_id] = { answered: row.answered, correct: row.correct };
   }
   return statsMap;
 }
@@ -712,7 +715,7 @@ export async function getAllUserSettings(userEmail: string): Promise<UserSetting
     } else if (row.key === "audioMode" || row.key === "skipRevealOnCorrect") {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (raw as any)[row.key] = row.value === "true" || row.value === "1";
-    } else if (row.key === "aiPromptVersions" || row.key === "aiRefinePromptVersions" || row.key === "studyGuidePromptVersions" || row.key === "aiFillPromptVersions") {
+    } else if (row.key === "aiPromptVersions" || row.key === "aiRefinePromptVersions" || row.key === "studyGuidePromptVersions" || row.key === "aiFillPromptVersions" || row.key === "aiFactCheckPromptVersions") {
       try {
         const parsed = JSON.parse(row.value);
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -742,11 +745,14 @@ export async function setUserSettings(userEmail: string, settings: Partial<UserS
   const db = getDrizzle();
   if (!db) return;
 
-  for (const [key, value] of Object.entries(settings)) {
+  const entries = Object.entries(settings);
+  if (!entries.length) return;
+
+  const stmts = entries.map(([key, value]) => {
     const serialized = (Array.isArray(value) || (typeof value === "object" && value !== null))
       ? JSON.stringify(value)
       : String(value);
-    await db.insert(userSettings)
+    return db.insert(userSettings)
       .values({
         userEmail, key, value: serialized,
         updatedAt: sql`datetime('now')` as unknown as string,
@@ -755,7 +761,11 @@ export async function setUserSettings(userEmail: string, settings: Partial<UserS
         target: [userSettings.userEmail, userSettings.key],
         set: { value: serialized, updatedAt: sql`datetime('now')` },
       });
-  }
+  });
+
+  // Execute all upserts atomically in a single D1 batch (avoids N round-trips)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (db as any).batch(stmts);
 }
 
 // ── User snapshots ──────────────────────────────────────────────────────────

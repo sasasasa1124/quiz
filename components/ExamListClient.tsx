@@ -108,17 +108,15 @@ export default function ExamListClient({ exams: initialExams }: Props) {
 
   useEffect(() => {
     fetch("/api/scores")
-      .then((r) => r.json() as Promise<{ statsMap: Record<string, Record<string, 0 | 1>> }>)
+      .then((r) => r.json() as Promise<{ statsMap: Record<string, { answered: number; correct: number }> }>)
       .then(({ statsMap: remote }) => {
         const map: typeof statsMap = {};
         for (const exam of exams) {
-          const stats = remote[exam.id] ?? {};
-          const keys = Object.keys(stats).filter((k) => stats[k] === 0 || stats[k] === 1);
-          const correct = keys.filter((k) => stats[k] === 1).length;
-          const wrongCount = keys.filter((k) => stats[k] === 0).length;
+          const s = remote[exam.id] ?? { answered: 0, correct: 0 };
+          const wrongCount = s.answered - s.correct;
           map[exam.id] = {
-            pct: keys.length > 0 ? Math.round((correct / exam.questionCount) * 100) : null,
-            answered: keys.length,
+            pct: s.answered > 0 ? Math.round((s.correct / exam.questionCount) * 100) : null,
+            answered: s.answered,
             total: exam.questionCount,
             wrongCount,
           };
