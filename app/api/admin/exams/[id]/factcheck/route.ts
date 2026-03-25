@@ -49,10 +49,23 @@ export async function POST(
     return new Response(JSON.stringify({ error: "DB not available" }), { status: 503 });
   }
 
-  const { results: allRows } = await db
-    .prepare("SELECT id, question_text, options, answers, fact_checked_at FROM questions WHERE exam_id = ? ORDER BY num ASC")
-    .bind(examId)
-    .all<QuestionRow>();
+  let allRows: QuestionRow[] | undefined;
+  let hasFactCheckedAtCol = true;
+  try {
+    const res = await db
+      .prepare("SELECT id, question_text, options, answers, fact_checked_at FROM questions WHERE exam_id = ? ORDER BY num ASC")
+      .bind(examId)
+      .all<QuestionRow>();
+    allRows = res.results;
+  } catch {
+    // fact_checked_at column doesn't exist yet — fall back without it
+    hasFactCheckedAtCol = false;
+    const res = await db
+      .prepare("SELECT id, question_text, options, answers FROM questions WHERE exam_id = ? ORDER BY num ASC")
+      .bind(examId)
+      .all<Omit<QuestionRow, "fact_checked_at">>();
+    allRows = (res.results ?? []).map((r) => ({ ...r, fact_checked_at: null }));
+  }
 
   const allQuestions = allRows ?? [];
   // Skip already fact-checked unless force recheck
@@ -114,9 +127,10 @@ export async function POST(
             const result = JSON.parse(raw) as FactCheckResult;
 
             if (!result.isCorrect && result.correctAnswers && result.correctAnswers.length > 0) {
+              const factCheckedClause = hasFactCheckedAtCol ? ", fact_checked_at = datetime('now')" : "";
               await db
                 .prepare(
-                  "UPDATE questions SET answers = ?, explanation = CASE WHEN ? != '' THEN ? ELSE explanation END, fact_checked_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ?"
+                  `UPDATE questions SET answers = ?, explanation = CASE WHEN ? != '' THEN ? ELSE explanation END${factCheckedClause}, version = version + 1, updated_at = datetime('now') WHERE id = ?`
                 )
                 .bind(
                   JSON.stringify(result.correctAnswers),
@@ -126,7 +140,7 @@ export async function POST(
                 )
                 .run();
               fixed++;
-            } else {
+            } else if (hasFactCheckedAtCol) {
               await db
                 .prepare("UPDATE questions SET fact_checked_at = datetime('now') WHERE id = ?")
                 .bind(q.id)

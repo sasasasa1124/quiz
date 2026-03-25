@@ -49,10 +49,23 @@ export async function POST(
     return new Response(JSON.stringify({ error: "DB not available" }), { status: 503 });
   }
 
-  const { results: allRows } = await db
-    .prepare("SELECT id, question_text, options, answers, explanation, category, filled_at FROM questions WHERE exam_id = ? ORDER BY num ASC")
-    .bind(examId)
-    .all<QuestionRow>();
+  let allRows: QuestionRow[] | undefined;
+  let hasFilledAtCol = true;
+  try {
+    const res = await db
+      .prepare("SELECT id, question_text, options, answers, explanation, category, filled_at FROM questions WHERE exam_id = ? ORDER BY num ASC")
+      .bind(examId)
+      .all<QuestionRow>();
+    allRows = res.results;
+  } catch {
+    // filled_at column doesn't exist yet — fall back without it
+    hasFilledAtCol = false;
+    const res = await db
+      .prepare("SELECT id, question_text, options, answers, explanation, category FROM questions WHERE exam_id = ? ORDER BY num ASC")
+      .bind(examId)
+      .all<Omit<QuestionRow, "filled_at">>();
+    allRows = (res.results ?? []).map((r) => ({ ...r, filled_at: null }));
+  }
 
   const allQuestions = allRows ?? [];
 
@@ -103,7 +116,9 @@ export async function POST(
 
             if (missing.length === 0 && !forceRefill) {
               // Nothing missing — just stamp filled_at and move on
-              await db.prepare("UPDATE questions SET filled_at = datetime('now') WHERE id = ?").bind(q.id).run();
+              if (hasFilledAtCol) {
+                await db.prepare("UPDATE questions SET filled_at = datetime('now') WHERE id = ?").bind(q.id).run();
+              }
               done++;
               send({ done, total });
               continue;
@@ -155,7 +170,7 @@ export async function POST(
               }
 
               if (setClauses.length > 0) {
-                setClauses.push("filled_at = datetime('now')");
+                if (hasFilledAtCol) setClauses.push("filled_at = datetime('now')");
                 setClauses.push("updated_at = datetime('now')");
                 binds.push(q.id);
                 await db
@@ -165,7 +180,9 @@ export async function POST(
                 filled++;
               } else {
                 // No fields changed but processed — stamp filled_at
-                await db.prepare("UPDATE questions SET filled_at = datetime('now') WHERE id = ?").bind(q.id).run();
+                if (hasFilledAtCol) {
+                  await db.prepare("UPDATE questions SET filled_at = datetime('now') WHERE id = ?").bind(q.id).run();
+                }
               }
             }
           } catch { /* skip individual failures, move to next */ }

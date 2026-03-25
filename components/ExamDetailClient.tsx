@@ -768,7 +768,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                   ? <><Sparkles size={14} /> Fill failed</>
                   : <><Sparkles size={14} /> AI Fill</>}
               </button>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <div className="flex flex-col gap-1">
                 <label className="flex items-center gap-2 cursor-pointer select-none">
                   <input
                     type="checkbox"

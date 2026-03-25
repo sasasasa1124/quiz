@@ -105,6 +105,26 @@ export default function MockExamClient({ questions, examId, examName, timeLimitM
   const goNext = useCallback(() => setCurrentIndex((i) => Math.min(questions.length - 1, i + 1)), [questions.length]);
   const goPrev = useCallback(() => setCurrentIndex((i) => Math.max(0, i - 1)), []);
 
+  useEffect(() => {
+    if (submitted) return;
+    const handler = (e: KeyboardEvent) => {
+      const q = questions[currentIndex];
+      if (!q) return;
+      const labels = q.choices.map((c) => c.label);
+      const letter = e.key.toUpperCase();
+      if (labels.includes(letter)) { handleToggle(letter); return; }
+      if (e.key === "Enter") {
+        if (currentIndex === questions.length - 1) handleSubmit();
+        else goNext();
+        return;
+      }
+      if (e.key === "ArrowRight") goNext();
+      else if (e.key === "ArrowLeft") goPrev();
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [questions, currentIndex, submitted, handleToggle, handleSubmit, goNext, goPrev]);
+
   const onTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartX.current = e.touches[0].clientX;
     touchStartY.current = e.touches[0].clientY;

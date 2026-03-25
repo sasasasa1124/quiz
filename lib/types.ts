@@ -136,7 +136,7 @@ B: <correct/incorrect — reason>
 (continue for all choices)
 
 [Sources]
-List 1–3 official URLs that directly support the correct answer (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com, etc.). Do not include unofficial sources.
+List fetched URLs that directly support the correct answer.
 
 - answers: array of correct choice labels e.g. ["A"] or ["A","C"]
 - reasoning: step-by-step elimination — how a test-taker should narrow down to the correct answer using the key concepts and choice comparisons

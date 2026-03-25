@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import { ChevronDown, ChevronUp, X, Search } from "lucide-react";
 import type { Question } from "@/lib/types";
+import { RichText } from "./RichText";
 
 type QuestionWithInvalidated = Question & { invalidated: boolean };
 
@@ -215,7 +216,7 @@ export default function ExamQuestionTable({ examId, userEmail }: Props) {
               </div>
             </div>
             <div className="px-6 py-4 space-y-4">
-              <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{modal.question.replace(/<[^>]+>/g, "")}</p>
+              <RichText text={modal.question} block className="text-sm text-gray-800 leading-relaxed" />
               <div className="space-y-2">
                 {modal.choices.map((c) => {
                   const isCorrect = modal.answers.includes(c.label);
@@ -233,14 +234,14 @@ export default function ExamQuestionTable({ examId, userEmail }: Props) {
                       }`}>
                         {c.label}
                       </span>
-                      <span className="leading-snug">{c.text}</span>
+                      <RichText text={c.text} className="leading-snug" />
                     </div>
                   );
                 })}
               </div>
               {modal.explanation && (
-                <div className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3 leading-relaxed whitespace-pre-wrap">
-                  {modal.explanation}
+                <div className="text-xs text-gray-500 bg-gray-50 rounded-xl px-4 py-3 leading-relaxed">
+                  <RichText text={modal.explanation} block />
                 </div>
               )}
               {modal.category && (

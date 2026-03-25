@@ -11,6 +11,7 @@ import AiFactCheckPopup from "./AiFactCheckPopup";
 import QuizHeader from "./QuizHeader";
 import { useSettings } from "@/lib/settings-context";
 import { useAudio } from "@/hooks/useAudio";
+import { useSetHeader } from "@/lib/header-context";
 import { buildAnswerText } from "@/lib/ttsText";
 import type { AiExplainResponse } from "@/app/api/ai/explain/route";
 import type { AiRefineResponse } from "@/app/api/ai/refine/route";
@@ -45,6 +46,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
   const [stats, setStats] = useState<QuizStats>({});
   const [filter, setFilter] = useState<"all" | "wrong">("all");
 
+  useSetHeader({ hidden: true }, []);
   const { settings, t } = useSettings();
   const { speak, stop, prefetch, playing: audioPlaying, loading: audioLoading } = useAudio();
 
@@ -476,9 +478,10 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
                 </button>
               </div>
             </div>
-            <div
-              className="text-sm lg:text-base leading-relaxed text-gray-900 font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
-              dangerouslySetInnerHTML={{ __html: q.question }}
+            <RichText
+              text={q.question}
+              block
+              className="text-sm lg:text-base leading-relaxed text-gray-900 font-medium [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
             />
           </div>
 
@@ -500,11 +503,9 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
                   }`}>
                     {c.label}
                   </span>
-                  <span className={`text-sm lg:text-base leading-snug pt-0.5 whitespace-pre-wrap ${
+                  <RichText text={c.text} className={`text-sm lg:text-base leading-snug pt-0.5 ${
                     isAnswer ? "text-emerald-900 font-medium" : "text-gray-500"
-                  }`}>
-                    {c.text}
-                  </span>
+                  }`} />
                 </div>
               );
             })}
