@@ -131,5 +131,5 @@ export function useAudio() {
     [settings.audioMode, fetchAudio],
   );
 
-  return { speak, stop, prefetch, playing, loading };
+  return { speak, stop, prefetch, fetchAudio, playing, loading };
 }

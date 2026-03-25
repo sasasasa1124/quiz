@@ -7,9 +7,11 @@ import {
   ChevronRight, AlertCircle, TrendingUp, Tag, Timer, History,
   Pencil, Check, X, Lightbulb, Languages, Sparkles, Loader2,
 } from "lucide-react";
-import type { CategoryStat, ExamMeta } from "@/lib/types";
+import type { CategoryStat, ExamMeta, Question } from "@/lib/types";
 import { useSetHeader } from "@/lib/header-context";
 import { useSettings } from "@/lib/settings-context";
+import { useAudio } from "@/hooks/useAudio";
+import { buildAnswerText } from "@/lib/ttsText";
 import ExamQuestionTable from "./ExamQuestionTable";
 
 interface Props {
@@ -32,6 +34,7 @@ function pctTextColor(pct: number) {
 
 export default function ExamDetailClient({ exam, categoryStats: initialStats, userEmail }: Props) {
   const { settings, t } = useSettings();
+  const { fetchAudio } = useAudio();
   const [stats, setStats] = useState<CategoryStat[]>(initialStats);
   const [statsLoading, setStatsLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<"quiz" | "review">("quiz");
@@ -75,11 +78,14 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   const [fillStatus, setFillStatus] = useState<"idle" | "filling" | "done" | "error">("idle");
   const [fillProgress, setFillProgress] = useState<{ done: number; total: number } | null>(null);
   const [fillResult, setFillResult] = useState<{ filled: number; skipped: number } | null>(null);
+  const [generateTts, setGenerateTts] = useState(false);
+  const [ttsProgress, setTtsProgress] = useState<{ done: number; total: number } | null>(null);
 
   const startFill = useCallback(async () => {
     setFillStatus("filling");
     setFillProgress(null);
     setFillResult(null);
+    setTtsProgress(null);
     try {
       const res = await fetch(`/api/admin/exams/${encodeURIComponent(exam.id)}/fill`, {
         method: "POST",
@@ -105,12 +111,31 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
         }
       }
       setFillStatus("done");
+
+      // Optionally pre-generate TTS for all questions
+      if (generateTts) {
+        try {
+          const qRes = await fetch(`/api/admin/questions?examId=${encodeURIComponent(exam.id)}`);
+          if (qRes.ok) {
+            const questions = await qRes.json() as Question[];
+            const chunks = questions.flatMap((q) => buildAnswerText(q, settings.language));
+            setTtsProgress({ done: 0, total: chunks.length });
+            for (let i = 0; i < chunks.length; i++) {
+              await fetchAudio(chunks[i]);
+              setTtsProgress({ done: i + 1, total: chunks.length });
+            }
+          }
+        } finally {
+          setTtsProgress(null);
+        }
+      }
+
       setTimeout(() => { setFillStatus("idle"); setFillResult(null); }, 4000);
     } catch {
       setFillStatus("error");
       setTimeout(() => setFillStatus("idle"), 3000);
     }
-  }, [exam.id, settings.aiFillPrompt]);
+  }, [exam.id, settings.aiFillPrompt, generateTts, fetchAudio, settings.language]);
 
   useEffect(() => {
     if (editingMeta) nameInputRef.current?.focus();
@@ -634,7 +659,7 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
             </div>
 
             {/* AI Fill */}
-            <div className="border-t border-gray-100 pt-3">
+            <div className="border-t border-gray-100 pt-3 flex flex-col gap-2">
               <button
                 onClick={fillStatus === "idle" ? startFill : undefined}
                 disabled={fillStatus === "filling"}
@@ -659,6 +684,30 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
                   ? <><Sparkles size={14} /> Fill failed</>
                   : <><Sparkles size={14} /> AI Fill</>}
               </button>
+              <label className="flex items-center gap-2 cursor-pointer select-none self-start">
+                <input
+                  type="checkbox"
+                  checked={generateTts}
+                  onChange={(e) => setGenerateTts(e.target.checked)}
+                  disabled={fillStatus === "filling"}
+                  className="w-3.5 h-3.5 rounded accent-gray-700"
+                />
+                <span className="text-xs text-gray-400">TTS も生成する</span>
+              </label>
+              {ttsProgress && (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <span>TTS 生成中…</span>
+                    <span>{ttsProgress.done}/{ttsProgress.total}</span>
+                  </div>
+                  <div className="h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-sky-400 rounded-full transition-all"
+                      style={{ width: `${Math.round((ttsProgress.done / ttsProgress.total) * 100)}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Translation panel */}
