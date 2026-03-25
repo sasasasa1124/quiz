@@ -2,12 +2,10 @@ name: Claude Issue Agent
 
 on:
   issues:
-    types: [labeled]
+    types: [opened]
 
 jobs:
   claude-agent:
-    # Only run when the 'agent' label is applied
-    if: github.event.label.name == 'agent'
     runs-on: ubuntu-latest
     permissions:
       contents: write
