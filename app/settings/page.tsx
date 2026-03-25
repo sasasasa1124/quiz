@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X } from "lucide-react";
+import { Check, Sparkles, Wand2, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X, Save } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useSettings } from "@/lib/settings-context";
 import { useSetHeader } from "@/lib/header-context";
@@ -78,12 +78,14 @@ function PromptSection({
   const [open, setOpen] = useState(false);
   const [saveName, setSaveName] = useState("");
   const [showSaveInput, setShowSaveInput] = useState(false);
+  const [activeVersionName, setActiveVersionName] = useState<string | null>(null);
 
   function handleSelectVersion(v: PromptVersion | null) {
     if (!v) return;
     setPrompt(v.prompt);
     setAuthor(v.author);
     setShowSaveInput(false);
+    setActiveVersionName(v.name !== "default" ? v.name : null);
   }
 
   function handleSaveVersion() {
@@ -100,10 +102,18 @@ function PromptSection({
     }
     setSaveName("");
     setShowSaveInput(false);
+    setActiveVersionName(name);
+  }
+
+  function handleUpdateVersion() {
+    if (!activeVersionName) return;
+    const newVersion: PromptVersion = { name: activeVersionName, author, prompt };
+    setVersions(versions.map((v) => v.name === activeVersionName ? newVersion : v));
   }
 
   function handleDeleteVersion(name: string) {
     setVersions(versions.filter((v) => v.name !== name));
+    if (activeVersionName === name) setActiveVersionName(null);
   }
 
   return (
@@ -136,6 +146,7 @@ function PromptSection({
                 setPrompt(config.defaultPrompt);
                 setAuthor("");
                 setShowSaveInput(false);
+                setActiveVersionName(null);
               }}
               title="Reset to default"
               className="shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -189,14 +200,26 @@ function PromptSection({
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => setShowSaveInput(true)}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
-            >
-              <Plus size={11} />
-              Save as named version
-            </button>
+            <div className="flex items-center gap-3">
+              {activeVersionName && (
+                <button
+                  type="button"
+                  onClick={handleUpdateVersion}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-800 transition-colors"
+                >
+                  <Save size={11} />
+                  Update &ldquo;{activeVersionName}&rdquo;
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowSaveInput(true)}
+                className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <Plus size={11} />
+                Save as named version
+              </button>
+            </div>
           )}
 
           {/* Saved versions list */}

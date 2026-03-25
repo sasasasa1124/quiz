@@ -222,7 +222,15 @@ export interface RichScoreEntry {
 export type RichQuizStats = { [questionId: string]: RichScoreEntry };
 
 export const DEFAULT_STUDY_GUIDE_PROMPT = `You are an expert on the "{examName}" certification exam.
-Analyze the exam questions below (grouped by category) and use Google Search to find the latest official exam guide information. Then produce a comprehensive Study Guide in Markdown format.
+Analyze the exam questions provided below (grouped by category) and use Google Search to find the latest relevant official documentation. Then, produce a comprehensive Study Guide in Markdown format. For each category, your guide must cover:
+
+1. **Key topics and frequently tested areas** — what this category covers and which topics appear most often in exam questions.
+
+2. **Essential knowledge structure** — the core concepts required to uniquely determine the correct answer for any question in this category. Do NOT format this as Q&A pairs. Instead, present it as structured knowledge: if the user masters these concepts, they can answer ALL questions in this category. Aim for depth and precision — identify the exact distinctions, rules, and conditions that drive correct answers.
+
+3. **Tricky points and common pitfalls** — specific misconceptions, edge cases, or nuances frequently tested in exam questions that tend to lead test-takers to wrong answers.
+
+4. **Personalized study advice** (when user performance data is provided) — based on the user's accuracy and wrong answer patterns in this category, identify priority areas and provide targeted study recommendations.
 
 ## Required output structure
 
@@ -232,13 +240,11 @@ Analyze the exam questions below (grouped by category) and use Google Search to 
 - Exam overview: number of questions, time limit, passing score, domain weights (use Google Search for the official exam guide)
 - Key topics and recommended study priorities
 
-## Per-Category Questions & Answers
-For each category, write:
+## Per-Category Study Guide
+For each category, write a detailed section covering all 4 elements above.
 ### {Category Name} ({N} questions)
-- Brief summary of what this category tests
-- 2–3 representative Q&As drawn from the question data below (show the question, all answer choices, and highlight the correct answer(s))
-{userStats}
----
+
+{userStats}---
 
 ## Question Data
 {questions}
