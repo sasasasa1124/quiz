@@ -147,7 +147,7 @@ export default function QuizHeader({
         {onHome && (
           <button
             onClick={onHome}
-            className="p-1 text-gray-300 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
+            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors shrink-0"
             title="Home"
           >
             <Home size={13} />
@@ -159,7 +159,7 @@ export default function QuizHeader({
           <span className="truncate">{examName}</span>
           {activeCategory && (
             <>
-              <span className="text-gray-200 shrink-0">·</span>
+              <span className="text-gray-300 shrink-0">·</span>
               <span className="truncate text-scholion-500 font-medium">{activeCategory}</span>
             </>
           )}
@@ -186,8 +186,8 @@ export default function QuizHeader({
 
         {/* Filter buttons */}
         {showFilters && (
-          <div className="flex items-center gap-1">
-            <div className="flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
+          <div className="flex items-center">
+            <div ref={filterPanelRef} className="relative flex items-center bg-gray-100 rounded-lg p-0.5 gap-0.5">
               <button
                 onClick={() => onFilterChange("all")}
                 className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "all" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
@@ -209,7 +209,7 @@ export default function QuizHeader({
               <button
                 onClick={() => onFilterChange("wrong")}
                 disabled={wrongCount === 0}
-                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors disabled:opacity-30 disabled:cursor-not-allowed ${filter === "wrong" ? "bg-white text-rose-600 shadow-sm" : "text-rose-400 opacity-60 hover:opacity-100 hover:text-rose-500"}`}
               >
                 <AlertCircle size={11} />
                 <span className="hidden sm:inline">{t("wrong")}</span>
@@ -225,49 +225,53 @@ export default function QuizHeader({
                   <span className="hidden sm:inline">{t("uniq")}</span>
                 </button>
               )}
-            </div>
-
-            {/* Custom filter button */}
-            {onFilterConfigChange && (
-              <div ref={filterPanelRef} className="relative">
-                <button
-                  onClick={() => {
-                    onFilterChange("custom");
-                    setFilterPanelOpen((o) => !o);
-                  }}
-                  className={`flex items-center gap-1 text-xs font-medium px-2 py-1 rounded-md transition-colors ${filter === "custom" ? "bg-white text-scholion-500 shadow-sm border border-gray-200" : "text-gray-500 hover:text-gray-700"}`}
-                  title="Custom filter"
-                >
-                  <SlidersHorizontal size={11} />
-                  <span className="hidden sm:inline">{t("filter")}</span>
-                  {filter === "custom" && customFilterCount !== undefined && (
-                    <span className="ml-0.5">{customFilterCount}</span>
-                  )}
-                </button>
-                {filterPanelOpen && filterConfig && (
-                  <FilterPanel
-                    filterConfig={filterConfig}
-                    onApply={(cfg) => {
-                      onFilterConfigChange(cfg);
-                      setFilterPanelOpen(false);
+              {/* Custom filter button — inside the pill group */}
+              {onFilterConfigChange && (
+                <>
+                  <button
+                    onClick={() => {
+                      onFilterChange("custom");
+                      setFilterPanelOpen((o) => !o);
                     }}
-                    questions={allQuestions}
-                    richStats={richStats}
-                  />
-                )}
-              </div>
-            )}
+                    className={`flex items-center gap-1 text-xs font-medium px-2 sm:px-2.5 py-1 rounded-md transition-colors ${filter === "custom" ? "bg-white text-scholion-500 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}
+                    title="Custom filter"
+                  >
+                    <SlidersHorizontal size={11} />
+                    <span className="hidden sm:inline">{t("filter")}</span>
+                    {filter === "custom" && customFilterCount !== undefined && (
+                      <span className="ml-0.5">{customFilterCount}</span>
+                    )}
+                  </button>
+                  {filterPanelOpen && filterConfig && (
+                    <FilterPanel
+                      filterConfig={filterConfig}
+                      onApply={(cfg) => {
+                        onFilterConfigChange(cfg);
+                        setFilterPanelOpen(false);
+                      }}
+                      questions={allQuestions}
+                      richStats={richStats}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
 
         {/* Custom right slot (e.g. timer for Mock) */}
         {rightExtra}
 
+        {/* Separator: content group / tool group */}
+        {(showFilters || showStats || (streak !== undefined && streak >= 2)) && (
+          <div className="w-px h-4 bg-gray-200 shrink-0" />
+        )}
+
         {/* Language selector */}
         <div ref={langRef} className="relative">
           <button
             onClick={() => setLangOpen((o) => !o)}
-            className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
             title="Language"
           >
             <Globe size={13} />
@@ -291,7 +295,7 @@ export default function QuizHeader({
         {settings.audioMode && onReplay && (
           <button
             onClick={onReplay}
-            className="p-1.5 rounded-lg transition-colors text-gray-300 hover:text-sky-500 hover:bg-gray-100"
+            className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-sky-500 hover:bg-gray-100"
             title="Replay audio"
           >
             {audioPlaying
@@ -303,7 +307,7 @@ export default function QuizHeader({
         {/* Audio toggle */}
         <button
           onClick={() => updateSettings({ audioMode: !settings.audioMode })}
-          className="p-1.5 rounded-lg transition-colors text-gray-300 hover:text-gray-600 hover:bg-gray-100"
+          className="p-1.5 rounded-lg transition-colors text-gray-400 hover:text-gray-600 hover:bg-gray-100"
           title={settings.audioMode ? "Audio on (click to turn off)" : "Audio off (click to turn on)"}
         >
           {settings.audioMode && audioLoading
@@ -316,7 +320,7 @@ export default function QuizHeader({
         {/* Settings */}
         <Link
           href={settingsHref ?? "/settings"}
-          className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
           title="Settings"
         >
           <Settings size={13} />

@@ -13,6 +13,7 @@ import type { AiRefineResponse } from "@/app/api/ai/refine/route";
 import type { AiFactCheckResponse } from "@/app/api/ai/factcheck/route";
 import QuizQuestion from "./QuizQuestion";
 import ReviewReveal from "./ReviewReveal";
+import { RichText } from "./RichText";
 import QuestionEditModal from "./QuestionEditModal";
 import AiExplainPopup from "./AiExplainPopup";
 import AiRefinePopup from "./AiRefinePopup";
@@ -916,9 +917,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                             </button>
                           </div>
                           <div className="bg-gray-50 rounded-xl px-5 py-4 lg:px-6 lg:py-5 mb-4 max-h-[40vh] overflow-y-auto border-l-4 border-scholion-300">
-                            <div
-                              className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium whitespace-pre-wrap [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
-                              dangerouslySetInnerHTML={{ __html: q.question }}
+                            <RichText
+                              text={q.question}
+                              block
+                              className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
                             />
                             {q.source && (
                               <a href={q.source} target="_blank" rel="noopener noreferrer" className="text-[10px] text-gray-300 hover:text-blue-400 mt-2 truncate block" title={q.source}>
@@ -931,7 +933,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               <div key={c.label} className="border rounded-xl px-4 py-3 lg:px-5 lg:py-4 border-gray-100 bg-gray-50">
                                 <div className="flex items-start gap-3">
                                   <span className="shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg border border-gray-200 bg-white text-xs lg:text-sm font-bold flex items-center justify-center text-gray-400">{c.label}</span>
-                                  <span className="text-sm lg:text-base leading-relaxed pt-0.5 whitespace-pre-wrap text-gray-600">{c.text}</span>
+                                  <RichText text={c.text} className="text-sm lg:text-base leading-relaxed pt-0.5 text-gray-600" />
                                 </div>
                               </div>
                             ))}
