@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import type { Choice } from "@/lib/types";
 import { getSetting } from "@/lib/db";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 
 export type AiChatRequest = {
   context: {
@@ -25,7 +24,7 @@ export async function POST(req: NextRequest) {
   const { context, history, message } = body;
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const apiKey = (getRequestContext() as any).env?.GEMINI_API_KEY as string | undefined;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
   }

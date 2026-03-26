@@ -22,7 +22,6 @@ function selectRandomQuestions<T>(arr: T[], n: number): T[] {
   return shuffled.slice(0, Math.min(n, arr.length));
 }
 
-export const runtime = 'edge';
 
 interface Props {
   params: Promise<{ exam: string }>;

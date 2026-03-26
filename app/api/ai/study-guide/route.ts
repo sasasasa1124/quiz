@@ -2,7 +2,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getStudyGuide, upsertStudyGuide, getSetting } from "@/lib/db";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import { DEFAULT_STUDY_GUIDE_PROMPT } from "@/lib/types";
 
 interface QuestionSummary {
@@ -53,10 +52,7 @@ export async function POST(req: NextRequest) {
     userPrompt?: string;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const apiKey = (getRequestContext() as any).env?.GEMINI_API_KEY as
-    | string
-    | undefined;
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY not configured" },

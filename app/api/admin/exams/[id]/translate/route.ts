@@ -2,7 +2,6 @@
 import { NextRequest } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getDB, getQuestions, getSetting } from "@/lib/db";
-import { getRequestContext } from "@cloudflare/next-on-pages";
 import { requireAdmin } from "@/lib/auth";
 import type { Choice } from "@/lib/types";
 
@@ -43,8 +42,8 @@ export async function POST(
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const ctx = getRequestContext() as any;
-  const apiKey = ctx.env?.GEMINI_API_KEY as string | undefined;
+  
+  const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500 });
   }

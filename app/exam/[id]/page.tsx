@@ -3,7 +3,6 @@ import { getUserEmail } from "@/lib/user";
 import { notFound } from "next/navigation";
 import ExamDetailClient from "@/components/ExamDetailClient";
 
-export const runtime = 'edge';
 
 interface Props {
   params: Promise<{ id: string }>;
