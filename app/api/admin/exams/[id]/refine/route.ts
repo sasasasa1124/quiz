@@ -51,7 +51,11 @@ export async function POST(
     async start(controller) {
       const enc = new TextEncoder();
       const send = (data: object) => {
-        controller.enqueue(enc.encode(`data: ${JSON.stringify(data)}\n\n`));
+        try {
+          controller.enqueue(enc.encode(`data: ${JSON.stringify(data)}\n\n`));
+        } catch {
+          // ignore — client disconnected; DB writes must continue
+        }
       };
 
       if (total === 0) {
