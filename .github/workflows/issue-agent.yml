@@ -36,7 +36,7 @@ jobs:
             2. Create a new branch named `agent/issue-${{ github.event.issue.number || github.event.client_payload.issue_number }}`
             3. Implement the required changes (application code lives under quiz/)
             4. Commit your changes with a descriptive English/ASCII commit message
-            5. Open a pull request that references and closes issue #${{ github.event.issue.number || github.event.client_payload.issue_number }}
+            5. Open a pull request with a body that includes exactly "Closes #${{ github.event.issue.number || github.event.client_payload.issue_number }}" so GitHub auto-closes the issue on merge
 
             Project guidelines:
             - Follow CLAUDE.md in the repo root and quiz/CLAUDE.md

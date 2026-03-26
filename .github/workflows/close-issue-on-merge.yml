@@ -1,0 +1,29 @@
+name: Close Issue on PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  close-issue:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Extract issue number from branch name
+        id: extract
+        run: |
+          BRANCH="${{ github.event.pull_request.head.ref }}"
+          if [[ "$BRANCH" =~ ^agent/issue-([0-9]+)$ ]]; then
+            echo "issue_number=${BASH_REMATCH[1]}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Close linked issue
+        if: steps.extract.outputs.issue_number != ''
+        run: |
+          gh issue close ${{ steps.extract.outputs.issue_number }} \
+            --comment "Closed by merged PR #${{ github.event.pull_request.number }}" \
+            --repo ${{ github.repository }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

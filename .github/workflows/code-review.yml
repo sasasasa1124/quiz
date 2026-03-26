@@ -1,0 +1,49 @@
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  code-review:
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request != null &&
+       startsWith(github.event.comment.body, '@claude review'))
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          direct_prompt: |
+            Review this pull request as a code reviewer. Focus on:
+            - Logic errors and bugs that would break production
+            - Security vulnerabilities (XSS, SQL injection, etc.)
+            - Regressions or broken edge cases
+            - Violations of CLAUDE.md guidelines in this repo
+
+            Use `gh pr diff ${{ github.event.pull_request.number || github.event.issue.number }} --repo ${{ github.repository }}` to get the diff.
+
+            Post your findings as review comments using the GitHub API via gh CLI:
+              gh pr review <number> --repo ${{ github.repository }} --comment --body "<findings>"
+
+            Tag each finding with severity:
+            - [BUG] — should be fixed before merging
+            - [NIT] — minor issue, not blocking
+            - [INFO] — informational, no action required
+
+            If no issues are found, post a brief confirmation comment.
+            Keep comments concise and actionable.
