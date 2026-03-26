@@ -135,9 +135,6 @@ A: <correct/incorrect — reason>
 B: <correct/incorrect — reason>
 (continue for all choices)
 
-[Sources]
-List fetched URLs that directly support the correct answer.
-
 - answers: array of correct choice labels e.g. ["A"] or ["A","C"]
 - reasoning: step-by-step elimination — how a test-taker should narrow down to the correct answer using the key concepts and choice comparisons
 
@@ -169,10 +166,11 @@ Respond ONLY with a JSON object (no markdown, no code fences) with exactly these
 - question: the corrected question text with **bold** highlights (identical to input if no changes needed)
 - choices: array of corrected choices in the same order (identical to input if no changes needed)
 - changesSummary: a brief human-readable summary of what was changed, or empty string if nothing changed
-- highlights: up to 6 exact substrings from the (refined) question text to visually highlight for the user. Choose phrases that:
-  (a) capture the core question being asked — the final "which feature…", "what should…", "what is the…" clause that defines what the test-taker must determine, and
-  (b) are the key differentiating terms between choices — specific words, constraints, or qualifiers whose presence is what makes one choice correct and the others wrong (e.g. "without writing code", "before save", "in a single transaction").
-  Avoid generic nouns. Prioritize terms that would change the correct answer if they changed.`;
+- highlights: up to 6 exact substrings from the (possibly refined) question text that are critical for a test-taker to correctly identify the correct answer(s). The recorded correct answer(s) are {answers} — use these to anchor your highlights to what actually makes those specific choices correct. Prioritize:
+  (a) constraint words or qualifying conditions that rule out wrong answers (e.g. "without writing code", "before save", "in a single transaction")
+  (b) technical terms or feature names that the correct answer(s) uniquely depend on
+  (c) the core decision clause of the question (e.g. "which feature should be used", "what is the first step")
+  Avoid generic nouns. Choose only phrases where changing the phrase would change which answer is correct.`;
 
 export interface Suggestion {
   id: number;
@@ -279,7 +277,8 @@ Respond ONLY with a JSON object (no markdown, no code fences) with exactly these
   "confidence": "high",
   "issues": [],
   "explanation": "...",
-  "sources": ["https://..."]
+  "sources": ["https://..."],
+  "highlights": ["exact phrase 1", "exact phrase 2"]
 }
 
 Field definitions:
@@ -289,6 +288,7 @@ Field definitions:
 - issues: list of problems found (empty array if isCorrect is true)
 - explanation: brief explanation of why the answers are correct/incorrect (2–3 sentences)
 - sources: 1–3 official URLs that directly support your finding
+- highlights: up to 6 exact substrings from the question text that are critical for determining the correct answer — constraint words, feature names, qualifying conditions that directly inform which answer is correct based on your research
 
 IMPORTANT: Write the explanation in the same language as the question text. If the question is in Japanese, write in Japanese. If in English, write in English.`;
 

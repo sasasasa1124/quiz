@@ -2,7 +2,29 @@
 
 import { Loader2, ShieldCheck, ShieldAlert, X, CheckCheck } from "lucide-react";
 import type { AiFactCheckResponse } from "@/app/api/ai/factcheck/route";
+import type { Choice } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function HighlightedText({ text, phrases }: { text: string; phrases: string[] }) {
+  if (!phrases || phrases.length === 0) return <>{text}</>;
+  const escaped = phrases.map((p) => p.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const regex = new RegExp(`(${escaped.join("|")})`, "gi");
+  const parts = text.split(regex);
+  return (
+    <>
+      {parts.map((part, i) => {
+        const isMatch = phrases.some((p) => p.toLowerCase() === part.toLowerCase());
+        return isMatch
+          ? <strong key={i} className="font-semibold text-gray-950">{part}</strong>
+          : <span key={i}>{part}</span>;
+      })}
+    </>
+  );
+}
 
 interface Props {
   loading: boolean;
@@ -12,6 +34,8 @@ interface Props {
   currentAnswers: string[];
   onAdopt: (newAnswers: string[]) => Promise<void>;
   onDismiss: () => void;
+  question?: string;
+  choices?: Choice[];
 }
 
 const confidenceLabel: Record<string, string> = {
@@ -34,6 +58,8 @@ export default function AiFactCheckPopup({
   currentAnswers,
   onAdopt,
   onDismiss,
+  question = "",
+  choices = [],
 }: Props) {
   const { t } = useSettings();
 
@@ -92,6 +118,18 @@ export default function AiFactCheckPopup({
                 </span>
               )}
             </div>
+
+            {/* Key Phrases */}
+            {question && result.highlights && result.highlights.length > 0 && (
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-1.5">
+                  Key Phrases
+                </p>
+                <p className="text-xs text-gray-700 leading-relaxed">
+                  <HighlightedText text={stripHtml(question)} phrases={result.highlights} />
+                </p>
+              </div>
+            )}
 
             {/* AI suggested answers (if different) */}
             {answersChanged && (

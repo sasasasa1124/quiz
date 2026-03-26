@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import {
   ArrowLeft, AlertCircle,
-  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, ShieldCheck, Plus, Copy, Loader2,
+  CheckCircle2, XCircle, ChevronLeft, ChevronRight, Pencil, Sparkles, Wand2, ShieldCheck, Plus, Copy, Loader2, RotateCcw, Clock,
 } from "lucide-react";
-import type { Question, QuizStats, FilterConfig, RichQuizStats } from "@/lib/types";
+import type { Question, QuizStats, FilterConfig, RichQuizStats, QuestionHistoryEntry } from "@/lib/types";
 import { DEFAULT_FILTER_CONFIG } from "@/lib/types";
 import QuizQuestion from "./QuizQuestion";
 import ReviewReveal from "./ReviewReveal";
@@ -80,6 +80,10 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const [revealed, setRevealed] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   const [createMode, setCreateMode] = useState(false);
+  const [versionPanelOpen, setVersionPanelOpen] = useState(false);
+  const [versionHistory, setVersionHistory] = useState<QuestionHistoryEntry[]>([]);
+  const [versionHistoryLoading, setVersionHistoryLoading] = useState(false);
+  const [revertingHistoryId, setRevertingHistoryId] = useState<number | null>(null);
   const [direction, setDirection] = useState<"forward" | "backward">("forward");
 
   const [shakeKey, setShakeKey] = useState(0);
@@ -301,6 +305,48 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
 
 
 
+  const handleVersionPanelToggle = useCallback(async () => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    if (versionPanelOpen) {
+      setVersionPanelOpen(false);
+      return;
+    }
+    setVersionPanelOpen(true);
+    setVersionHistory([]);
+    setVersionHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}/history`);
+      const data = await res.json() as QuestionHistoryEntry[];
+      setVersionHistory(data);
+    } catch { /* ignore */ }
+    finally { setVersionHistoryLoading(false); }
+  }, [filteredQuestions, currentIndex, versionPanelOpen]);
+
+  const handleRevertFromPanel = useCallback(async (h: QuestionHistoryEntry) => {
+    const q = filteredQuestions[currentIndex];
+    if (!q) return;
+    setRevertingHistoryId(h.id);
+    try {
+      const res = await fetch(`/api/admin/questions/${encodeURIComponent(q.dbId)}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question_text: h.questionText,
+          options: h.options,
+          answers: h.answers,
+          explanation: h.explanation,
+          change_reason: `Reverted to v${h.version}`,
+        }),
+      });
+      if (!res.ok) throw new Error("Revert failed");
+      const updated = await res.json() as Question;
+      setQuestions((prev) => prev.map((qq) => qq.dbId === updated.dbId ? updated : qq));
+      setVersionPanelOpen(false);
+    } catch { /* ignore */ }
+    finally { setRevertingHistoryId(null); }
+  }, [filteredQuestions, currentIndex]);
+
   const recordAnswer = useCallback((questionId: number, correct: boolean, questionDbId: string, srsQuality?: 1 | 4) => {
     setStats((prev) => {
       const next = { ...prev, [String(questionId)]: correct ? 1 : 0 } as QuizStats;
@@ -356,6 +402,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
     setIsCorrect(null);
     setDirection("forward");
     setRevealed(false);
+    setVersionPanelOpen(false);
     setSubmitted(false);
     setSelected(new Set());
     setCurrentIndex((i) => Math.min(i + 1, filteredQuestions.length - 1));
@@ -364,6 +411,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
   const goPrev = useCallback(() => {
     setIsCorrect(null);
     setDirection("backward");
+    setVersionPanelOpen(false);
     setCurrentIndex((i) => Math.max(i - 1, 0));
     setRevealed(false);
     setSubmitted(false);
@@ -612,9 +660,51 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
         `}>
           {/* Position indicator */}
           <div className="shrink-0 px-4 sm:px-8 pt-4 sm:pt-5 pb-3 flex items-center justify-between">
-            <span className="text-xs tabular-nums text-gray-400">
+            <span className="text-xs tabular-nums text-gray-400 flex items-center gap-1 relative">
               Q{currentIndex + 1}/{filteredQuestions.length}
-              <span className="ml-2 text-gray-300">v{q.version}</span>
+              <button
+                onClick={handleVersionPanelToggle}
+                className="ml-1 text-[10px] text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded px-1 py-0.5 transition-colors flex items-center gap-0.5"
+                title="Version history"
+              >
+                <Clock size={9} />
+                v{q.version}
+              </button>
+              {versionPanelOpen && (
+                <div className="absolute top-full left-0 mt-1 z-50 w-72 bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden">
+                  <div className="px-3 py-2 border-b border-gray-100 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">Version History</div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {versionHistoryLoading && (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 size={14} className="animate-spin text-gray-400" />
+                      </div>
+                    )}
+                    {!versionHistoryLoading && versionHistory.length === 0 && (
+                      <p className="text-xs text-gray-300 px-3 py-3">No history</p>
+                    )}
+                    {versionHistory.map((h) => (
+                      <div key={h.id} className="px-3 py-2.5 border-b border-gray-50 last:border-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-semibold text-gray-500">v{h.version}</span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-gray-300">{new Date(h.changedAt).toLocaleString()}</span>
+                            <button
+                              onClick={() => handleRevertFromPanel(h)}
+                              disabled={revertingHistoryId === h.id}
+                              className="flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] text-gray-400 hover:text-scholion-500 hover:bg-scholion-50 border border-gray-200 rounded-md transition-colors disabled:opacity-40"
+                            >
+                              {revertingHistoryId === h.id ? <Loader2 size={8} className="animate-spin" /> : <RotateCcw size={8} />}
+                              Revert
+                            </button>
+                          </div>
+                        </div>
+                        {h.changeReason && <p className="text-[10px] text-amber-600 truncate">{h.changeReason}</p>}
+                        <p className="text-[10px] text-gray-500 line-clamp-2 leading-relaxed">{h.questionText}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </span>
             <button
               onClick={() => setCreateMode(true)}
@@ -897,6 +987,8 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
           currentAnswers={q.answers}
           onAdopt={handleFactCheckAdopt}
           onDismiss={dismissFactCheck}
+          question={q.question}
+          choices={q.choices}
         />
       )}
 

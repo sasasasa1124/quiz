@@ -16,6 +16,7 @@ const AiFactCheckResponseSchema = z.object({
   issues: z.array(z.string()),
   explanation: z.string(),
   sources: z.array(z.string()),
+  highlights: z.array(z.string()).optional(),
 });
 
 export type AiFactCheckResponse = z.infer<typeof AiFactCheckResponseSchema>;
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     .replace("{answers}", answersText);
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-2.5-flash-preview";
+  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   let raw = "";
   let parsed: unknown = null;

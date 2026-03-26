@@ -45,7 +45,7 @@ export async function POST(
   const total = candidates.length;
 
   const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-2.0-flash-preview";
+  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   const stream = new ReadableStream({
     async start(controller) {
