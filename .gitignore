@@ -43,3 +43,4 @@ next-env.d.ts
 # Cloudflare / Wrangler
 .wrangler/
 scripts/_seed.sql
+.env.gcp
