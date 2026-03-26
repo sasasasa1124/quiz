@@ -1,25 +1,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import { z } from "zod";
 import type { Choice } from "@/lib/types";
 import { DEFAULT_REFINE_PROMPT } from "@/lib/types";
 import { getSetting } from "@/lib/db";
 import { parseAiJson } from "@/lib/ai-json";
+import { AiRefineResponseSchema } from "@/lib/ai-schemas";
 
-const ChoiceSchema = z.object({
-  label: z.string(),
-  text: z.string(),
-});
-
-const AiRefineResponseSchema = z.object({
-  question: z.string(),
-  choices: z.array(ChoiceSchema),
-  changesSummary: z.string(),
-  highlights: z.array(z.string()).optional(),
-});
-
-export type AiRefineResponse = z.infer<typeof AiRefineResponseSchema>;
+export type { AiRefineResponse } from "@/lib/ai-schemas";
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as {

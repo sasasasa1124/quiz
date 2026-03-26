@@ -5,13 +5,8 @@ import { getDB, getSetting } from "@/lib/db";
 import { DEFAULT_FILL_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
 import { requireAdmin } from "@/lib/auth";
-
-interface FillResult {
-  id: string;
-  answers: string[];
-  explanation: string;
-  category: string;
-}
+import { parseAiJsonAs } from "@/lib/ai-json";
+import { AdminFillResultsSchema } from "@/lib/ai-schemas";
 
 interface QuestionRow {
   id: string;
@@ -121,7 +116,7 @@ export async function POST(
             const template = userPrompt || DEFAULT_FILL_PROMPT;
             const prompt = template.replace("{questions}", singleJson);
 
-            let results: FillResult[] | null = null;
+            let results: { id: string; answers?: string[]; explanation?: string; category?: string }[] | null = null;
             let retries = 2;
             while (retries >= 0 && results === null) {
               try {
@@ -132,7 +127,9 @@ export async function POST(
                 });
                 const text = (resp.text ?? "").trim()
                   .replace(/^```json\s*/i, "").replace(/\s*```$/, "");
-                results = JSON.parse(text) as FillResult[];
+                const { data, error } = parseAiJsonAs(text, AdminFillResultsSchema);
+                if (data) results = data;
+                else if (error) retries--;
               } catch {
                 retries--;
               }

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Check, Sparkles, Wand2, ShieldCheck, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X, Save } from "lucide-react";
+import { Check, Sparkles, Wand2, ShieldCheck, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X, Save, FileUp } from "lucide-react";
+import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import { useSettings } from "@/lib/settings-context";
 import { useSetHeader } from "@/lib/header-context";
@@ -640,6 +641,21 @@ function SettingsInner() {
           >
             <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${skipRevealOnCorrect ? "translate-x-6" : "translate-x-1"}`} />
           </button>
+        </section>
+
+        {/* Import Exam */}
+        <section>
+          <h2 className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 flex items-center gap-1.5">
+            <FileUp size={11} className="text-gray-400" />
+            Admin Tools
+          </h2>
+          <Link
+            href="/admin/import"
+            className="flex items-center gap-2 h-10 px-4 rounded-xl border border-gray-200 text-sm text-gray-500 hover:bg-gray-50 transition-colors w-full"
+          >
+            <FileUp size={14} />
+            Import Exam from File (agentic)
+          </Link>
         </section>
 
         {/* Save */}

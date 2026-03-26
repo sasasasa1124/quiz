@@ -1,23 +1,13 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
-import { z } from "zod";
 import type { Choice } from "@/lib/types";
 import { DEFAULT_FACTCHECK_PROMPT } from "@/lib/types";
 import { getSetting } from "@/lib/db";
 import { parseAiJson } from "@/lib/ai-json";
+import { AiFactCheckResponseSchema } from "@/lib/ai-schemas";
 
-const AiFactCheckResponseSchema = z.object({
-  isCorrect: z.boolean(),
-  correctAnswers: z.array(z.string()),
-  confidence: z.enum(["high", "medium", "low"]),
-  issues: z.array(z.string()),
-  explanation: z.string(),
-  sources: z.array(z.string()),
-  highlights: z.array(z.string()).optional(),
-});
-
-export type AiFactCheckResponse = z.infer<typeof AiFactCheckResponseSchema>;
+export type { AiFactCheckResponse } from "@/lib/ai-schemas";
 
 export async function POST(req: NextRequest) {
   const body = await req.json() as {

@@ -5,15 +5,8 @@ import { getDB, getSetting } from "@/lib/db";
 import { DEFAULT_FACTCHECK_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
 import { requireAdmin } from "@/lib/auth";
-
-interface FactCheckResult {
-  isCorrect: boolean;
-  correctAnswers: string[];
-  confidence: "high" | "medium" | "low";
-  issues: string[];
-  explanation: string;
-  sources: string[];
-}
+import { parseAiJsonAs } from "@/lib/ai-json";
+import { AiFactCheckResponseSchema } from "@/lib/ai-schemas";
 
 interface QuestionRow {
   id: string;
@@ -124,7 +117,8 @@ export async function POST(
 
             const raw = (resp.text ?? "").trim()
               .replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-            const result = JSON.parse(raw) as FactCheckResult;
+            const { data: result, error: parseError } = parseAiJsonAs(raw, AiFactCheckResponseSchema);
+            if (parseError || !result) throw new Error(parseError ?? "parse failed");
 
             if (!result.isCorrect && result.correctAnswers && result.correctAnswers.length > 0) {
               if (hasFactCheckedAtCol) {

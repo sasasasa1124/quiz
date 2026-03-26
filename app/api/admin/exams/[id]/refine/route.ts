@@ -5,12 +5,8 @@ import { getDB, getQuestions, getSetting } from "@/lib/db";
 import { DEFAULT_REFINE_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
 import { requireAdmin } from "@/lib/auth";
-
-interface RefineResult {
-  question: string;
-  choices: Choice[];
-  changesSummary: string;
-}
+import { parseAiJsonAs } from "@/lib/ai-json";
+import { AiRefineResponseSchema } from "@/lib/ai-schemas";
 
 export async function POST(
   req: NextRequest,
@@ -90,7 +86,8 @@ export async function POST(
 
             const raw = (resp.text ?? "").trim()
               .replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
-            const result = JSON.parse(raw) as RefineResult;
+            const { data: result, error: parseError } = parseAiJsonAs(raw, AiRefineResponseSchema);
+            if (parseError || !result) throw new Error(parseError ?? "parse failed");
 
             const questionChanged = result.question !== q.question;
             const choicesChanged = result.choices.some((c: Choice) => {
