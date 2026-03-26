@@ -29,7 +29,7 @@ function HighlightedText({ text, phrases }: { text: string; phrases: string[] })
       {parts.map((part, i) => {
         const isMatch = phrases.some((p) => p.toLowerCase() === part.toLowerCase());
         return isMatch
-          ? <mark key={i} className="bg-amber-100 text-amber-900 rounded-sm px-0.5 not-italic">{part}</mark>
+          ? <strong key={i} className="font-semibold text-gray-950">{part}</strong>
           : <span key={i}>{part}</span>;
       })}
     </>

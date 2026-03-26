@@ -7,6 +7,7 @@ import type { Choice } from "@/lib/types";
 import { DEFAULT_REFINE_PROMPT } from "@/lib/types";
 import { getSetting } from "@/lib/db";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { parseAiJson } from "@/lib/ai-json";
 
 const ChoiceSchema = z.object({
   label: z.string(),
@@ -48,33 +49,35 @@ export async function POST(req: NextRequest) {
   const ai = new GoogleGenAI({ apiKey });
   const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
-  let raw: string;
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-      },
-    });
-    raw = response.text ?? "";
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
+  let raw = "";
+  let parsed: unknown = null;
+
+  // Try with googleSearch grounding first, then retry without if JSON parsing fails
+  for (const useGrounding of [true, false]) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          ...(useGrounding ? { tools: [{ googleSearch: {} }] } : {}),
+          responseMimeType: "application/json",
+        },
+      });
+      raw = response.text ?? "";
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!useGrounding) {
+        return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
+      }
+      continue;
+    }
+
+    parsed = parseAiJson(raw);
+    if (parsed !== null) break;
   }
 
-  // Strip markdown code fences if present
-  const jsonText = raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/i, "")
-    .trim();
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonText);
-  } catch {
-    return NextResponse.json({ error: "AI returned invalid JSON", raw }, { status: 502 });
+  if (parsed === null) {
+    return NextResponse.json({ error: "AI returned invalid JSON", raw: raw }, { status: 502 });
   }
 
   const result = AiRefineResponseSchema.safeParse(parsed);

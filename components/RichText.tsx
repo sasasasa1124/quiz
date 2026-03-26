@@ -66,9 +66,9 @@ function renderInline(text: string, kwRe?: RegExp): React.ReactNode {
       );
     if (tok.t === "keyword")
       return (
-        <mark key={i} className="bg-amber-100 text-amber-900 rounded-sm px-0.5 font-medium not-italic">
+        <strong key={i} className="font-semibold text-gray-950">
           {tok.v}
-        </mark>
+        </strong>
       );
     return <React.Fragment key={i}>{tok.v}</React.Fragment>;
   });

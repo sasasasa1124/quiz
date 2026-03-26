@@ -638,10 +638,6 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               <Copy size={12} />
                               {t("invalidate")}
                             </button>
-                            <button onClick={handleAiFactCheck} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors" title="AI Fact Check — verify answers against official sources">
-                              <ShieldCheck size={12} />
-                              {t("factCheck")}
-                            </button>
                             <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Wording Fix — fix typos and phrasing (does not change meaning or answers)">
                               <Wand2 size={12} />
                               {t("refine")}
@@ -693,7 +689,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                     </div>
                     {/* Back: answer reveal */}
                     <div className="card-back">
-                      <ReviewReveal question={q} onNext={handleRevealNext} isLast={isLast} onAiExplain={handleAiExplain} questionDbId={q.dbId} choices={q.choices} />
+                      <ReviewReveal question={q} onNext={handleRevealNext} isLast={isLast} onAiExplain={handleAiExplain} onAiFactCheck={handleAiFactCheck} questionDbId={q.dbId} choices={q.choices} />
                     </div>
                   </div>
                 </div>
@@ -708,10 +704,6 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                       <button onClick={handleToggleInvalidate} className={`flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg border transition-colors ${userInvalidated.has(q.dbId) ? "bg-orange-50 border-orange-200 text-orange-500 hover:bg-orange-100" : "bg-gray-50 border-gray-200 text-gray-400 hover:bg-gray-100"}`} title={userInvalidated.has(q.dbId) ? "Restore — this question will reappear in your quiz" : "Invalidate — hide this question from your quiz"}>
                         <Copy size={12} />
                         {t("invalidate")}
-                      </button>
-                      <button onClick={handleAiFactCheck} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors" title="AI Fact Check — verify answers against official sources">
-                        <ShieldCheck size={12} />
-                        {t("factCheck")}
                       </button>
                       <button onClick={handleAiRefine} className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-lg bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors" title="AI Wording Fix — fix typos and phrasing (does not change meaning or answers)">
                         <Wand2 size={12} />
@@ -753,13 +745,24 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               : <><XCircle size={17} strokeWidth={2.5} /><span className="text-xs text-gray-400 ml-1">{q.answers.join(", ")}</span></>
                             }
                           </div>
-                          <button
-                            onClick={handleAiExplain}
-                            className="text-gray-300 hover:text-violet-500 transition-colors"
-                            title={t("explain")}
-                          >
-                            <Sparkles size={15} />
-                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              onClick={handleAiFactCheck}
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                              title={t("factCheck")}
+                            >
+                              <ShieldCheck size={11} />
+                              {t("factCheck")}
+                            </button>
+                            <button
+                              onClick={handleAiExplain}
+                              className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-violet-50 border border-violet-200 text-violet-600 hover:bg-violet-100 transition-colors"
+                              title={t("explain")}
+                            >
+                              <Sparkles size={11} />
+                              {t("explain")}
+                            </button>
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button onClick={goPrev} disabled={currentIndex === 0} className="flex items-center justify-center w-10 h-10 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-20 transition-all">

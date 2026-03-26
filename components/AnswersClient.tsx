@@ -207,27 +207,22 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
                 {q.isMultiple && <span className="ml-2 text-violet-500 font-semibold">Multi</span>}
                 <span className="ml-2 text-gray-300">v{q.version}</span>
               </p>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleAiFactCheck}
-                  className="text-gray-300 hover:text-indigo-500 transition-colors"
-                  title={t("factCheck")}
-                >
-                  <ShieldCheck size={12} />
-                </button>
+              <div className="flex items-center gap-1.5">
                 <button
                   onClick={handleAiRefine}
-                  className="text-gray-300 hover:text-amber-500 transition-colors"
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-amber-50 border border-amber-200 text-amber-600 hover:bg-amber-100 transition-colors"
                   title={t("refine")}
                 >
-                  <Wand2 size={12} />
+                  <Wand2 size={11} />
+                  {t("refine")}
                 </button>
                 <button
                   onClick={() => setEditingQuestion(q)}
-                  className="text-gray-300 hover:text-gray-600 transition-colors"
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-gray-50 border border-gray-200 text-gray-500 hover:bg-gray-100 transition-colors"
                   title={t("edit")}
                 >
-                  <Pencil size={12} />
+                  <Pencil size={11} />
+                  {t("edit")}
                 </button>
               </div>
             </div>
@@ -268,13 +263,24 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
           <div className="bg-white rounded-xl border border-gray-100 px-5 py-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">{t("aiExplanation")}</p>
-              <button
-                onClick={handleAiExplain}
-                className="text-gray-300 hover:text-violet-500 transition-colors"
-                title={t("explain")}
-              >
-                <Sparkles size={12} />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={handleAiFactCheck}
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors"
+                  title={t("factCheck")}
+                >
+                  <ShieldCheck size={11} />
+                  {t("factCheck")}
+                </button>
+                <button
+                  onClick={handleAiExplain}
+                  className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-violet-50 border border-violet-200 text-violet-600 hover:bg-violet-100 transition-colors"
+                  title={t("explain")}
+                >
+                  <Sparkles size={11} />
+                  {t("explain")}
+                </button>
+              </div>
             </div>
             {q.explanation ? (
               <RichText text={q.explanation} block className="text-sm lg:text-base leading-relaxed text-gray-700" />

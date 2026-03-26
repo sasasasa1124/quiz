@@ -7,6 +7,7 @@ import type { Choice } from "@/lib/types";
 import { DEFAULT_EXPLAIN_PROMPT } from "@/lib/types";
 import { getSetting } from "@/lib/db";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { parseAiJson } from "@/lib/ai-json";
 
 
 const AiResponseSchema = z.object({
@@ -49,39 +50,43 @@ export async function POST(req: NextRequest) {
   const ai = new GoogleGenAI({ apiKey });
   const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
-  let raw: string;
+  let raw = "";
   let groundingSources: string[] = [];
-  try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        responseMimeType: "application/json",
-      },
-    });
-    raw = response.text ?? "";
-    // Extract real URLs from grounding metadata (never hallucinated)
-    const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-    groundingSources = (chunks as Array<{ web?: { uri?: string } }>)
-      .map((c) => c.web?.uri)
-      .filter((u): u is string => typeof u === "string" && u.length > 0)
-      .slice(0, 3);
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
+  let parsed: unknown = null;
+
+  // Try with googleSearch grounding first, then retry without if JSON parsing fails
+  for (const useGrounding of [true, false]) {
+    try {
+      const response = await ai.models.generateContent({
+        model,
+        contents: prompt,
+        config: {
+          ...(useGrounding ? { tools: [{ googleSearch: {} }] } : {}),
+          responseMimeType: "application/json",
+        },
+      });
+      raw = response.text ?? "";
+      // Extract real URLs from grounding metadata (never hallucinated)
+      if (useGrounding) {
+        const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
+        groundingSources = (chunks as Array<{ web?: { uri?: string } }>)
+          .map((c) => c.web?.uri)
+          .filter((u): u is string => typeof u === "string" && u.length > 0)
+          .slice(0, 3);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (!useGrounding) {
+        return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
+      }
+      continue;
+    }
+
+    parsed = parseAiJson(raw);
+    if (parsed !== null) break;
   }
 
-  // Strip markdown code fences if present
-  const jsonText = raw
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```\s*$/i, "")
-    .trim();
-
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(jsonText);
-  } catch {
+  if (parsed === null) {
     return NextResponse.json({ error: "AI returned invalid JSON", raw }, { status: 502 });
   }
 

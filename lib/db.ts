@@ -855,7 +855,16 @@ export async function getStudyGuide(examId: string): Promise<{ markdown: string;
     .limit(1);
 
   if (!row) return null;
-  return { markdown: row.markdown, generatedAt: row.generatedAt ?? "" };
+  // D1 may return large TEXT columns as ArrayBuffer/Uint8Array — coerce to string
+  let md = row.markdown;
+  if (typeof md !== "string") {
+    try {
+      md = new TextDecoder().decode(md as unknown as ArrayBuffer);
+    } catch {
+      md = String(md);
+    }
+  }
+  return { markdown: md, generatedAt: row.generatedAt ?? "" };
 }
 
 export async function upsertStudyGuide(examId: string, markdown: string): Promise<void> {

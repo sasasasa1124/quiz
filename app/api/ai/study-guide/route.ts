@@ -151,7 +151,11 @@ ${wrongLines}`;
   }
 
   if (saveToDb) {
-    await upsertStudyGuide(examId, markdown);
+    try {
+      await upsertStudyGuide(examId, markdown);
+    } catch (e) {
+      console.error("Failed to save study guide to DB:", e);
+    }
   }
 
   return NextResponse.json({ markdown });

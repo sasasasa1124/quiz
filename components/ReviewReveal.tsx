@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, CheckCircle2, Sparkles } from "lucide-react";
+import { ChevronRight, CheckCircle2, Sparkles, ShieldCheck } from "lucide-react";
 import type { Choice, Question } from "@/lib/types";
 import { useSettings } from "@/lib/settings-context";
 import SuggestPanel from "@/components/SuggestPanel";
@@ -11,11 +11,12 @@ interface Props {
   onNext: () => void;
   isLast: boolean;
   onAiExplain?: () => void;
+  onAiFactCheck?: () => void;
   questionDbId: string;
   choices: Choice[];
 }
 
-export default function ReviewReveal({ question, onNext, isLast, onAiExplain, questionDbId, choices }: Props) {
+export default function ReviewReveal({ question, onNext, isLast, onAiExplain, onAiFactCheck, questionDbId, choices }: Props) {
   const { t } = useSettings();
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-h-0">
@@ -24,12 +25,20 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, qu
         <div className="max-w-3xl mx-auto w-full">
           <div className="flex items-center justify-between mb-3">
             <p className="text-[11px] font-semibold text-emerald-600 uppercase tracking-wider">{t("answer")}</p>
-            {onAiExplain && (
-              <button onClick={onAiExplain} className="flex items-center gap-1.5 px-2.5 py-1 border border-gray-200 rounded-lg text-xs font-medium text-gray-500 hover:text-scholion-500 hover:border-scholion-200 transition-colors">
-                <Sparkles size={11} />
-                {t("explain")}
-              </button>
-            )}
+            <div className="flex items-center gap-1.5">
+              {onAiFactCheck && (
+                <button onClick={onAiFactCheck} className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-indigo-50 border border-indigo-200 text-indigo-600 hover:bg-indigo-100 transition-colors">
+                  <ShieldCheck size={11} />
+                  {t("factCheck")}
+                </button>
+              )}
+              {onAiExplain && (
+                <button onClick={onAiExplain} className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium rounded-md bg-violet-50 border border-violet-200 text-violet-600 hover:bg-violet-100 transition-colors">
+                  <Sparkles size={11} />
+                  {t("explain")}
+                </button>
+              )}
+            </div>
           </div>
           <div className="flex flex-col gap-2 mb-6">
             {question.choices
