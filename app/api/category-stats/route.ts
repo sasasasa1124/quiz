@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
 import { getCategoryStats } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";

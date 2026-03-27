@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { getExamList } from "@/lib/db";
 import { notFound } from "next/navigation";
 import ExamSelectClient from "@/components/ExamSelectClient";

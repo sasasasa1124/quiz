@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { getExamList, getCategoryStats } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import { notFound } from "next/navigation";

@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getDB, getQuestions, getSetting } from "@/lib/db";

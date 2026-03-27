@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
 import { getSuggestions, getSuggestionCount, createSuggestion } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";

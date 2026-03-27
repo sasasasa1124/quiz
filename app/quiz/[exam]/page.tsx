@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { getQuestions, getExamList, createSession, getUserInvalidatedIds } from "@/lib/db";
 import { getUserEmail } from "@/lib/user";
 import QuizClient from "@/components/QuizClient";
