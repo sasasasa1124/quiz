@@ -40,14 +40,16 @@ const LOCAL_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
 async function csvExamList(): Promise<ExamMeta[]> {
   try {
     const res = await fetch(`${LOCAL_BASE}/api/local-exams`);
-    return res.json() as Promise<ExamMeta[]>;
+    if (!res.ok) return [];
+    return await res.json() as ExamMeta[];
   } catch { return []; }
 }
 
 async function csvQuestions(examId: string): Promise<Question[]> {
   try {
     const res = await fetch(`${LOCAL_BASE}/api/local-questions/${encodeURIComponent(examId)}`);
-    return res.json() as Promise<Question[]>;
+    if (!res.ok) return [];
+    return await res.json() as Question[];
   } catch { return []; }
 }
 
@@ -60,13 +62,18 @@ export async function getExamList(): Promise<ExamMeta[]> {
   }
 
   type Row = { id: string; name: string; lang: string; tags: string | null; question_count: number; duplicate_count: number };
-  const rows = await pg<Row[]>`
-    SELECT e.id, e.name, e.lang, e.tags, COUNT(q.id)::int AS question_count,
-           COALESCE(SUM(CASE WHEN q.is_duplicate = 1 THEN 1 ELSE 0 END), 0)::int AS duplicate_count
-    FROM exams e
-    LEFT JOIN questions q ON q.exam_id = e.id
-    GROUP BY e.id
-    ORDER BY e.lang ASC, e.name ASC`;
+  let rows: Row[];
+  try {
+    rows = await pg<Row[]>`
+      SELECT e.id, e.name, e.lang, e.tags, COUNT(q.id)::int AS question_count,
+             COALESCE(SUM(CASE WHEN q.is_duplicate = 1 THEN 1 ELSE 0 END), 0)::int AS duplicate_count
+      FROM exams e
+      LEFT JOIN questions q ON q.exam_id = e.id
+      GROUP BY e.id
+      ORDER BY e.lang ASC, e.name ASC`;
+  } catch {
+    return csvExamList();
+  }
 
   return rows.map((row) => {
     let tags: string[] = ["Salesforce"];
