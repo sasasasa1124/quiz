@@ -130,7 +130,7 @@ Example: ["Core Mule Concepts", "DataWeave", "Anypoint Platform"]`;
 
             if (missing.length === 0 && !forceRefill) {
               // Nothing missing — just stamp filled_at and move on
-              await pg`UPDATE questions SET filled_at = NOW() WHERE id = ${q.id}`;
+              await pg`UPDATE questions SET filled_at = datetime('now') WHERE id = ${q.id}`;
               done++;
               send({ done, total, filled, skipped, failed });
               continue;
@@ -180,12 +180,12 @@ Example: ["Core Mule Concepts", "DataWeave", "Anypoint Platform"]`;
                     answers = COALESCE(${newAnswers}, answers),
                     explanation = COALESCE(${newExplanation}, explanation),
                     category = COALESCE(${newCategory}, category),
-                    filled_at = NOW(), updated_at = NOW()
+                    filled_at = datetime('now'), updated_at = datetime('now')
                   WHERE id = ${q.id}`;
                 filled++;
               } else {
                 // No fields changed but processed — stamp filled_at
-                await pg`UPDATE questions SET filled_at = NOW() WHERE id = ${q.id}`;
+                await pg`UPDATE questions SET filled_at = datetime('now') WHERE id = ${q.id}`;
               }
             }
           } catch { failed++; }

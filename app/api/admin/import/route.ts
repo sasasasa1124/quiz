@@ -316,7 +316,7 @@ Include every question — do not truncate. Use the column mapping you just iden
             VALUES (
               ${qId}, ${examId}, ${q.num}, ${q.question},
               ${JSON.stringify(options)}, ${JSON.stringify(q.answer)},
-              ${q.explanation}, ${q.source}, ${"[]"}, ${userEmail}, NOW(), NOW()
+              ${q.explanation}, ${q.source}, ${"[]"}, ${userEmail}, datetime('now'), datetime('now')
             )
             ON CONFLICT (id) DO UPDATE SET
               question_text = EXCLUDED.question_text,

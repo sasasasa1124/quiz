@@ -228,15 +228,15 @@ Use codeExecution to iterate through all questions and generate the fixes.`,
             // postgres.js doesn't allow dynamic column names in template literals,
             // so we branch per field name
             if (fix.field === "question_text") {
-              await pg`UPDATE questions SET question_text = ${fix.value}, updated_at = NOW() WHERE id = ${fix.id}`;
+              await pg`UPDATE questions SET question_text = ${fix.value}, updated_at = datetime('now') WHERE id = ${fix.id}`;
             } else if (fix.field === "options") {
-              await pg`UPDATE questions SET options = ${fix.value}, updated_at = NOW() WHERE id = ${fix.id}`;
+              await pg`UPDATE questions SET options = ${fix.value}, updated_at = datetime('now') WHERE id = ${fix.id}`;
             } else if (fix.field === "answers") {
-              await pg`UPDATE questions SET answers = ${fix.value}, updated_at = NOW() WHERE id = ${fix.id}`;
+              await pg`UPDATE questions SET answers = ${fix.value}, updated_at = datetime('now') WHERE id = ${fix.id}`;
             } else if (fix.field === "explanation") {
-              await pg`UPDATE questions SET explanation = ${fix.value}, updated_at = NOW() WHERE id = ${fix.id}`;
+              await pg`UPDATE questions SET explanation = ${fix.value}, updated_at = datetime('now') WHERE id = ${fix.id}`;
             } else if (fix.field === "source") {
-              await pg`UPDATE questions SET source = ${fix.value}, updated_at = NOW() WHERE id = ${fix.id}`;
+              await pg`UPDATE questions SET source = ${fix.value}, updated_at = datetime('now') WHERE id = ${fix.id}`;
             }
 
             fixed++;

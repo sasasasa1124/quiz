@@ -96,7 +96,7 @@ export async function POST(
             });
 
             if (questionChanged || choicesChanged) {
-              await pg`UPDATE questions SET question_text = ${result.question}, options = ${JSON.stringify(result.choices)}, version = version + 1, updated_at = NOW() WHERE id = ${q.dbId}`;
+              await pg`UPDATE questions SET question_text = ${result.question}, options = ${JSON.stringify(result.choices)}, version = version + 1, updated_at = datetime('now') WHERE id = ${q.dbId}`;
               refined++;
             }
           } catch { failed++; }

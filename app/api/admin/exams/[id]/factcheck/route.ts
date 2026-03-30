@@ -122,13 +122,13 @@ export async function POST(
 
             if (!result.isCorrect && result.correctAnswers && result.correctAnswers.length > 0) {
               if (hasFactCheckedAtCol) {
-                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, fact_checked_at = NOW(), version = version + 1, updated_at = NOW() WHERE id = ${q.id}`;
+                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, fact_checked_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ${q.id}`;
               } else {
-                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, version = version + 1, updated_at = NOW() WHERE id = ${q.id}`;
+                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, version = version + 1, updated_at = datetime('now') WHERE id = ${q.id}`;
               }
               fixed++;
             } else if (hasFactCheckedAtCol) {
-              await pg`UPDATE questions SET fact_checked_at = NOW() WHERE id = ${q.id}`;
+              await pg`UPDATE questions SET fact_checked_at = datetime('now') WHERE id = ${q.id}`;
             }
           } catch { failed++; }
 

@@ -188,11 +188,11 @@ ${batchJson}`;
             VALUES (${qId}, ${newExamId}, ${idx + 1}, ${tq.question}, ${JSON.stringify(tq.choices)},
                     ${JSON.stringify(questions[idx]?.answers ?? [])}, ${tq.explanation},
                     ${questions[idx]?.source ?? ""}, ${JSON.stringify(questions[idx]?.explanationSources ?? [])},
-                    ${tq.category ?? null}, NOW(), NOW())
+                    ${tq.category ?? null}, datetime('now'), datetime('now'))
             ON CONFLICT (id) DO UPDATE SET
               question_text = EXCLUDED.question_text, options = EXCLUDED.options,
               answers = EXCLUDED.answers, explanation = EXCLUDED.explanation,
-              category = EXCLUDED.category, updated_at = NOW()`;
+              category = EXCLUDED.category, updated_at = datetime('now')`;
         }
 
         send({ done: total, total, newExamId });

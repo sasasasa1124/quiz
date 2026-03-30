@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     const [examRow] = await pg<{ id: string; name: string; lang: string }[]>`SELECT id, name, lang FROM exams WHERE id = ${appendTo}`;
     if (!examRow) return NextResponse.json({ error: `Exam not found: ${appendTo}` }, { status: 404 });
 
-    const [maxRow] = await pg<{ max_num: number }[]>`SELECT COALESCE(MAX(num), 0)::int AS max_num FROM questions WHERE exam_id = ${appendTo}`;
+    const [maxRow] = await pg<{ max_num: number }[]>`SELECT COALESCE(MAX(num), 0) AS max_num FROM questions WHERE exam_id = ${appendTo}`;
     let nextNum = (maxRow?.max_num ?? 0) + 1;
 
     for (const row of records) {
@@ -138,10 +138,10 @@ export async function POST(req: NextRequest) {
       const isDuplicate = !!(row["duplicate"] ?? "").trim() ? 1 : 0;
 
       await pg`INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source, explanation_sources, is_duplicate, created_at, added_at)
-        VALUES (${id}, ${appendTo}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, NOW(), NOW())`;
+        VALUES (${id}, ${appendTo}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, datetime('now'), datetime('now'))`;
     }
 
-    const [countRow] = await pg<{ cnt: number }[]>`SELECT COUNT(*)::int AS cnt FROM questions WHERE exam_id = ${appendTo}`;
+    const [countRow] = await pg<{ cnt: number }[]>`SELECT COUNT(*) AS cnt FROM questions WHERE exam_id = ${appendTo}`;
 
     return NextResponse.json({
       exam: {
@@ -180,8 +180,8 @@ export async function POST(req: NextRequest) {
       const isDuplicate = !!(row["duplicate"] ?? "").trim() ? 1 : 0;
 
       await pg`INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source, explanation_sources, is_duplicate, created_at, added_at)
-        VALUES (${id}, ${examId}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, NOW(), NOW())
-        ON CONFLICT (id) DO UPDATE SET question_text = EXCLUDED.question_text, options = EXCLUDED.options, answers = EXCLUDED.answers, explanation = EXCLUDED.explanation, updated_at = NOW()`;
+        VALUES (${id}, ${examId}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, datetime('now'), datetime('now'))
+        ON CONFLICT (id) DO UPDATE SET question_text = EXCLUDED.question_text, options = EXCLUDED.options, answers = EXCLUDED.answers, explanation = EXCLUDED.explanation, updated_at = datetime('now')`;
     }
   }
 
