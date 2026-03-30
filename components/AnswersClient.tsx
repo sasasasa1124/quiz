@@ -336,7 +336,7 @@ export default function AnswersClient({ questions: initialQuestions, examName, e
                   }`}>
                     {c.label}
                   </span>
-                  <RichText text={c.text} className={`text-sm lg:text-base leading-snug pt-0.5 ${
+                  <RichText text={c.text} block className={`text-sm lg:text-base leading-snug pt-0.5 ${
                     isAnswer ? "text-emerald-900 font-medium" : "text-gray-500"
                   }`} />
                 </div>

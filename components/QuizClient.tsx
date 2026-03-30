@@ -754,7 +754,7 @@ export default function QuizClient({ questions: initialQuestions, examId, examNa
                               <div key={c.label} className="border rounded-xl px-4 py-3 lg:px-5 lg:py-4 border-gray-100 bg-gray-50">
                                 <div className="flex items-start gap-3">
                                   <span className="shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg border border-gray-200 bg-white text-xs lg:text-sm font-bold flex items-center justify-center text-gray-400">{c.label}</span>
-                                  <RichText text={c.text} className="text-sm lg:text-base leading-relaxed pt-0.5 text-gray-600" />
+                                  <RichText text={c.text} block className="text-sm lg:text-base leading-relaxed pt-0.5 text-gray-600" />
                                 </div>
                               </div>
                             ))}

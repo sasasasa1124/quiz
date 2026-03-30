@@ -99,6 +99,7 @@ export default function QuizQuestion({
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
               <RichText
                 text={finalQuestion}
+                block
                 keywords={keywords}
                 className="text-amber-900 text-sm lg:text-base leading-relaxed font-medium"
               />
@@ -165,7 +166,7 @@ export default function QuizQuestion({
                 <span className={`shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg border text-xs lg:text-sm font-bold flex items-center justify-center transition-all duration-150 ${badge}`}>
                   {choice.label}
                 </span>
-                <RichText text={choice.text} className={`text-sm lg:text-base leading-relaxed pt-0.5 ${textColor}`} />
+                <RichText text={choice.text} block className={`text-sm lg:text-base leading-relaxed pt-0.5 ${textColor}`} />
               </div>
             </button>
           );

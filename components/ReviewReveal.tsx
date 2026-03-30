@@ -48,7 +48,7 @@ export default function ReviewReveal({ question, onNext, isLast, onAiExplain, on
                   <span className="shrink-0 w-6 h-6 lg:w-7 lg:h-7 rounded-lg bg-emerald-500 text-white text-xs lg:text-sm font-bold flex items-center justify-center mt-0.5">
                     {c.label}
                   </span>
-                  <RichText text={c.text} className="text-sm lg:text-base text-emerald-900 leading-snug" />
+                  <RichText text={c.text} block className="text-sm lg:text-base text-emerald-900 leading-snug" />
                 </div>
               ))
             }

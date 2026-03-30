@@ -84,10 +84,31 @@ type Block =
 
 const UL_RE = /^[ \t]*[-*]\s+(.+)$/;
 const OL_RE = /^[ \t]*\d+[.)]\s+(.+)$/;
-// [img: /path/to/image.jpg] — image embed
-const IMG_RE = /^\[img:\s*([^\]]+)\]$/;
-// <img src="url"> — HTML img tag (from freecram CSV imports)
-const HTML_IMG_RE = /^<img\s+[^>]*src="([^"]+)"[^>]*\/?>$/i;
+// Matches [img: url] or <img src="url"> anywhere in a line (global, for inline scanning)
+const INLINE_IMG_RE = /\[img:\s*([^\]]+)\]|<img\s[^>]*src="([^"]+)"[^>]*\/?>/gi;
+
+type ImgSegment = { kind: "text" | "img"; value: string };
+
+function splitLineByImgs(line: string): ImgSegment[] {
+  const segments: ImgSegment[] = [];
+  const re = new RegExp(INLINE_IMG_RE.source, INLINE_IMG_RE.flags);
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(line)) !== null) {
+    if (m.index > last) {
+      const t = line.slice(last, m.index).trim();
+      if (t) segments.push({ kind: "text", value: t });
+    }
+    const src = (m[1] ?? m[2] ?? "").trim();
+    if (src) segments.push({ kind: "img", value: src });
+    last = re.lastIndex;
+  }
+  if (last < line.length) {
+    const t = line.slice(last).trim();
+    if (t) segments.push({ kind: "text", value: t });
+  }
+  return segments;
+}
 
 function parseBlocks(text: string): Block[] {
   const lines = text.split("\n");
@@ -97,14 +118,24 @@ function parseBlocks(text: string): Block[] {
   const flush = () => { if (cur) { blocks.push(cur); cur = null; } };
 
   for (const line of lines) {
-    const imgM = IMG_RE.exec(line.trim()) ?? HTML_IMG_RE.exec(line.trim());
-    const ulM = !imgM && UL_RE.exec(line);
-    const olM = !imgM && !ulM && OL_RE.exec(line);
+    const segments = splitLineByImgs(line);
 
-    if (imgM) {
+    if (segments.some(s => s.kind === "img")) {
       flush();
-      blocks.push({ type: "img", src: imgM[1].trim() });
-    } else if (ulM) {
+      for (const seg of segments) {
+        if (seg.kind === "img") {
+          blocks.push({ type: "img", src: seg.value });
+        } else {
+          blocks.push({ type: "text", lines: [seg.value] });
+        }
+      }
+      continue;
+    }
+
+    const ulM = UL_RE.exec(line);
+    const olM = !ulM && OL_RE.exec(line);
+
+    if (ulM) {
       if (cur?.type !== "ul") { flush(); cur = { type: "ul", items: [] }; }
       (cur as { type: "ul"; items: string[] }).items.push(ulM[1]);
     } else if (olM) {
