@@ -86,6 +86,8 @@ const UL_RE = /^[ \t]*[-*]\s+(.+)$/;
 const OL_RE = /^[ \t]*\d+[.)]\s+(.+)$/;
 // [img: /path/to/image.jpg] — image embed
 const IMG_RE = /^\[img:\s*([^\]]+)\]$/;
+// <img src="url"> — HTML img tag (from freecram CSV imports)
+const HTML_IMG_RE = /^<img\s+[^>]*src="([^"]+)"[^>]*\/?>$/i;
 
 function parseBlocks(text: string): Block[] {
   const lines = text.split("\n");
@@ -95,7 +97,7 @@ function parseBlocks(text: string): Block[] {
   const flush = () => { if (cur) { blocks.push(cur); cur = null; } };
 
   for (const line of lines) {
-    const imgM = IMG_RE.exec(line.trim());
+    const imgM = IMG_RE.exec(line.trim()) ?? HTML_IMG_RE.exec(line.trim());
     const ulM = !imgM && UL_RE.exec(line);
     const olM = !imgM && !ulM && OL_RE.exec(line);
 

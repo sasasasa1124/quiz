@@ -151,6 +151,7 @@ Your tasks:
 
 Do NOT change meaning, technical content, correct answers, or add/remove choices.
 Do NOT rewrite or rephrase if there is no error — preserve the original wording.
+Do NOT remove, alter, or reformat any image tags — preserve \`<img src="...">\` HTML tags and \`[img: ...]\` syntax exactly as they appear in the input.
 When searching, limit to official sources only (help.salesforce.com, developer.salesforce.com, trailhead.salesforce.com, docs.mulesoft.com).
 
 Question:
