@@ -24,7 +24,7 @@ function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isLoaded || !signUp) return;
-    if (!username.trim()) { setError("Username is required"); return; }
+    if (!username.trim()) { setError("ユーザー名を入力してください"); return; }
     setError("");
     setLoading(true);
     try {
@@ -33,7 +33,7 @@ function SignUpForm() {
       setStep("verify");
     } catch (err: unknown) {
       const clerkError = err as { errors?: { message: string }[] };
-      setError(clerkError.errors?.[0]?.message || "Sign-up failed");
+      setError(clerkError.errors?.[0]?.message || "登録に失敗しました");
     } finally {
       setLoading(false);
     }
@@ -61,14 +61,14 @@ function SignUpForm() {
   if (step === "verify") {
     return (
       <div className="w-full max-w-sm">
-        <h1 className="text-xl font-semibold text-gray-900 mb-2 text-center">Check your email</h1>
+        <h1 className="text-xl font-semibold text-gray-900 mb-2 text-center">メール確認</h1>
         <p className="text-sm text-gray-400 text-center mb-6">
-          We sent a code to <span className="font-medium text-gray-700">{email}</span>
+          確認コードを <span className="font-medium text-gray-700">{email}</span> に送信しました
         </p>
         <form onSubmit={handleVerify} className="space-y-4">
           <div>
             <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-              Verification code
+              確認コード
             </label>
             <input
               type="text"
@@ -87,14 +87,14 @@ function SignUpForm() {
             disabled={loading || !isLoaded}
             className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50"
           >
-            {loading ? "Verifying..." : "Verify"}
+            {loading ? "確認中..." : "確認する"}
           </button>
           <button
             type="button"
             onClick={() => { setStep("form"); setError(""); setCode(""); }}
             className="w-full text-xs text-gray-400 hover:text-gray-600 transition-colors"
           >
-            Back
+            戻る
           </button>
         </form>
       </div>
@@ -103,11 +103,11 @@ function SignUpForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6 text-center">Create account</h1>
+      <h1 className="text-xl font-semibold text-gray-900 mb-6 text-center">新規登録</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-            Salesforce email
+            メールアドレス
           </label>
           <div className="flex h-10 rounded-xl border border-gray-200 bg-white overflow-hidden focus-within:border-gray-400">
             <input
@@ -126,7 +126,7 @@ function SignUpForm() {
         </div>
         <div>
           <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-            Password
+            パスワード
           </label>
           <div className="relative">
             <input
@@ -152,11 +152,11 @@ function SignUpForm() {
           disabled={loading || !isLoaded}
           className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
-          {loading ? "Creating account..." : "Create account"}
+          {loading ? "登録中..." : "アカウント作成"}
         </button>
         <p className="text-xs text-center text-gray-400">
-          Already have an account?{" "}
-          <a href="/login" className="text-gray-700 font-medium hover:underline">Log in</a>
+          すでにアカウントをお持ちの方は{" "}
+          <a href="/login" className="text-gray-700 font-medium hover:underline">ログイン</a>
         </p>
       </form>
     </div>
