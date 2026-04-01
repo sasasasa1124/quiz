@@ -1,7 +1,7 @@
 "use client";
 
 import { CognitoUserPool, CognitoUser, AuthenticationDetails } from "amazon-cognito-identity-js";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
@@ -12,7 +12,6 @@ const pool = new CognitoUserPool({
 });
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
   const { t } = useSettings();
@@ -49,7 +48,7 @@ function LoginForm() {
         setError(data.error || "ログインに失敗しました");
         return;
       }
-      router.push(next);
+      window.location.href = next;
     } catch (err: unknown) {
       const e = err as { message?: string };
       const msg = e.message ?? "";

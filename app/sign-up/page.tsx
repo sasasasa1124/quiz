@@ -1,7 +1,7 @@
 "use client";
 
 import { CognitoUserPool, CognitoUser, CognitoUserAttribute, AuthenticationDetails } from "amazon-cognito-identity-js";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { useSettings } from "@/lib/settings-context";
@@ -13,7 +13,6 @@ const pool = new CognitoUserPool({
 });
 
 function SignUpForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
   const { t } = useSettings();
@@ -78,7 +77,7 @@ function SignUpForm() {
         body: JSON.stringify({ idToken }),
       });
       if (!res.ok) throw new Error("セッション作成に失敗しました");
-      router.push(next);
+      window.location.href = next;
     } catch (err: unknown) {
       const e = err as { message?: string };
       setError(e.message || "確認に失敗しました");
