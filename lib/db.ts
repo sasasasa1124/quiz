@@ -6,9 +6,12 @@ import type {
 import { DEFAULT_USER_SETTINGS } from "./types";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { drizzle } from "drizzle-orm/d1";
+import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { eq, like, and, sql, asc, desc, isNotNull, lte, lt, gte, inArray } from "drizzle-orm";
 import type { D1Database as CloudflareD1 } from "@cloudflare/workers-types";
 import * as schema from "./schema";
+import * as schemaPg from "./schema.pg";
 import {
   exams as examsTable, questions as questionsTable, questionHistory,
   scores, sessions, sessionAnswers, userSettings, userSnapshots,
@@ -48,10 +51,53 @@ function buildD1Client(d1: CloudflareD1): D1Client {
   return client as unknown as D1Client;
 }
 
+// ── PostgreSQL adapter (wraps postgres.js with same template-tag API) ──────
+
+// Singleton postgres.js client — reuse across requests to avoid connection churn.
+let _pgSql: postgres.Sql | null = null;
+function getPgSql(): postgres.Sql {
+  if (!_pgSql) {
+    _pgSql = postgres(process.env.DATABASE_URL!, { max: 10, idle_timeout: 20 });
+  }
+  return _pgSql;
+}
+
+function buildPgClient(): D1Client {
+  const client = async function<T>(strings: TemplateStringsArray, ...values: unknown[]): Promise<T> {
+    const parts: string[] = [];
+    const params: unknown[] = [];
+    for (let i = 0; i < strings.length; i++) {
+      if (i < values.length) {
+        const v = values[i];
+        if (v instanceof UnsafeRaw) {
+          parts.push(strings[i] + v.sql);
+        } else {
+          params.push(v);
+          parts.push(strings[i] + `$${params.length}`);
+        }
+      } else {
+        parts.push(strings[i]);
+      }
+    }
+    const query = parts.join("");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const result = await getPgSql().unsafe(query, params as any);
+    return (result ?? []) as unknown as T;
+  };
+  client.unsafe = (s: string) => new UnsafeRaw(s);
+  return client as unknown as D1Client;
+}
+
 // ── Database connection ────────────────────────────────────────────────────
 
-/** Returns a D1 client (postgres.js-compatible template tag), or null in local dev. */
+/** True when running on Node.js (AWS App Runner) with a PostgreSQL DATABASE_URL. */
+function isPg(): boolean {
+  return !!process.env.DATABASE_URL;
+}
+
+/** Returns a SQL template-tag client, or null in local dev. */
 export function getDB(): D1Client | null {
+  if (isPg()) return buildPgClient();
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d1 = (getRequestContext() as any).env.DB as CloudflareD1 | undefined;
@@ -62,8 +108,12 @@ export function getDB(): D1Client | null {
   }
 }
 
-/** Returns a Drizzle instance wrapping D1, or null in local dev. */
-function getDrizzle() {
+/** Returns a Drizzle ORM instance, or null in local dev. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDrizzle(): any {
+  if (isPg()) {
+    return drizzlePg(getPgSql(), { schema: schemaPg });
+  }
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const d1 = (getRequestContext() as any).env.DB as CloudflareD1 | undefined;
@@ -148,7 +198,7 @@ export async function deleteExam(examId: string): Promise<void> {
 
   // Collect question IDs
   const qs = await db.select({ id: questionsTable.id }).from(questionsTable).where(eq(questionsTable.examId, examId));
-  const qIds = qs.map((q) => q.id);
+  const qIds = qs.map((q: { id: string }) => q.id);
 
   if (qIds.length > 0) {
     await db.delete(suggestionsTable).where(inArray(suggestionsTable.questionId, qIds));
@@ -159,7 +209,7 @@ export async function deleteExam(examId: string): Promise<void> {
 
   // Collect session IDs
   const sess = await db.select({ id: sessions.id }).from(sessions).where(eq(sessions.examId, examId));
-  const sessIds = sess.map((s) => s.id);
+  const sessIds = sess.map((s: { id: string }) => s.id);
   if (sessIds.length > 0) {
     await db.delete(sessionAnswers).where(inArray(sessionAnswers.sessionId, sessIds));
   }
@@ -269,12 +319,13 @@ export async function updateQuestion(id: string, data: QuestionUpdate, changedBy
     INSERT INTO question_history (question_id, question_text, options, answers, explanation, source, explanation_sources, version, changed_by, change_reason)
     VALUES (${id}, ${current.question_text}, ${current.options}, ${current.answers}, ${current.explanation}, ${current.source ?? ""}, ${current.explanation_sources ?? "[]"}, ${current.version}, ${changedBy}, ${data.change_reason})`;
 
+  const nowExpr = isPg() ? pg.unsafe("NOW()") : pg.unsafe("datetime('now')");
   await pg`
     UPDATE questions
     SET question_text = ${data.question_text}, options = ${JSON.stringify(data.options)},
         answers = ${JSON.stringify(data.answers)}, explanation = ${data.explanation},
         source = ${data.source ?? ""}, explanation_sources = ${JSON.stringify(data.explanation_sources ?? [])},
-        version = version + 1, updated_at = datetime('now')
+        version = version + 1, updated_at = ${nowExpr}
     WHERE id = ${id}`;
 }
 
@@ -331,7 +382,8 @@ export async function getQuestionHistory(questionId: string): Promise<QuestionHi
     .where(eq(questionHistory.questionId, questionId))
     .orderBy(desc(questionHistory.version));
 
-  return rows.map((row) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((row: any) => ({
     id: row.id,
     questionId: row.questionId,
     questionText: row.questionText,
@@ -366,12 +418,13 @@ export async function createQuestion(examId: string, data: QuestionCreate, creat
   const num = (maxRow?.max_num ?? 0) + 1;
   const id = `${examId}__${num}`;
 
+  const nowFn = isPg() ? pg.unsafe("NOW()") : pg.unsafe("datetime('now')");
   await pg`
     INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source,
                            explanation_sources, created_by, created_at, added_at)
     VALUES (${id}, ${examId}, ${num}, ${data.question_text}, ${JSON.stringify(data.options)},
             ${JSON.stringify(data.answers)}, ${data.explanation}, ${data.source},
-            ${JSON.stringify(data.explanation_sources ?? [])}, ${createdBy}, datetime('now'), datetime('now'))`;
+            ${JSON.stringify(data.explanation_sources ?? [])}, ${createdBy}, ${nowFn}, ${nowFn})`;
 
   const created = await getQuestionById(id);
   if (!created) throw new Error("Failed to retrieve created question");
@@ -537,7 +590,8 @@ export async function getSessionsByExam(userEmail: string, examId: string, limit
     .orderBy(desc(sessions.startedAt))
     .limit(limit);
 
-  return rows.map((row) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return rows.map((row: any) => ({
     id: row.id,
     userEmail: row.userEmail,
     examId: row.examId,
@@ -559,12 +613,19 @@ export async function getDailyProgress(userEmail: string): Promise<{
   const pg = getDB();
   if (!pg) return { todayCount: 0, activeDays: [] };
 
+  const todayFilter = isPg()
+    ? pg.unsafe("started_at::date = CURRENT_DATE")
+    : pg.unsafe("date(started_at) = date('now')");
+  const dateFn = isPg()
+    ? pg.unsafe("started_at::date")
+    : pg.unsafe("date(started_at)");
+
   const [todayRow] = await pg<{ cnt: number }[]>`
     SELECT COALESCE(SUM(question_count), 0) AS cnt
-    FROM sessions WHERE user_email = ${userEmail} AND date(started_at) = date('now')`;
+    FROM sessions WHERE user_email = ${userEmail} AND ${todayFilter}`;
 
   const dayRows = await pg<{ day: string }[]>`
-    SELECT DISTINCT date(started_at) AS day
+    SELECT DISTINCT ${dateFn} AS day
     FROM sessions WHERE user_email = ${userEmail}
     ORDER BY day DESC LIMIT 90`;
 
@@ -651,14 +712,21 @@ export async function getAllScores(userEmail: string): Promise<Record<string, { 
   // Aggregate per-exam using the examId prefix (format: "examId__questionNum")
   const pg = getDB();
   if (!pg) return {};
+  const examIdExpr = isPg()
+    ? pg.unsafe("substring(question_id, 1, strpos(question_id, '__') - 1)")
+    : pg.unsafe("substr(question_id, 1, instr(question_id, '__') - 1)");
+  const hasDelimExpr = isPg()
+    ? pg.unsafe("strpos(question_id, '__') > 0")
+    : pg.unsafe("instr(question_id, '__') > 0");
+
   const rows = await pg<{ exam_id: string; answered: number; correct: number }[]>`
     SELECT
-      substr(question_id, 1, instr(question_id, '__') - 1) AS exam_id,
+      ${examIdExpr} AS exam_id,
       COUNT(*) AS answered,
       SUM(CASE WHEN last_correct = 1 THEN 1 ELSE 0 END) AS correct
     FROM scores
     WHERE user_email = ${userEmail}
-      AND instr(question_id, '__') > 0
+      AND ${hasDelimExpr}
     GROUP BY exam_id`;
 
   const statsMap: Record<string, { answered: number; correct: number }> = {};
@@ -720,7 +788,8 @@ export async function setUserSettings(userEmail: string, settings: Partial<UserS
   const entries = Object.entries(settings);
   if (!entries.length) return;
 
-  await db.transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await db.transaction(async (tx: any) => {
     for (const [key, value] of entries) {
       const serialized = (Array.isArray(value) || (typeof value === "object" && value !== null))
         ? JSON.stringify(value)
