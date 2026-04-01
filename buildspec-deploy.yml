@@ -20,6 +20,7 @@ phases:
           --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
           --build-arg NEXT_PUBLIC_CLERK_IS_SATELLITE=true
           --build-arg NEXT_PUBLIC_CLERK_DOMAIN=quiz-aad.pages.dev
+          --build-arg NEXT_PUBLIC_CLERK_SIGN_IN_URL=https://bngmzhtypy.us-west-2.awsapprunner.com/login
           -t $IMAGE .
       - echo Build complete.
 
