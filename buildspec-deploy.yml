@@ -2,7 +2,8 @@ version: 0.2
 
 env:
   secrets-manager:
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: scholion/NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+    NEXT_PUBLIC_COGNITO_USER_POOL_ID: scholion/COGNITO_USER_POOL_ID
+    NEXT_PUBLIC_COGNITO_CLIENT_ID: scholion/COGNITO_CLIENT_ID
 
 phases:
   pre_build:
@@ -17,8 +18,8 @@ phases:
     commands:
       - echo Building Docker image...
       - docker build
-          --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
-          --build-arg NEXT_PUBLIC_CLERK_SIGN_IN_URL=https://bngmzhtypy.us-west-2.awsapprunner.com/login
+          --build-arg NEXT_PUBLIC_COGNITO_USER_POOL_ID=$NEXT_PUBLIC_COGNITO_USER_POOL_ID
+          --build-arg NEXT_PUBLIC_COGNITO_CLIENT_ID=$NEXT_PUBLIC_COGNITO_CLIENT_ID
           -t $IMAGE .
       - echo Build complete.
 

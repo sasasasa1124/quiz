@@ -1,12 +1,16 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
+import { CognitoUserPool, CognitoUser, AuthenticationDetails } from "amazon-cognito-identity-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react";
 
+const pool = new CognitoUserPool({
+  UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!,
+  ClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!,
+});
+
 function LoginForm() {
-  const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
@@ -20,18 +24,38 @@ function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !signIn) return;
     setError("");
     setLoading(true);
     try {
-      const result = await signIn.create({ identifier: email, password });
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.push(next);
+      const idToken = await new Promise<string>((resolve, reject) => {
+        const user = new CognitoUser({ Username: email, Pool: pool });
+        const authDetails = new AuthenticationDetails({ Username: email, Password: password });
+        user.authenticateUser(authDetails, {
+          onSuccess: (result) => resolve(result.getIdToken().getJwtToken()),
+          onFailure: reject,
+        });
+      });
+
+      const res = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setError(data.error || "ログインに失敗しました");
+        return;
       }
+      router.push(next);
     } catch (err: unknown) {
-      const clerkError = err as { errors?: { message: string }[] };
-      setError(clerkError.errors?.[0]?.message || "ログインに失敗しました");
+      const e = err as { message?: string };
+      const msg = e.message ?? "";
+      setError(
+        msg.includes("Incorrect") || msg.includes("NotAuthorizedException")
+          ? "メールアドレスまたはパスワードが正しくありません"
+          : msg || "ログインに失敗しました"
+      );
     } finally {
       setLoading(false);
     }
@@ -87,7 +111,7 @@ function LoginForm() {
         {error && <p className="text-xs text-rose-500">{error}</p>}
         <button
           type="submit"
-          disabled={loading || !isLoaded || !!domainError}
+          disabled={loading || !!domainError}
           className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
           {loading ? "処理中..." : "ログイン"}

@@ -5,7 +5,7 @@ import PageTransition from "@/components/PageTransition";
 import GlobalHeader from "@/components/GlobalHeader";
 import Providers from "./providers";
 import GithubFeedbackPopup from "@/components/GithubFeedbackPopup";
-import { ClerkProvider } from "@clerk/nextjs";
+
 
 const inter = Inter({
   variable: "--font-inter",
@@ -50,18 +50,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider signInUrl="/login" signInFallbackRedirectUrl="/" afterSignOutUrl="/login">
-      <html lang="en">
-        <body
-          className={`${inter.variable} ${lora.variable} ${cormorant.variable} ${jetbrains.variable} ${notoSerifJp.variable} antialiased`}
-        >
-          <Providers>
-            <GlobalHeader />
-            <PageTransition>{children}</PageTransition>
-            <GithubFeedbackPopup />
-          </Providers>
-        </body>
-      </html>
-    </ClerkProvider>
+    <html lang="en">
+      <body
+        className={`${inter.variable} ${lora.variable} ${cormorant.variable} ${jetbrains.variable} ${notoSerifJp.variable} antialiased`}
+      >
+        <Providers>
+          <GlobalHeader />
+          <PageTransition>{children}</PageTransition>
+          <GithubFeedbackPopup />
+        </Providers>
+      </body>
+    </html>
   );
 }

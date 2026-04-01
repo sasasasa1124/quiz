@@ -1,13 +1,17 @@
-import { currentUser } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
+import { verifyIdToken } from "./cognito-jwt";
 
 /**
- * Returns the authenticated user's email.
- * Falls back to "local@dev" in local development without Clerk configured.
+ * Returns the authenticated user's email from the session cookie.
+ * Falls back to "local@dev" in local development.
  */
 export async function getUserEmail(): Promise<string> {
   try {
-    const user = await currentUser();
-    return user?.emailAddresses[0]?.emailAddress ?? "local@dev";
+    const cookieStore = await cookies();
+    const token = cookieStore.get("id_token")?.value;
+    if (!token) return "local@dev";
+    const payload = await verifyIdToken(token);
+    return payload.email;
   } catch {
     return "local@dev";
   }
