@@ -16,7 +16,11 @@ phases:
   build:
     commands:
       - echo Building Docker image...
-      - docker build --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY -t $IMAGE .
+      - docker build
+          --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+          --build-arg NEXT_PUBLIC_CLERK_IS_SATELLITE=true
+          --build-arg NEXT_PUBLIC_CLERK_DOMAIN=quiz-aad.pages.dev
+          -t $IMAGE .
       - echo Build complete.
 
   post_build:
