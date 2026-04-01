@@ -1,0 +1,101 @@
+version: 0.2
+
+env:
+  secrets-manager:
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: scholion/NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-8)
+      - export IMAGE=$ECR_REGISTRY/scholion:$IMAGE_TAG
+      - echo "Image tag is $IMAGE_TAG"
+
+  build:
+    commands:
+      - echo Building Docker image...
+      - docker build --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY -t $IMAGE .
+      - echo Build complete.
+
+  post_build:
+    commands:
+      - echo Pushing image to ECR...
+      - docker push $IMAGE
+      - echo Deploying to App Runner...
+      - |
+        SERVICE_ARN=$(aws apprunner list-services --region $AWS_DEFAULT_REGION \
+          --query "ServiceSummaryList[?ServiceName=='scholion'].ServiceArn" \
+          --output text 2>/dev/null)
+
+        SOURCE_CONFIG=$(cat <<JSON
+        {
+          "AuthenticationConfiguration": {"AccessRoleArn": "$APPRUNNER_ROLE_ARN"},
+          "AutoDeploymentsEnabled": false,
+          "ImageRepository": {
+            "ImageIdentifier": "$IMAGE",
+            "ImageConfiguration": {
+              "Port": "3000",
+              "RuntimeEnvironmentVariables": {
+                "NODE_ENV": "production",
+                "DEPLOY_TARGET": "aws",
+                "GITHUB_OWNER": "kota-sasamoto_sfemu",
+                "GITHUB_REPO": "scholion"
+              },
+              "RuntimeEnvironmentSecrets": {
+                "GEMINI_API_KEY":    "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/GEMINI_API_KEY-oPSvYM",
+                "CLERK_SECRET_KEY": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/CLERK_SECRET_KEY-wAgHm6",
+                "DATABASE_URL":     "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/DATABASE_URL-9WFWE7",
+                "APP_GITHUB_TOKEN": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/GITHUB_TOKEN-lJwhXQ"
+              }
+            },
+            "ImageRepositoryType": "ECR"
+          }
+        }
+        JSON
+        )
+
+        INSTANCE_CONFIG='{"Cpu":"1 vCPU","Memory":"2 GB","InstanceRoleArn":"'"$APPRUNNER_ROLE_ARN"'"}'
+        NETWORK_CONFIG='{"EgressConfiguration":{"EgressType":"VPC","VpcConnectorArn":"'"$VPC_CONNECTOR_ARN"'"},"IngressConfiguration":{"IsPubliclyAccessible":true}}'
+
+        if [ -z "$SERVICE_ARN" ]; then
+          echo "Creating new App Runner service..."
+          SERVICE_ARN=$(aws apprunner create-service \
+            --region $AWS_DEFAULT_REGION \
+            --service-name scholion \
+            --source-configuration "$SOURCE_CONFIG" \
+            --instance-configuration "$INSTANCE_CONFIG" \
+            --network-configuration "$NETWORK_CONFIG" \
+            --query 'Service.ServiceArn' --output text)
+          echo "Service created: $SERVICE_ARN"
+        else
+          echo "Updating App Runner service: $SERVICE_ARN"
+          aws apprunner update-service \
+            --region $AWS_DEFAULT_REGION \
+            --service-arn "$SERVICE_ARN" \
+            --source-configuration "$SOURCE_CONFIG" \
+            --instance-configuration "$INSTANCE_CONFIG" \
+            --network-configuration "$NETWORK_CONFIG"
+        fi
+
+        echo "Waiting for service to become RUNNING..."
+        for i in $(seq 1 30); do
+          STATUS=$(aws apprunner describe-service --region $AWS_DEFAULT_REGION \
+            --service-arn "$SERVICE_ARN" \
+            --query 'Service.Status' --output text)
+          echo "Status: $STATUS (attempt $i/30)"
+          if [ "$STATUS" = "RUNNING" ]; then
+            URL=$(aws apprunner describe-service --region $AWS_DEFAULT_REGION \
+              --service-arn "$SERVICE_ARN" \
+              --query 'Service.ServiceUrl' --output text)
+            echo "Deployment complete: https://$URL"
+            exit 0
+          elif [ "$STATUS" = "CREATE_FAILED" ] || [ "$STATUS" = "UPDATE_FAILED" ]; then
+            echo "Deployment FAILED: $STATUS"
+            exit 1
+          fi
+          sleep 20
+        done
+        echo "Timed out"
+        exit 1
