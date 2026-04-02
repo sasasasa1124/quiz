@@ -22,7 +22,7 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/scripts/migrate-pg.js ./scripts/migrate-pg.js
-COPY --from=builder /app/migrations/drizzle/0000_init_complete.sql ./migrations/drizzle/0000_init_complete.sql
+COPY --from=builder /app/migrations/drizzle/ ./migrations/drizzle/
 EXPOSE 3000
 # Run DB migrations (idempotent) then start the app
 CMD ["sh", "-c", "node scripts/migrate-pg.js && npm start"]

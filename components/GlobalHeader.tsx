@@ -34,10 +34,7 @@ export default function GlobalHeader() {
       back={config.back}
       title={config.title}
       right={
-        <>
-          <LangSelector />
-          {config.right}
-        </>
+        config.right ?? <LangSelector />
       }
       hideSettingsIcon={config.hideSettingsIcon}
     />
