@@ -35,11 +35,14 @@ async function migrate() {
 
       // 0000_init_complete.sql uses --> statement-breakpoint separators
       // 0001_seed_exams.sql is plain semicolon-terminated statements (one per line)
+      // Strip leading SQL comments from each statement before checking emptiness.
+      // A block may start with "-- comment\n\nCREATE TABLE..." — the CREATE TABLE must not be dropped.
+      const stripLeadingComments = (s) => s.replace(/^([ \t]*--[^\n]*\n)*/g, "").trim();
       const statements = file.includes("init")
         ? content
             .split("--> statement-breakpoint")
-            .map((s) => s.trim())
-            .filter((s) => s.length > 0 && !s.startsWith("--"))
+            .map((s) => stripLeadingComments(s))
+            .filter((s) => s.length > 0)
         : content
             .split("\n")
             .map((s) => s.trim())
