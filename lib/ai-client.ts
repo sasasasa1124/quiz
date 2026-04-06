@@ -12,7 +12,7 @@
 export const isAWS = process.env.DEPLOY_TARGET === "aws";
 
 // Default models
-const DEFAULT_BEDROCK_MODEL = "us.anthropic.claude-sonnet-4-6";
+const DEFAULT_BEDROCK_MODEL = "us.anthropic.claude-3-7-sonnet-20250219-v1:0";
 const DEFAULT_GEMINI_MODEL = "gemini-2.5-flash-preview";
 
 const BEDROCK_REGION = "us-west-2";
