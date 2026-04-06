@@ -63,5 +63,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ ...result.data, model, sources: groundingSources });
+  return NextResponse.json({ ...result.data, sources: groundingSources });
 }
