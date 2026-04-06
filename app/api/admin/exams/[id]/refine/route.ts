@@ -1,12 +1,11 @@
-export const runtime = 'edge';
 import { NextRequest } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import { getDB, getQuestions, getSetting } from "@/lib/db";
+import { getDB, getQuestions } from "@/lib/db";
 import { DEFAULT_REFINE_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
 import { requireAdmin } from "@/lib/auth";
 import { parseAiJsonAs } from "@/lib/ai-json";
 import { AiRefineResponseSchema } from "@/lib/ai-schemas";
+import { aiGenerate } from "@/lib/ai-client";
 
 export async function POST(
   req: NextRequest,
@@ -22,13 +21,6 @@ export async function POST(
     userPrompt = body.userPrompt;
   } catch { /* no body is fine */ }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500 });
-  }
-
   const pg = getDB();
   if (!pg) {
     return new Response(JSON.stringify({ error: "DB not available" }), { status: 503 });
@@ -37,9 +29,6 @@ export async function POST(
   const questions = await getQuestions(examId);
   const candidates = questions.filter((q) => q.question.trim().length > 0);
   const total = candidates.length;
-
-  const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -75,17 +64,7 @@ export async function POST(
               .replace("{choices}", choicesText)
               .replace("{answers}", answersText);
 
-            const resp = await ai.models.generateContent({
-              model,
-              contents: prompt,
-              config: {
-                tools: [{ googleSearch: {} }],
-                responseMimeType: "application/json",
-              },
-            });
-
-            const raw = (resp.text ?? "").trim()
-              .replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+            const { text: raw } = await aiGenerate(prompt, { jsonMode: true, useSearch: true });
             const { data: result, error: parseError } = parseAiJsonAs(raw, AiRefineResponseSchema);
             if (parseError || !result) throw new Error(parseError ?? "parse failed");
 
@@ -96,7 +75,7 @@ export async function POST(
             });
 
             if (questionChanged || choicesChanged) {
-              await pg`UPDATE questions SET question_text = ${result.question}, options = ${JSON.stringify(result.choices)}, version = version + 1, updated_at = datetime('now') WHERE id = ${q.dbId}`;
+              await pg`UPDATE questions SET question_text = ${result.question}, options = ${JSON.stringify(result.choices)}, version = version + 1, updated_at = NOW() WHERE id = ${q.dbId}`;
               refined++;
             }
           } catch { failed++; }

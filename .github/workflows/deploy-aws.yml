@@ -1,0 +1,156 @@
+name: Deploy to AWS App Runner
+
+on:
+  push:
+    branches: [deploy/aws]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+
+    env:
+      AWS_REGION: us-west-2
+      ECR_REGISTRY: 435788423370.dkr.ecr.us-west-2.amazonaws.com
+      ECR_REPOSITORY: scholion
+      APP_RUNNER_SERVICE: scholion
+      APP_RUNNER_ROLE_ARN: arn:aws:iam::435788423370:role/scholion-apprunner-role
+      VPC_CONNECTOR_ARN: arn:aws:apprunner:us-west-2:435788423370:vpcconnector/scholion-vpc-connector/1/3941f5c2c1cc44c48ac2194d40b40dc5
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Show diff from previous deployment
+        run: git log origin/deploy/aws..HEAD --oneline || true
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-west-2
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          docker build \
+            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} \
+            -t $IMAGE .
+          docker push $IMAGE
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Deploy to App Runner
+        run: |
+          SERVICE_ARN=$(aws apprunner list-services \
+            --region ${{ env.AWS_REGION }} \
+            --query "ServiceSummaryList[?ServiceName=='${{ env.APP_RUNNER_SERVICE }}'].ServiceArn" \
+            --output text 2>/dev/null)
+
+          SOURCE_CONFIG=$(cat <<JSON
+          {
+            "AuthenticationConfiguration": {
+              "AccessRoleArn": "${{ env.APP_RUNNER_ROLE_ARN }}"
+            },
+            "AutoDeploymentsEnabled": false,
+            "ImageRepository": {
+              "ImageIdentifier": "${{ env.IMAGE }}",
+              "ImageConfiguration": {
+                "Port": "3000",
+                "RuntimeEnvironmentVariables": {
+                  "NODE_ENV": "production",
+                  "DEPLOY_TARGET": "aws",
+                  "GITHUB_OWNER": "kota-sasamoto_sfemu",
+                  "GITHUB_REPO": "scholion"
+                },
+                "RuntimeEnvironmentSecrets": {
+                  "GEMINI_API_KEY": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/GEMINI_API_KEY-oPSvYM",
+                  "CLERK_SECRET_KEY": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/CLERK_SECRET_KEY-wAgHm6",
+                  "DATABASE_URL": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/DATABASE_URL-9WFWE7",
+                  "APP_GITHUB_TOKEN": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/GITHUB_TOKEN-lJwhXQ"
+                }
+              },
+              "ImageRepositoryType": "ECR"
+            }
+          }
+          JSON
+          )
+
+          INSTANCE_CONFIG=$(cat <<JSON
+          {
+            "Cpu": "1 vCPU",
+            "Memory": "2 GB",
+            "InstanceRoleArn": "${{ env.APP_RUNNER_ROLE_ARN }}"
+          }
+          JSON
+          )
+
+          NETWORK_CONFIG=$(cat <<JSON
+          {
+            "EgressConfiguration": {
+              "EgressType": "VPC",
+              "VpcConnectorArn": "${{ env.VPC_CONNECTOR_ARN }}"
+            },
+            "IngressConfiguration": {
+              "IsPubliclyAccessible": true
+            }
+          }
+          JSON
+          )
+
+          if [ -z "$SERVICE_ARN" ]; then
+            echo "Creating new App Runner service..."
+            SERVICE_ARN=$(aws apprunner create-service \
+              --region ${{ env.AWS_REGION }} \
+              --service-name ${{ env.APP_RUNNER_SERVICE }} \
+              --source-configuration "$SOURCE_CONFIG" \
+              --instance-configuration "$INSTANCE_CONFIG" \
+              --network-configuration "$NETWORK_CONFIG" \
+              --query 'Service.ServiceArn' \
+              --output text)
+            echo "Service created: $SERVICE_ARN"
+          else
+            echo "Updating existing App Runner service: $SERVICE_ARN"
+            aws apprunner update-service \
+              --region ${{ env.AWS_REGION }} \
+              --service-arn "$SERVICE_ARN" \
+              --source-configuration "$SOURCE_CONFIG" \
+              --instance-configuration "$INSTANCE_CONFIG" \
+              --network-configuration "$NETWORK_CONFIG"
+          fi
+
+          echo "SERVICE_ARN=$SERVICE_ARN" >> $GITHUB_ENV
+
+      - name: Wait for deployment to complete
+        run: |
+          echo "Waiting for App Runner service to be running..."
+          for i in $(seq 1 30); do
+            STATUS=$(aws apprunner describe-service \
+              --region ${{ env.AWS_REGION }} \
+              --service-arn "${{ env.SERVICE_ARN }}" \
+              --query 'Service.Status' \
+              --output text)
+            echo "Status: $STATUS (attempt $i/30)"
+            if [ "$STATUS" = "RUNNING" ]; then
+              SERVICE_URL=$(aws apprunner describe-service \
+                --region ${{ env.AWS_REGION }} \
+                --service-arn "${{ env.SERVICE_ARN }}" \
+                --query 'Service.ServiceUrl' \
+                --output text)
+              echo "Deployment complete: https://$SERVICE_URL"
+              exit 0
+            elif [ "$STATUS" = "CREATE_FAILED" ] || [ "$STATUS" = "UPDATE_FAILED" ]; then
+              echo "Deployment failed with status: $STATUS"
+              exit 1
+            fi
+            sleep 20
+          done
+          echo "Timed out waiting for deployment"
+          exit 1

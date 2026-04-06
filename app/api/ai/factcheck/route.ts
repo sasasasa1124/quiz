@@ -1,11 +1,10 @@
 export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 import type { Choice } from "@/lib/types";
 import { DEFAULT_FACTCHECK_PROMPT } from "@/lib/types";
-import { getSetting } from "@/lib/db";
 import { parseAiJson } from "@/lib/ai-json";
 import { AiFactCheckResponseSchema } from "@/lib/ai-schemas";
+import { aiGenerate } from "@/lib/ai-client";
 
 export type { AiFactCheckResponse } from "@/lib/ai-schemas";
 
@@ -17,12 +16,6 @@ export async function POST(req: NextRequest) {
     userPrompt?: string;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
-  }
-
   const choicesText = body.choices.map((c) => `${c.label}. ${c.text}`).join("\n");
   const answersText = (body.answers ?? []).join(", ");
 
@@ -32,38 +25,18 @@ export async function POST(req: NextRequest) {
     .replace("{choices}", choicesText)
     .replace("{answers}", answersText);
 
-  const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
-
   let raw = "";
-  let parsed: unknown = null;
-
-  // Try with googleSearch grounding first, then retry without if JSON parsing fails
-  for (const useGrounding of [true, false]) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          ...(useGrounding ? { tools: [{ googleSearch: {} }] } : {}),
-          responseMimeType: "application/json",
-        },
-      });
-      raw = response.text ?? "";
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (!useGrounding) {
-        return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
-      }
-      continue;
-    }
-
-    parsed = parseAiJson(raw);
-    if (parsed !== null) break;
+  try {
+    const { text } = await aiGenerate(prompt, { jsonMode: true, useSearch: true });
+    raw = text;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `AI error: ${msg}` }, { status: 502 });
   }
 
+  const parsed = parseAiJson(raw);
   if (parsed === null) {
-    return NextResponse.json({ error: "AI returned invalid JSON", raw: raw }, { status: 502 });
+    return NextResponse.json({ error: "AI returned invalid JSON", raw }, { status: 502 });
   }
 
   const result = AiFactCheckResponseSchema.safeParse(parsed);

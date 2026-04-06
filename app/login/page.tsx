@@ -1,15 +1,20 @@
 "use client";
 
-import { useSignIn } from "@clerk/nextjs";
-import { useRouter, useSearchParams } from "next/navigation";
+import { CognitoUserPool, CognitoUser, AuthenticationDetails } from "amazon-cognito-identity-js";
+import { useSearchParams } from "next/navigation";
 import { useState, Suspense } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import { useSettings } from "@/lib/settings-context";
+
+const pool = new CognitoUserPool({
+  UserPoolId: process.env.NEXT_PUBLIC_COGNITO_USER_POOL_ID!,
+  ClientId: process.env.NEXT_PUBLIC_COGNITO_CLIENT_ID!,
+});
 
 function LoginForm() {
-  const { signIn, setActive, isLoaded } = useSignIn();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/";
+  const { t } = useSettings();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -20,18 +25,38 @@ function LoginForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!isLoaded || !signIn) return;
     setError("");
     setLoading(true);
     try {
-      const result = await signIn.create({ identifier: email, password });
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
-        router.push(next);
+      const idToken = await new Promise<string>((resolve, reject) => {
+        const user = new CognitoUser({ Username: email, Pool: pool });
+        const authDetails = new AuthenticationDetails({ Username: email, Password: password });
+        user.authenticateUser(authDetails, {
+          onSuccess: (result) => resolve(result.getIdToken().getJwtToken()),
+          onFailure: reject,
+        });
+      });
+
+      const res = await fetch("/api/auth/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ idToken }),
+      });
+
+      if (!res.ok) {
+        const data = (await res.json()) as { error?: string };
+        setError(data.error || "ログインに失敗しました");
+        return;
       }
+      window.location.href = next;
     } catch (err: unknown) {
-      const clerkError = err as { errors?: { message: string }[] };
-      setError(clerkError.errors?.[0]?.message || "ログインに失敗しました");
+      const e = err as { message?: string };
+      const msg = e.message ?? "";
+      setError(
+        msg.includes("Incorrect") || msg.includes("NotAuthorizedException")
+          ? "メールアドレスまたはパスワードが正しくありません"
+          : msg || "ログインに失敗しました"
+      );
     } finally {
       setLoading(false);
     }
@@ -39,11 +64,11 @@ function LoginForm() {
 
   return (
     <div className="w-full max-w-sm">
-      <h1 className="text-xl font-semibold text-gray-900 mb-6 text-center">ログイン</h1>
+      <h1 className="text-xl font-semibold text-gray-900 mb-6 text-center">{t("signIn")}</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-            メールアドレス
+            {t("emailAddress")}
           </label>
           <input
             type="email"
@@ -52,7 +77,7 @@ function LoginForm() {
               const val = e.target.value;
               setEmail(val);
               if (val.includes("@") && !val.endsWith("@salesforce.com")) {
-                setDomainError("salesforce.com のメールアドレスのみ使用できます");
+                setDomainError(t("domainOnlyError"));
               } else {
                 setDomainError("");
               }
@@ -65,7 +90,7 @@ function LoginForm() {
         </div>
         <div>
           <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-            パスワード
+            {t("password")}
           </label>
           <div className="relative">
             <input
@@ -87,14 +112,14 @@ function LoginForm() {
         {error && <p className="text-xs text-rose-500">{error}</p>}
         <button
           type="submit"
-          disabled={loading || !isLoaded || !!domainError}
+          disabled={loading || !!domainError}
           className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-50"
         >
-          {loading ? "処理中..." : "ログイン"}
+          {loading ? t("signingIn") : t("signIn")}
         </button>
         <p className="text-xs text-center text-gray-400">
-          アカウントをお持ちでない方は{" "}
-          <a href="/sign-up" className="text-gray-700 font-medium hover:underline">新規登録</a>
+          {t("noAccount")}{" "}
+          <a href={`/sign-up?next=${encodeURIComponent(next)}`} className="text-gray-700 font-medium hover:underline">{t("signUp")}</a>
         </p>
       </form>
     </div>
@@ -103,7 +128,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#f8f9fb] flex items-center justify-center px-4 pt-14">
       <Suspense>
         <LoginForm />
       </Suspense>

@@ -129,6 +129,10 @@ export async function POST(req: NextRequest) {
   const authError = await requireAdmin();
   if (authError) return authError;
 
+  if (process.env.DEPLOY_TARGET === "aws") {
+    return new Response(JSON.stringify({ error: "File import requires Google Gemini (not available on AWS)" }), { status: 503 });
+  }
+
   const formData = await req.formData();
   const file = formData.get("file") as File | null;
   const examId = (formData.get("examId") as string | null)?.trim();
@@ -316,7 +320,7 @@ Include every question — do not truncate. Use the column mapping you just iden
             VALUES (
               ${qId}, ${examId}, ${q.num}, ${q.question},
               ${JSON.stringify(options)}, ${JSON.stringify(q.answer)},
-              ${q.explanation}, ${q.source}, ${"[]"}, ${userEmail}, datetime('now'), datetime('now')
+              ${q.explanation}, ${q.source}, ${"[]"}, ${userEmail}, NOW(), NOW()
             )
             ON CONFLICT (id) DO UPDATE SET
               question_text = EXCLUDED.question_text,

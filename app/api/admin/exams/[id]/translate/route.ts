@@ -1,7 +1,6 @@
-export const runtime = 'edge';
 import { NextRequest } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import { getDB, getQuestions, getSetting } from "@/lib/db";
+import { getDB, getQuestions } from "@/lib/db";
+import { aiGenerate } from "@/lib/ai-client";
 import { requireAdmin } from "@/lib/auth";
 import type { Choice } from "@/lib/types";
 import { TranslatedQuestionsSchema } from "@/lib/ai-schemas";
@@ -43,13 +42,6 @@ export async function POST(
     return new Response(JSON.stringify({ error: "Invalid target language" }), { status: 400 });
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500 });
-  }
-
   const pg = getDB();
   if (!pg) {
     return new Response(JSON.stringify({ error: "DB not available" }), { status: 503 });
@@ -70,9 +62,6 @@ export async function POST(
   const targetLangName = LANG_NAMES[targetLanguage] ?? targetLanguage;
   const sourceLangName = LANG_NAMES[examRow.lang] ?? examRow.lang;
 
-  const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
-
   // Fetch existing categories from the source exam to use as constraints
   const categoryRows = await pg<{ category: string }[]>`
     SELECT DISTINCT category FROM questions
@@ -92,11 +81,10 @@ export async function POST(
 
       try {
         // Translate exam name
-        const nameResp = await ai.models.generateContent({
-          model,
-          contents: `Translate this Salesforce certification exam name from ${sourceLangName} to ${targetLangName}. Return ONLY the translated name, nothing else.\n\n${examRow.name}`,
-        });
-        const translatedName = nameResp.text?.trim() ?? examRow.name;
+        const { text: nameText } = await aiGenerate(
+          `Translate this Salesforce certification exam name from ${sourceLangName} to ${targetLangName}. Return ONLY the translated name, nothing else.\n\n${examRow.name}`
+        );
+        const translatedName = nameText || examRow.name;
 
         // Create new exam record
         await pg`INSERT INTO exams (id, name, lang) VALUES (${newExamId}, ${translatedName}, ${targetLanguage}) ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lang = EXCLUDED.lang`;
@@ -143,15 +131,7 @@ ${batchJson}`;
 
           while (retries >= 0 && translated === null) {
             try {
-              const resp = await ai.models.generateContent({
-                model,
-                contents: prompt,
-                config: {
-                  tools: [{ googleSearch: {} }],
-                },
-              });
-              const text = (resp.text ?? "").trim()
-                .replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+              const { text } = await aiGenerate(prompt, { useSearch: true });
               const { data, error } = parseAiJsonAs(text, TranslatedQuestionsSchema);
               if (data) {
                 translated = data;
@@ -188,11 +168,11 @@ ${batchJson}`;
             VALUES (${qId}, ${newExamId}, ${idx + 1}, ${tq.question}, ${JSON.stringify(tq.choices)},
                     ${JSON.stringify(questions[idx]?.answers ?? [])}, ${tq.explanation},
                     ${questions[idx]?.source ?? ""}, ${JSON.stringify(questions[idx]?.explanationSources ?? [])},
-                    ${tq.category ?? null}, datetime('now'), datetime('now'))
+                    ${tq.category ?? null}, NOW(), NOW())
             ON CONFLICT (id) DO UPDATE SET
               question_text = EXCLUDED.question_text, options = EXCLUDED.options,
               answers = EXCLUDED.answers, explanation = EXCLUDED.explanation,
-              category = EXCLUDED.category, updated_at = datetime('now')`;
+              category = EXCLUDED.category, updated_at = NOW()`;
         }
 
         send({ done: total, total, newExamId });

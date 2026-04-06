@@ -138,7 +138,7 @@ export async function POST(req: NextRequest) {
       const isDuplicate = !!(row["duplicate"] ?? "").trim() ? 1 : 0;
 
       await pg`INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source, explanation_sources, is_duplicate, created_at, added_at)
-        VALUES (${id}, ${appendTo}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, datetime('now'), datetime('now'))`;
+        VALUES (${id}, ${appendTo}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, NOW(), NOW())`;
     }
 
     const [countRow] = await pg<{ cnt: number }[]>`SELECT COUNT(*) AS cnt FROM questions WHERE exam_id = ${appendTo}`;
@@ -180,8 +180,8 @@ export async function POST(req: NextRequest) {
       const isDuplicate = !!(row["duplicate"] ?? "").trim() ? 1 : 0;
 
       await pg`INSERT INTO questions (id, exam_id, num, question_text, options, answers, explanation, source, explanation_sources, is_duplicate, created_at, added_at)
-        VALUES (${id}, ${examId}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, datetime('now'), datetime('now'))
-        ON CONFLICT (id) DO UPDATE SET question_text = EXCLUDED.question_text, options = EXCLUDED.options, answers = EXCLUDED.answers, explanation = EXCLUDED.explanation, updated_at = datetime('now')`;
+        VALUES (${id}, ${examId}, ${num}, ${row["question"] ?? ""}, ${JSON.stringify(choices)}, ${JSON.stringify(answers)}, ${row["explanation"] ?? ""}, ${row["source"] ?? ""}, ${JSON.stringify(explanationSources)}, ${isDuplicate}, NOW(), NOW())
+        ON CONFLICT (id) DO UPDATE SET question_text = EXCLUDED.question_text, options = EXCLUDED.options, answers = EXCLUDED.answers, explanation = EXCLUDED.explanation, updated_at = NOW()`;
     }
   }
 

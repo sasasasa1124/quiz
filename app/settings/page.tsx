@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Check, Sparkles, Wand2, ShieldCheck, BrainCircuit, RefreshCw, Target, Volume2, Zap, BookOpen, ChevronDown, RotateCcw, User, Plus, X, Save, FileUp } from "lucide-react";
 import Link from "next/link";
-import { useUser } from "@clerk/nextjs";
+
 import { useSettings } from "@/lib/settings-context";
 import { useSetHeader } from "@/lib/header-context";
 import type { PromptVersion } from "@/lib/types";
@@ -259,9 +259,12 @@ function SettingsInner() {
   const raw = searchParams.get("returnTo") ?? "/";
   const returnTo = raw.startsWith("/") ? raw : "/";
 
-  const { user } = useUser();
+  const [userDisplayName, setUserDisplayName] = useState("");
   const { settings, updateSettings, t } = useSettings();
-  const userDisplayName = user?.primaryEmailAddress?.emailAddress ?? user?.username ?? "";
+  useEffect(() => {
+    const match = document.cookie.match(/(?:^|;\s*)user_email=([^;]*)/);
+    if (match) setUserDisplayName(decodeURIComponent(match[1]));
+  }, []);
   useSetHeader({ back: { href: returnTo }, title: t("settings"), hideSettingsIcon: true }, [returnTo]);
   const [aiPrompt, setAiPrompt] = useState(settings.aiPrompt);
   const [aiPromptAuthor, setAiPromptAuthor] = useState(settings.aiPromptAuthor ?? "");

@@ -1,7 +1,6 @@
-export const runtime = 'edge';
 import { NextRequest } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import { getDB, getSetting } from "@/lib/db";
+import { getDB } from "@/lib/db";
+import { aiGenerate } from "@/lib/ai-client";
 import { DEFAULT_EXPLAIN_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
 import { requireAdmin } from "@/lib/auth";
@@ -34,13 +33,6 @@ export async function POST(
     forceRefill = body.forceRefill ?? false;
   } catch { /* no body is fine */ }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500 });
-  }
-
   const pg = getDB();
   if (!pg) {
     return new Response(JSON.stringify({ error: "DB not available" }), { status: 503 });
@@ -62,9 +54,6 @@ export async function POST(
   const skipped = allQuestions.length - candidates.length;
   const total = candidates.length;
 
-  const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
-
   // Fetch or generate canonical category list for this exam
   const [examRow] = await pg<{ name: string }[]>`SELECT name FROM exams WHERE id = ${examId}`;
   const examName = examRow?.name ?? examId;
@@ -81,14 +70,9 @@ Use Google Search to find the official exam guide for "${examName}".
 Return a JSON array of the official topic areas / domains for this exam (6-12 items, concise English labels).
 Return ONLY a JSON array of strings, no markdown, no extra text.
 Example: ["Core Mule Concepts", "DataWeave", "Anypoint Platform"]`;
-      const categoryResp = await ai.models.generateContent({
-        model,
-        contents: categoryListPrompt,
-        config: { tools: [{ googleSearch: {} }] },
-      });
-      const rawCats = (categoryResp.text ?? "").trim()
-        .replace(/^```json\s*/i, "").replace(/\s*```$/, "");
-      const parsed = JSON.parse(rawCats) as string[];
+      const { text: rawCats } = await aiGenerate(categoryListPrompt, { useSearch: true });
+      const rawCatsClean = rawCats.replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+      const parsed = JSON.parse(rawCatsClean) as string[];
       if (Array.isArray(parsed) && parsed.length >= 3) {
         canonicalCategories = parsed;
       }
@@ -130,7 +114,7 @@ Example: ["Core Mule Concepts", "DataWeave", "Anypoint Platform"]`;
 
             if (missing.length === 0 && !forceRefill) {
               // Nothing missing — just stamp filled_at and move on
-              await pg`UPDATE questions SET filled_at = datetime('now') WHERE id = ${q.id}`;
+              await pg`UPDATE questions SET filled_at = NOW() WHERE id = ${q.id}`;
               done++;
               send({ done, total, filled, skipped, failed });
               continue;
@@ -156,13 +140,7 @@ Example: ["Core Mule Concepts", "DataWeave", "Anypoint Platform"]`;
             let retries = 2;
             while (retries >= 0 && result === null) {
               try {
-                const resp = await ai.models.generateContent({
-                  model,
-                  contents: prompt,
-                  config: { tools: [{ googleSearch: {} }], responseMimeType: "application/json" },
-                });
-                const text = (resp.text ?? "").trim()
-                  .replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+                const { text } = await aiGenerate(prompt, { jsonMode: true, useSearch: true });
                 const { data, error } = parseAiJsonAs(text, FillFromExplainSchema);
                 if (data) result = data;
                 else if (error) retries--;
@@ -182,12 +160,12 @@ Example: ["Core Mule Concepts", "DataWeave", "Anypoint Platform"]`;
                     answers = COALESCE(${newAnswers}, answers),
                     explanation = COALESCE(${newExplanation}, explanation),
                     category = COALESCE(${newCategory}, category),
-                    filled_at = datetime('now'), updated_at = datetime('now')
+                    filled_at = NOW(), updated_at = NOW()
                   WHERE id = ${q.id}`;
                 filled++;
               } else {
                 // No fields changed but processed — stamp filled_at
-                await pg`UPDATE questions SET filled_at = datetime('now') WHERE id = ${q.id}`;
+                await pg`UPDATE questions SET filled_at = NOW() WHERE id = ${q.id}`;
               }
             }
           } catch { failed++; }

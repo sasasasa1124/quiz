@@ -85,7 +85,21 @@ export type TranslationKey =
   | "aiFactChecking"
   | "aiFactCheckCorrect"
   | "aiFactCheckWrong"
-  | "aiFactCheckPrompt";
+  | "aiFactCheckPrompt"
+  | "signIn"
+  | "signUp"
+  | "emailAddress"
+  | "password"
+  | "signingIn"
+  | "registering"
+  | "verifyEmail"
+  | "verificationCode"
+  | "confirming"
+  | "confirmCode"
+  | "codeSentTo"
+  | "alreadyHaveAccount"
+  | "noAccount"
+  | "domainOnlyError";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -167,6 +181,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiFactCheckCorrect: "Answers verified correct",
     aiFactCheckWrong: "Answer issue found",
     aiFactCheckPrompt: "AI Fact Check Prompt",
+    signIn: "Sign in",
+    signUp: "Create account",
+    emailAddress: "Email address",
+    password: "Password",
+    signingIn: "Signing in...",
+    registering: "Creating account...",
+    verifyEmail: "Verify your email",
+    verificationCode: "Verification code",
+    confirming: "Verifying...",
+    confirmCode: "Verify",
+    codeSentTo: "A code was sent to",
+    alreadyHaveAccount: "Already have an account?",
+    noAccount: "Don't have an account?",
+    domainOnlyError: "Only salesforce.com emails are allowed",
   },
   ja: {
     settings: "設定",
@@ -247,6 +275,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiFactCheckCorrect: "正解が確認されました",
     aiFactCheckWrong: "問題が見つかりました",
     aiFactCheckPrompt: "AIファクトチェックプロンプト",
+    signIn: "ログイン",
+    signUp: "新規登録",
+    emailAddress: "メールアドレス",
+    password: "パスワード",
+    signingIn: "ログイン中...",
+    registering: "登録中...",
+    verifyEmail: "メール確認",
+    verificationCode: "確認コード",
+    confirming: "確認中...",
+    confirmCode: "確認する",
+    codeSentTo: "確認コードを送信しました：",
+    alreadyHaveAccount: "すでにアカウントをお持ちの方は",
+    noAccount: "アカウントをお持ちでない方は",
+    domainOnlyError: "salesforce.com のメールアドレスのみ使用できます",
   },
   zh: {
     settings: "设置",
@@ -327,6 +369,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiFactCheckCorrect: "答案已验证正确",
     aiFactCheckWrong: "发现答案问题",
     aiFactCheckPrompt: "AI事实核查提示词",
+    signIn: "登录",
+    signUp: "创建账号",
+    emailAddress: "电子邮箱",
+    password: "密码",
+    signingIn: "登录中...",
+    registering: "注册中...",
+    verifyEmail: "验证邮箱",
+    verificationCode: "验证码",
+    confirming: "验证中...",
+    confirmCode: "验证",
+    codeSentTo: "验证码已发送至：",
+    alreadyHaveAccount: "已有账号？",
+    noAccount: "没有账号？",
+    domainOnlyError: "仅支持 salesforce.com 邮箱",
   },
   ko: {
     settings: "설정",
@@ -407,6 +463,20 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     aiFactCheckCorrect: "답변 확인됨",
     aiFactCheckWrong: "답변 문제 발견",
     aiFactCheckPrompt: "AI 팩트체크 프롬프트",
+    signIn: "로그인",
+    signUp: "계정 만들기",
+    emailAddress: "이메일 주소",
+    password: "비밀번호",
+    signingIn: "로그인 중...",
+    registering: "등록 중...",
+    verifyEmail: "이메일 확인",
+    verificationCode: "인증 코드",
+    confirming: "확인 중...",
+    confirmCode: "확인",
+    codeSentTo: "인증 코드가 발송됨：",
+    alreadyHaveAccount: "이미 계정이 있으신가요?",
+    noAccount: "계정이 없으신가요?",
+    domainOnlyError: "salesforce.com 이메일만 사용 가능합니다",
   },
 };
 

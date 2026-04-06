@@ -1,11 +1,9 @@
-export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import type { Choice } from "@/lib/types";
 import { DEFAULT_EXPLAIN_PROMPT } from "@/lib/types";
-import { getSetting } from "@/lib/db";
 import { parseAiJson } from "@/lib/ai-json";
+import { aiGenerate } from "@/lib/ai-client";
 
 
 const AiResponseSchema = z.object({
@@ -29,12 +27,6 @@ export async function POST(req: NextRequest) {
     userPrompt?: string;
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
-  }
-
   const choicesText = body.choices.map((c) => `${c.label}. ${c.text}`).join("\n");
   const explanationLine = body.explanation ? `Current explanation on record: ${body.explanation}` : "";
 
@@ -45,43 +37,18 @@ export async function POST(req: NextRequest) {
     .replace("{answers}", body.answers.join(", "))
     .replace("{explanation}", explanationLine);
 
-  const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
-
   let raw = "";
   let groundingSources: string[] = [];
   let parsed: unknown = null;
 
-  // Try with googleSearch grounding first, then retry without if JSON parsing fails
-  for (const useGrounding of [true, false]) {
-    try {
-      const response = await ai.models.generateContent({
-        model,
-        contents: prompt,
-        config: {
-          ...(useGrounding ? { tools: [{ googleSearch: {} }] } : {}),
-          responseMimeType: "application/json",
-        },
-      });
-      raw = response.text ?? "";
-      // Extract real URLs from grounding metadata (never hallucinated)
-      if (useGrounding) {
-        const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks ?? [];
-        groundingSources = (chunks as Array<{ web?: { uri?: string } }>)
-          .map((c) => c.web?.uri)
-          .filter((u): u is string => typeof u === "string" && u.length > 0)
-          .slice(0, 3);
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (!useGrounding) {
-        return NextResponse.json({ error: `Gemini API error: ${msg}` }, { status: 502 });
-      }
-      continue;
-    }
-
+  try {
+    const result = await aiGenerate(prompt, { jsonMode: true, useSearch: true });
+    raw = result.text;
+    groundingSources = result.sources;
     parsed = parseAiJson(raw);
-    if (parsed !== null) break;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ error: `AI error: ${msg}` }, { status: 502 });
   }
 
   if (parsed === null) {
@@ -96,5 +63,5 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  return NextResponse.json({ ...result.data, model, sources: groundingSources });
+  return NextResponse.json({ ...result.data, sources: groundingSources });
 }

@@ -1,12 +1,23 @@
 "use client";
 
 import { ShieldX } from "lucide-react";
-import { useClerk, useUser } from "@clerk/nextjs";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function UnauthorizedPage() {
-  const { signOut } = useClerk();
-  const { user } = useUser();
-  const email = user?.emailAddresses[0]?.emailAddress ?? "";
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+
+  useEffect(() => {
+    // Read user_email from non-httpOnly cookie
+    const match = document.cookie.match(/(?:^|;\s*)user_email=([^;]*)/);
+    if (match) setEmail(decodeURIComponent(match[1]));
+  }, []);
+
+  const handleSignOut = async () => {
+    await fetch("/api/auth/session", { method: "DELETE" });
+    router.push("/login");
+  };
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col items-center justify-center p-8">
@@ -25,7 +36,7 @@ export default function UnauthorizedPage() {
           ホームに戻る
         </a>
         <button
-          onClick={() => signOut({ redirectUrl: "/login" })}
+          onClick={handleSignOut}
           className="w-full h-10 rounded-xl border border-gray-200 text-gray-500 text-sm hover:bg-gray-50 transition-colors"
         >
           別のアカウントでログイン

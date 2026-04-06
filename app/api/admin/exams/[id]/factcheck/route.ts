@@ -1,7 +1,6 @@
-export const runtime = 'edge';
 import { NextRequest } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import { getDB, getSetting } from "@/lib/db";
+import { getDB } from "@/lib/db";
+import { aiGenerate } from "@/lib/ai-client";
 import { DEFAULT_FACTCHECK_PROMPT } from "@/lib/types";
 import type { Choice } from "@/lib/types";
 import { requireAdmin } from "@/lib/auth";
@@ -32,13 +31,6 @@ export async function POST(
     forceRecheck = body.forceRecheck ?? false;
   } catch { /* no body is fine */ }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return new Response(JSON.stringify({ error: "GEMINI_API_KEY not configured" }), { status: 500 });
-  }
-
   const pg = getDB();
   if (!pg) {
     return new Response(JSON.stringify({ error: "DB not available" }), { status: 503 });
@@ -66,9 +58,6 @@ export async function POST(
   });
   const skippedCount = allQuestions.length - candidates.length;
   const total = candidates.length;
-
-  const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -106,29 +95,19 @@ export async function POST(
               .replace("{choices}", choicesText)
               .replace("{answers}", answersText);
 
-            const resp = await ai.models.generateContent({
-              model,
-              contents: prompt,
-              config: {
-                tools: [{ googleSearch: {} }],
-                responseMimeType: "application/json",
-              },
-            });
-
-            const raw = (resp.text ?? "").trim()
-              .replace(/^```(?:json)?\s*/i, "").replace(/\s*```\s*$/i, "").trim();
+            const { text: raw } = await aiGenerate(prompt, { jsonMode: true, useSearch: true });
             const { data: result, error: parseError } = parseAiJsonAs(raw, AiFactCheckResponseSchema);
             if (parseError || !result) throw new Error(parseError ?? "parse failed");
 
             if (!result.isCorrect && result.correctAnswers && result.correctAnswers.length > 0) {
               if (hasFactCheckedAtCol) {
-                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, fact_checked_at = datetime('now'), version = version + 1, updated_at = datetime('now') WHERE id = ${q.id}`;
+                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, fact_checked_at = NOW(), version = version + 1, updated_at = NOW() WHERE id = ${q.id}`;
               } else {
-                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, version = version + 1, updated_at = datetime('now') WHERE id = ${q.id}`;
+                await pg`UPDATE questions SET answers = ${JSON.stringify(result.correctAnswers)}, explanation = CASE WHEN ${result.explanation} != '' THEN ${result.explanation} ELSE explanation END, version = version + 1, updated_at = NOW() WHERE id = ${q.id}`;
               }
               fixed++;
             } else if (hasFactCheckedAtCol) {
-              await pg`UPDATE questions SET fact_checked_at = datetime('now') WHERE id = ${q.id}`;
+              await pg`UPDATE questions SET fact_checked_at = NOW() WHERE id = ${q.id}`;
             }
           } catch { failed++; }
 

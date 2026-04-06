@@ -1,8 +1,8 @@
 export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenAI } from "@google/genai";
-import { getStudyGuide, upsertStudyGuide, getSetting } from "@/lib/db";
+import { getStudyGuide, upsertStudyGuide } from "@/lib/db";
 import { DEFAULT_STUDY_GUIDE_PROMPT } from "@/lib/types";
+import { aiGenerate } from "@/lib/ai-client";
 
 interface QuestionSummary {
   question: string;
@@ -51,14 +51,6 @@ export async function POST(req: NextRequest) {
     userStats?: UserStats;
     userPrompt?: string;
   };
-
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return NextResponse.json(
-      { error: "GEMINI_API_KEY not configured" },
-      { status: 500 }
-    );
-  }
 
   const { examId, examName, questions, userStats, userPrompt } = body;
   const lang = body.language ?? "en";
@@ -124,23 +116,14 @@ ${wrongLines}`;
     .replace("{userStats}", personalizedSection)
     .replace("{langInstruction}", langInstruction[lang] ?? langInstruction["en"]);
 
-  const ai = new GoogleGenAI({ apiKey });
-  const model = (await getSetting("gemini_model")) ?? "gemini-3-flash-preview";
-
   let markdown: string;
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-      },
-    });
-    markdown = response.text ?? "";
+    const { text } = await aiGenerate(prompt, { useSearch: true });
+    markdown = text;
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json(
-      { error: `Gemini API error: ${msg}` },
+      { error: `AI error: ${msg}` },
       { status: 502 }
     );
   }
