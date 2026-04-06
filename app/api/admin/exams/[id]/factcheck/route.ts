@@ -69,9 +69,15 @@ export async function POST(
           // ignore — client disconnected; DB writes must continue
         }
       };
+      const ping = () => {
+        try { controller.enqueue(enc.encode(": ping\n\n")); } catch { /* disconnected */ }
+      };
+      // Heartbeat every 20s to prevent App Runner ALB from dropping idle SSE connections
+      const heartbeat = setInterval(ping, 20_000);
 
       if (total === 0) {
         send({ done: 0, total: 0, fixed: 0, skipped: skippedCount, failed: 0 });
+        clearInterval(heartbeat);
         controller.close();
         return;
       }
@@ -120,6 +126,7 @@ export async function POST(
         const msg = e instanceof Error ? e.message : String(e);
         send({ error: msg });
       } finally {
+        clearInterval(heartbeat);
         controller.close();
       }
     },
