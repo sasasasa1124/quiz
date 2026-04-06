@@ -108,7 +108,7 @@ async function getAwsCredentials(): Promise<AwsCredentials> {
 async function sigV4Headers(url: string, bodyStr: string, region: string): Promise<Record<string, string>> {
   const { accessKeyId, secretAccessKey, sessionToken } = await getAwsCredentials();
 
-  const service = "bedrock";
+  const service = "bedrock-runtime";
   const now = new Date();
   // yyyyMMdd
   const dateStamp = now.toISOString().slice(0, 10).replace(/-/g, "");
