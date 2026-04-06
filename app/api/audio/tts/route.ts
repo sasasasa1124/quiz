@@ -49,13 +49,13 @@ const TTS_MODEL = "gemini-2.5-flash-preview-tts";
 const TTS_VOICE = "Aoede";
 
 export async function POST(req: NextRequest) {
+  if (process.env.DEPLOY_TARGET === "aws") {
+    return NextResponse.json({ error: "TTS not available on AWS" }, { status: 503 });
+  }
+
   const apiKey = getEnv("GEMINI_API_KEY");
   if (!apiKey) {
     return NextResponse.json({ error: "GEMINI_API_KEY not configured" }, { status: 500 });
-  }
-
-  if (process.env.DEPLOY_TARGET === "aws") {
-    return NextResponse.json({ error: "TTS not available on AWS" }, { status: 503 });
   }
 
   let text: string;
