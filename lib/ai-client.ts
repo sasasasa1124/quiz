@@ -34,6 +34,8 @@ export interface AiGenerateOptions {
   systemPrompt?: string;
   /** Override model (Gemini model name or Bedrock model ID) */
   model?: string;
+  /** Per-request timeout in ms (default 25000). */
+  timeoutMs?: number;
 }
 
 export interface AiGenerateResult {
@@ -47,16 +49,14 @@ export async function aiGenerate(
   prompt: string,
   options: AiGenerateOptions = {}
 ): Promise<AiGenerateResult> {
-  if (isAWS) {
-    return bedrockGenerate(prompt, options);
-  }
+  if (isAWS) return bedrockGenerate(prompt, options);
   return geminiGenerate(prompt, options);
 }
 
 // ── SigV4 signing (Web Crypto API — edge-runtime compatible) ──────────────
 
 async function hmacSha256(key: ArrayBuffer | Uint8Array, msg: string): Promise<ArrayBuffer> {
-  const k = await crypto.subtle.importKey("raw", key, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const k = await crypto.subtle.importKey("raw", key as BufferSource, { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
   return crypto.subtle.sign("HMAC", k, new TextEncoder().encode(msg));
 }
 
@@ -65,14 +65,48 @@ async function sha256hex(msg: string): Promise<string> {
   return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-async function sigV4Headers(url: string, bodyStr: string, region: string): Promise<Record<string, string>> {
+interface AwsCredentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken?: string;
+}
+
+/**
+ * Fetch AWS credentials.
+ * App Runner injects credentials via ECS container metadata endpoint, NOT static env vars.
+ * Falls back to static env vars for local dev/testing.
+ */
+async function getAwsCredentials(): Promise<AwsCredentials> {
+  const relativeUri = process.env.AWS_CONTAINER_CREDENTIALS_RELATIVE_URI;
+  if (relativeUri) {
+    const resp = await fetch(`http://169.254.170.2${relativeUri}`);
+    if (!resp.ok) {
+      throw new Error(`Failed to fetch container credentials: ${resp.status} ${resp.statusText}`);
+    }
+    const creds = await resp.json() as {
+      AccessKeyId: string;
+      SecretAccessKey: string;
+      Token?: string;
+    };
+    return {
+      accessKeyId: creds.AccessKeyId,
+      secretAccessKey: creds.SecretAccessKey,
+      sessionToken: creds.Token,
+    };
+  }
+
+  // Fallback: static env vars (local dev)
   const accessKeyId = process.env.AWS_ACCESS_KEY_ID ?? "";
   const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY ?? "";
   const sessionToken = process.env.AWS_SESSION_TOKEN;
-
   if (!accessKeyId || !secretAccessKey) {
-    throw new Error("AWS credentials not available (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)");
+    throw new Error("AWS credentials not available (set AWS_CONTAINER_CREDENTIALS_RELATIVE_URI or AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY)");
   }
+  return { accessKeyId, secretAccessKey, sessionToken };
+}
+
+async function sigV4Headers(url: string, bodyStr: string, region: string): Promise<Record<string, string>> {
+  const { accessKeyId, secretAccessKey, sessionToken } = await getAwsCredentials();
 
   const service = "bedrock";
   const now = new Date();
@@ -81,8 +115,10 @@ async function sigV4Headers(url: string, bodyStr: string, region: string): Promi
   // yyyyMMddTHHmmssZ
   const amzDate = now.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
 
-  const host = new URL(url).hostname;
-  const path = new URL(url).pathname;
+  const parsedUrl = new URL(url);
+  const host = parsedUrl.hostname;
+  // SigV4: path must use URI-encoded segments (not the full encoded path)
+  const path = parsedUrl.pathname;
 
   const payloadHash = await sha256hex(bodyStr);
 
@@ -159,6 +195,7 @@ async function bedrockGenerate(
     method: "POST",
     headers: signedHeaders,
     body: bodyStr,
+    signal: AbortSignal.timeout(options.timeoutMs ?? 25_000),
   });
 
   if (!resp.ok) {
@@ -202,14 +239,25 @@ async function geminiGenerate(
     ];
   }
 
-  const response = await ai.models.generateContent({
-    model,
-    contents,
-    config: {
-      ...(options.useSearch ? { tools: [{ googleSearch: {} }] } : {}),
-      ...(options.jsonMode ? { responseMimeType: "application/json" } : {}),
-    },
+  const timeoutMs = options.timeoutMs ?? 25_000;
+  const timeoutSignal = AbortSignal.timeout(timeoutMs);
+  const timeoutRace = new Promise<never>((_, reject) => {
+    timeoutSignal.addEventListener("abort", () =>
+      reject(new DOMException(`Gemini request timed out after ${timeoutMs}ms`, "TimeoutError"))
+    );
   });
+
+  const response = await Promise.race([
+    ai.models.generateContent({
+      model,
+      contents,
+      config: {
+        ...(options.useSearch ? { tools: [{ googleSearch: {} }] } : {}),
+        ...(options.jsonMode ? { responseMimeType: "application/json" } : {}),
+      },
+    }),
+    timeoutRace,
+  ]);
 
   let sources: string[] = [];
   if (options.useSearch) {
