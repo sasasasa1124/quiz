@@ -42,7 +42,8 @@ jobs:
         run: |
           IMAGE=${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
           docker build \
-            --build-arg NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }} \
+            --build-arg NEXT_PUBLIC_COGNITO_USER_POOL_ID=${{ secrets.NEXT_PUBLIC_COGNITO_USER_POOL_ID }} \
+            --build-arg NEXT_PUBLIC_COGNITO_CLIENT_ID=${{ secrets.NEXT_PUBLIC_COGNITO_CLIENT_ID }} \
             -t $IMAGE .
           docker push $IMAGE
           echo "IMAGE=$IMAGE" >> $GITHUB_ENV
@@ -74,7 +75,8 @@ jobs:
                   "GEMINI_API_KEY": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/GEMINI_API_KEY-oPSvYM",
                   "CLERK_SECRET_KEY": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/CLERK_SECRET_KEY-wAgHm6",
                   "DATABASE_URL": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/DATABASE_URL-9WFWE7",
-                  "APP_GITHUB_TOKEN": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/GITHUB_TOKEN-lJwhXQ"
+                  "APP_GITHUB_TOKEN": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/GITHUB_TOKEN-lJwhXQ",
+                  "BEDROCK_API_KEY": "arn:aws:secretsmanager:us-west-2:435788423370:secret:scholion/BEDROCK_API_KEY-VCVxi4"
                 }
               },
               "ImageRepositoryType": "ECR"
