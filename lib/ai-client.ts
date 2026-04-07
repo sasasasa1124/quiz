@@ -260,12 +260,16 @@ async function geminiGenerate(
     );
   });
 
+  // Gemini API: cannot use tools with responseMimeType: "application/json"
+  // If JSON mode is needed, skip search grounding
+  const useSearch = options.useSearch && !options.jsonMode;
+
   const response = await Promise.race([
     ai.models.generateContent({
       model,
       contents,
       config: {
-        ...(options.useSearch ? { tools: [{ googleSearch: {} }] } : {}),
+        ...(useSearch ? { tools: [{ googleSearch: {} }] } : {}),
         ...(options.jsonMode ? { responseMimeType: "application/json" } : {}),
       },
     }),
