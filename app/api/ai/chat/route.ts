@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
 import type { Choice } from "@/lib/types";
 import { aiGenerate } from "@/lib/ai-client";

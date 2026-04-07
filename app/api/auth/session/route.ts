@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 import { NextRequest, NextResponse } from "next/server";
 import { verifyIdToken } from "@/lib/cognito-jwt";
 import { cookies } from "next/headers";
