@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
+import { PollyClient, SynthesizeSpeechCommand, OutputFormat, Engine, VoiceId } from "@aws-sdk/client-polly";
 import { getEnv } from "@/lib/env";
 import { getTtsCacheEntry, setTtsCacheEntry } from "@/lib/db";
 
@@ -10,8 +11,57 @@ async function sha256hex(text: string): Promise<string> {
     .join("");
 }
 
-const TTS_MODEL = "gemini-2.5-flash-preview-tts";
-const TTS_VOICE = "Aoede";
+const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
+const GEMINI_TTS_VOICE = "Aoede";
+const POLLY_VOICE_ID = "Ruth"; // English default; can be overridden
+
+async function synthesizeWithPolly(text: string, voiceId: string = POLLY_VOICE_ID): Promise<Uint8Array> {
+  const client = new PollyClient({ region: process.env.AWS_REGION || "us-west-2" });
+
+  try {
+    const command = new SynthesizeSpeechCommand({
+      Text: text,
+      OutputFormat: OutputFormat.MP3,
+      VoiceId: voiceId as VoiceId,
+      Engine: Engine.GENERATIVE, // Use generative engine for higher quality
+    });
+
+    const response = await client.send(command);
+    const audioStream = response.AudioStream;
+
+    if (!audioStream) {
+      throw new Error("No audio stream in Polly response");
+    }
+
+    // Convert stream to buffer
+    const chunks: Buffer[] = [];
+
+    // Handle both Node.js stream and Web stream
+    if (audioStream && typeof audioStream === "object") {
+      // If it's a Node.js stream
+      if ("on" in audioStream && typeof audioStream.on === "function") {
+        return new Promise((resolve, reject) => {
+          audioStream.on("data", (chunk: Buffer) => chunks.push(chunk));
+          audioStream.on("end", () => {
+            resolve(new Uint8Array(Buffer.concat(chunks)));
+          });
+          audioStream.on("error", reject);
+        });
+      }
+
+      // If it's a Blob-like object
+      if ("arrayBuffer" in audioStream && typeof audioStream.arrayBuffer === "function") {
+        const buffer = await (audioStream as Blob).arrayBuffer();
+        return new Uint8Array(buffer);
+      }
+    }
+
+    throw new Error("Unable to read audio stream from Polly response");
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`Polly TTS error: ${msg}`);
+  }
+}
 
 async function synthesizeWithGemini(text: string): Promise<Uint8Array> {
   const apiKey = getEnv("GEMINI_API_KEY");
@@ -23,13 +73,13 @@ async function synthesizeWithGemini(text: string): Promise<Uint8Array> {
 
   try {
     const response = await ai.models.generateContent({
-      model: TTS_MODEL,
+      model: GEMINI_TTS_MODEL,
       contents: text,
       config: {
         responseModalities: ["AUDIO"],
         speechConfig: {
           voiceConfig: {
-            prebuiltVoiceConfig: { voiceName: TTS_VOICE },
+            prebuiltVoiceConfig: { voiceName: GEMINI_TTS_VOICE },
           },
         },
       },
@@ -53,20 +103,17 @@ async function synthesizeWithGemini(text: string): Promise<Uint8Array> {
 }
 
 export async function POST(req: NextRequest) {
-  // AWS: return 503 (Polly TTS requires separate IAM setup and SDK)
-  if (process.env.DEPLOY_TARGET === "aws") {
-    return NextResponse.json({ error: "TTS not available on AWS (requires Polly setup)" }, { status: 503 });
-  }
-
   let text: string;
+  let voiceId: string | undefined;
 
   try {
-    const body = await req.json() as { text?: unknown };
+    const body = await req.json() as { text?: unknown; voiceId?: unknown };
     if (typeof body.text !== "string" || body.text.trim().length === 0) {
       return NextResponse.json({ error: "text is required" }, { status: 400 });
     }
     text = body.text.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
     if (text.length > 5000) text = text.slice(0, 5000);
+    if (typeof body.voiceId === "string") voiceId = body.voiceId;
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
@@ -89,8 +136,19 @@ export async function POST(req: NextRequest) {
   }
 
   let audioBytes: Uint8Array;
+  let modelInfo: string;
+  let voiceInfo: string;
+
   try {
-    audioBytes = await synthesizeWithGemini(text);
+    if (process.env.DEPLOY_TARGET === "aws") {
+      audioBytes = await synthesizeWithPolly(text, voiceId || POLLY_VOICE_ID);
+      modelInfo = "polly";
+      voiceInfo = voiceId || POLLY_VOICE_ID;
+    } else {
+      audioBytes = await synthesizeWithGemini(text);
+      modelInfo = GEMINI_TTS_MODEL;
+      voiceInfo = GEMINI_TTS_VOICE;
+    }
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     return NextResponse.json({ error: msg }, { status: 502 });
@@ -98,7 +156,7 @@ export async function POST(req: NextRequest) {
 
   // Store in DB cache (base64 of audio)
   const audioBase64 = btoa(String.fromCharCode(...audioBytes));
-  setTtsCacheEntry(textHash, audioBase64, TTS_MODEL, TTS_VOICE).catch(() => {});
+  setTtsCacheEntry(textHash, audioBase64, modelInfo, voiceInfo).catch(() => {});
 
   return new NextResponse(Buffer.from(audioBytes), {
     status: 200,

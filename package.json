@@ -17,6 +17,7 @@
     "classify:local": "npx tsx scripts/classify-categories.ts --local"
   },
   "dependencies": {
+    "@aws-sdk/client-polly": "^3.1025.0",
     "@google/genai": "^1.45.0",
     "@types/diff": "^7.0.2",
     "amazon-cognito-identity-js": "^6.3.16",
