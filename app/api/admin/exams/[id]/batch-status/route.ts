@@ -1,0 +1,33 @@
+export const runtime = 'edge';
+import { NextRequest, NextResponse } from "next/server";
+import { getDB } from "@/lib/db";
+import { getBatchJob, getActiveJob, type JobType } from "@/lib/batch-job";
+import { requireAdmin } from "@/lib/auth";
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const authError = await requireAdmin();
+  if (authError) return authError;
+
+  const pg = getDB();
+  if (!pg) return NextResponse.json({ error: "DB not available" }, { status: 503 });
+
+  const { id: examId } = await params;
+  const { searchParams } = req.nextUrl;
+  const jobId = searchParams.get("jobId");
+  const latest = searchParams.get("latest") as JobType | null;
+
+  if (jobId) {
+    const job = await getBatchJob(pg, jobId);
+    return NextResponse.json(job ?? { error: "Job not found" }, { status: job ? 200 : 404 });
+  }
+
+  if (latest) {
+    const job = await getActiveJob(pg, examId, latest);
+    return NextResponse.json(job ?? null);
+  }
+
+  return NextResponse.json({ error: "jobId or latest required" }, { status: 400 });
+}
