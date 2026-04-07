@@ -16,8 +16,8 @@ const POLLY_VOICE_ID = "Ruth"; // English default; can be overridden
 
 async function synthesizeWithPolly(text: string, voiceId: string = POLLY_VOICE_ID): Promise<Uint8Array> {
   // Lazy load Polly SDK (only on AWS)
-  const { PollyClient, SynthesizeSpeechCommand, OutputFormat, Engine } = await import("@aws-sdk/client-polly");
-  type VoiceIdType = import("@aws-sdk/client-polly").VoiceId;
+  const polly = await import("@aws-sdk/client-polly");
+  const { PollyClient, SynthesizeSpeechCommand, OutputFormat, Engine } = polly;
 
   const client = new PollyClient({ region: process.env.AWS_REGION || "us-west-2" });
 
@@ -25,7 +25,7 @@ async function synthesizeWithPolly(text: string, voiceId: string = POLLY_VOICE_I
     const command = new SynthesizeSpeechCommand({
       Text: text,
       OutputFormat: OutputFormat.MP3,
-      VoiceId: voiceId as VoiceIdType,
+      VoiceId: voiceId as any, // Use any to avoid strict type checking with dynamic imports
       Engine: Engine.GENERATIVE, // Use generative engine for higher quality
     });
 
