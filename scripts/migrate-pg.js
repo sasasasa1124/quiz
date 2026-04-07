@@ -17,19 +17,32 @@ async function migrate() {
     return;
   }
 
-  const migrationsDir = path.join(__dirname, "../migrations/drizzle");
-  const sqlFiles = fs
-    .readdirSync(migrationsDir)
+  // Collect SQL files from both drizzle/ (init schema) and root migrations/ (incremental)
+  const drizzleDir = path.join(__dirname, "../migrations/drizzle");
+  const rootDir = path.join(__dirname, "../migrations");
+
+  const drizzleFiles = fs.existsSync(drizzleDir)
+    ? fs.readdirSync(drizzleDir).filter((f) => f.endsWith(".sql")).map((f) => path.join(drizzleDir, f))
+    : [];
+  const rootFiles = fs.readdirSync(rootDir)
     .filter((f) => f.endsWith(".sql"))
-    .sort();
+    .map((f) => path.join(rootDir, f));
+
+  // Deduplicate and sort by basename
+  const allFiles = [...drizzleFiles, ...rootFiles].sort((a, b) =>
+    path.basename(a).localeCompare(path.basename(b))
+  );
+  const sqlFiles = allFiles.map((f) => path.basename(f));
+  const sqlPaths = allFiles;
 
   console.log("[migrate] Connecting to PostgreSQL...");
   const ssl = url.includes("rds.amazonaws.com") ? { rejectUnauthorized: false } : false;
   const sql = postgres(url, { max: 1, connect_timeout: 30, ssl });
 
   try {
-    for (const file of sqlFiles) {
-      const filePath = path.join(migrationsDir, file);
+    for (let i = 0; i < sqlFiles.length; i++) {
+      const file = sqlFiles[i];
+      const filePath = sqlPaths[i];
       console.log(`[migrate] Running ${file}...`);
       const content = fs.readFileSync(filePath, "utf8");
 
