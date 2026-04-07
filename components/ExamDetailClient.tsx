@@ -32,45 +32,77 @@ function pctTextColor(pct: number) {
   return "text-rose-500";
 }
 
+interface BatchJobStatus {
+  jobId: string;
+  status: "pending" | "running" | "done" | "error";
+  done?: number;
+  total?: number;
+  skipped?: number;
+  failed?: number;
+  filled?: number;
+  refined?: number;
+  fixed?: number;
+  error?: string;
+}
+
 /**
- * Runs a batch SSE endpoint with automatic retry on disconnect.
- * The backend skips already-processed rows (idempotent), so re-POSTing resumes from where it left off.
- * Calls onEvent for each SSE data event. Retries until isComplete() returns true or onEvent signals error.
+ * Polls a batch job until done/error.
+ * Calls onProgress for each status update.
  */
-async function runBatchWithRetry(
+async function pollBatchJob(
+  examId: string,
+  jobId: string,
+  onProgress: (status: BatchJobStatus) => void,
+): Promise<BatchJobStatus> {
+  const pollUrl = `/api/admin/exams/${encodeURIComponent(examId)}/batch-status?jobId=${encodeURIComponent(jobId)}`;
+  let lastStatus: BatchJobStatus | null = null;
+
+  while (true) {
+    try {
+      const res = await fetch(pollUrl);
+      if (!res.ok) break;
+      const status = (await res.json()) as BatchJobStatus | null;
+      if (!status) break;
+
+      lastStatus = status;
+      onProgress(status);
+
+      if (status.status === "done" || status.status === "error") break;
+
+      await new Promise((r) => setTimeout(r, 2000));
+    } catch {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
+  }
+
+  return lastStatus ?? { jobId, status: "error" };
+}
+
+/**
+ * Runs a batch job via polling.
+ * Starts job with POST, then polls /batch-status?jobId until done/error.
+ * Calls onProgress for each status update.
+ */
+async function runBatchJob(
   url: string,
   body: object,
-  onEvent: (evt: Record<string, unknown>) => "continue" | "done" | "error",
-): Promise<void> {
-  let complete = false;
-  while (!complete) {
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      if (!res.body) break;
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      let buf = "";
-      outer: while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        const parts = buf.split("\n\n");
-        buf = parts.pop() ?? "";
-        for (const part of parts) {
-          if (!part.startsWith("data: ")) continue;
-          const evt = JSON.parse(part.slice(6)) as Record<string, unknown>;
-          const signal = onEvent(evt);
-          if (signal === "done") { complete = true; break outer; }
-          if (signal === "error") { complete = true; break outer; }
-        }
-      }
-    } catch { /* network error — will retry */ }
-    if (!complete) await new Promise((r) => setTimeout(r, 2000));
+  examId: string,
+  onProgress: (status: BatchJobStatus) => void,
+): Promise<BatchJobStatus> {
+  // POST to start job, get jobId
+  let res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Failed to start job: ${text}`);
   }
+  const { jobId } = await res.json() as { jobId: string };
+
+  // Poll for progress until done or error
+  return pollBatchJob(examId, jobId, onProgress);
 }
 
 export default function ExamDetailClient({ exam, categoryStats: initialStats, userEmail }: Props) {
@@ -140,19 +172,27 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
     setFillResult(null);
     setTtsProgress(null);
     try {
-      let fillError = false;
-      await runBatchWithRetry(
+      const result = await runBatchJob(
         `/api/admin/exams/${encodeURIComponent(exam.id)}/fill`,
         { userPrompt: settings.aiPrompt, forceRefill: fillForce },
-        (evt) => {
-          if (evt.error) { fillError = true; setFillStatus("error"); return "error"; }
-          if (evt.total !== undefined) setFillProgress({ done: (evt.done as number) ?? 0, total: evt.total as number, skipped: (evt.skipped as number) ?? 0, failed: (evt.failed as number) ?? 0 });
-          if (evt.filled !== undefined) setFillResult({ filled: evt.filled as number, skipped: (evt.skipped as number) ?? 0, failed: (evt.failed as number) ?? 0 });
-          if (typeof evt.done === "number" && typeof evt.total === "number" && evt.done === evt.total) return "done";
-          return "continue";
+        exam.id,
+        (status) => {
+          if (status.status === "error") { setFillStatus("error"); return; }
+          if (status.done !== undefined && status.total !== undefined) {
+            setFillProgress({ done: status.done, total: status.total, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+          }
+          if (status.filled !== undefined) {
+            setFillResult({ filled: status.filled, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+          }
         },
       );
-      if (fillError) { setTimeout(() => setFillStatus("idle"), 3000); return; }
+
+      if (result.status === "error") {
+        setFillStatus("error");
+        setTimeout(() => setFillStatus("idle"), 3000);
+        return;
+      }
+
       setFillStatus("done");
 
       // Optionally pre-generate TTS for all questions
@@ -185,19 +225,27 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
     setRefineProgress(null);
     setRefineResult(null);
     try {
-      let refineError = false;
-      await runBatchWithRetry(
+      const result = await runBatchJob(
         `/api/admin/exams/${encodeURIComponent(exam.id)}/refine`,
         { userPrompt: settings.aiRefinePrompt },
-        (evt) => {
-          if (evt.error) { refineError = true; setRefineStatus("error"); return "error"; }
-          if (evt.total !== undefined) setRefineProgress({ done: (evt.done as number) ?? 0, total: evt.total as number, skipped: (evt.skipped as number) ?? 0, failed: (evt.failed as number) ?? 0 });
-          if (evt.refined !== undefined) setRefineResult({ refined: evt.refined as number, skipped: (evt.skipped as number) ?? 0, failed: (evt.failed as number) ?? 0 });
-          if (typeof evt.done === "number" && typeof evt.total === "number" && evt.done === evt.total) return "done";
-          return "continue";
+        exam.id,
+        (status) => {
+          if (status.status === "error") { setRefineStatus("error"); return; }
+          if (status.done !== undefined && status.total !== undefined) {
+            setRefineProgress({ done: status.done, total: status.total, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+          }
+          if (status.refined !== undefined) {
+            setRefineResult({ refined: status.refined, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+          }
         },
       );
-      if (refineError) { setTimeout(() => setRefineStatus("idle"), 3000); return; }
+
+      if (result.status === "error") {
+        setRefineStatus("error");
+        setTimeout(() => setRefineStatus("idle"), 3000);
+        return;
+      }
+
       setRefineStatus("done");
       setTimeout(() => { setRefineStatus("idle"); setRefineResult(null); }, 4000);
     } catch {
@@ -211,19 +259,27 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
     setFactCheckProgress(null);
     setFactCheckResult(null);
     try {
-      let factError = false;
-      await runBatchWithRetry(
+      const result = await runBatchJob(
         `/api/admin/exams/${encodeURIComponent(exam.id)}/factcheck`,
         { userPrompt: settings.aiFactCheckPrompt, forceRecheck: factCheckForce },
-        (evt) => {
-          if (evt.error) { factError = true; setFactCheckStatus("error"); return "error"; }
-          if (evt.total !== undefined) setFactCheckProgress({ done: (evt.done as number) ?? 0, total: evt.total as number, skipped: (evt.skipped as number) ?? 0, failed: (evt.failed as number) ?? 0 });
-          if (evt.fixed !== undefined) setFactCheckResult({ fixed: evt.fixed as number, skipped: (evt.skipped as number) ?? 0, failed: (evt.failed as number) ?? 0 });
-          if (typeof evt.done === "number" && typeof evt.total === "number" && evt.done === evt.total) return "done";
-          return "continue";
+        exam.id,
+        (status) => {
+          if (status.status === "error") { setFactCheckStatus("error"); return; }
+          if (status.done !== undefined && status.total !== undefined) {
+            setFactCheckProgress({ done: status.done, total: status.total, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+          }
+          if (status.fixed !== undefined) {
+            setFactCheckResult({ fixed: status.fixed, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+          }
         },
       );
-      if (factError) { setTimeout(() => setFactCheckStatus("idle"), 3000); return; }
+
+      if (result.status === "error") {
+        setFactCheckStatus("error");
+        setTimeout(() => setFactCheckStatus("idle"), 3000);
+        return;
+      }
+
       setFactCheckStatus("done");
       setTimeout(() => { setFactCheckStatus("idle"); setFactCheckResult(null); }, 4000);
     } catch {
@@ -239,6 +295,68 @@ export default function ExamDetailClient({ exam, categoryStats: initialStats, us
   useEffect(() => {
     if (renamingCategory !== null) renameCatRef.current?.focus();
   }, [renamingCategory]);
+
+  // Reconnect to running batch jobs on mount (e.g., after page refresh)
+  useEffect(() => {
+    const reconnectToBatchJobs = async () => {
+      const examId = exam.id;
+
+      // Check for active fill job
+      let res = await fetch(`/api/admin/exams/${encodeURIComponent(examId)}/batch-status?latest=fill`);
+      if (res.ok) {
+        const job = await res.json() as BatchJobStatus | null;
+        if (job && job.status === "running") {
+          setFillStatus("filling");
+          setFillProgress(job.done !== undefined && job.total !== undefined ? { done: job.done, total: job.total, skipped: job.skipped ?? 0, failed: job.failed ?? 0 } : null);
+          await pollBatchJob(examId, job.jobId, (status) => {
+            if (status.done !== undefined && status.total !== undefined) {
+              setFillProgress({ done: status.done, total: status.total, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+            }
+          });
+          setFillStatus("done");
+          setTimeout(() => { setFillStatus("idle"); setFillProgress(null); }, 4000);
+        }
+      }
+
+      // Check for active refine job
+      res = await fetch(`/api/admin/exams/${encodeURIComponent(examId)}/batch-status?latest=refine`);
+      if (res.ok) {
+        const job = await res.json() as BatchJobStatus | null;
+        if (job && job.status === "running") {
+          setRefineStatus("running");
+          setRefineProgress(job.done !== undefined && job.total !== undefined ? { done: job.done, total: job.total, skipped: job.skipped ?? 0, failed: job.failed ?? 0 } : null);
+          await pollBatchJob(examId, job.jobId, (status) => {
+            if (status.done !== undefined && status.total !== undefined) {
+              setRefineProgress({ done: status.done, total: status.total, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+            }
+          });
+          setRefineStatus("done");
+          setTimeout(() => { setRefineStatus("idle"); setRefineProgress(null); }, 4000);
+        }
+      }
+
+      // Check for active factcheck job
+      res = await fetch(`/api/admin/exams/${encodeURIComponent(examId)}/batch-status?latest=factcheck`);
+      if (res.ok) {
+        const job = await res.json() as BatchJobStatus | null;
+        if (job && job.status === "running") {
+          setFactCheckStatus("running");
+          setFactCheckProgress(job.done !== undefined && job.total !== undefined ? { done: job.done, total: job.total, skipped: job.skipped ?? 0, failed: job.failed ?? 0 } : null);
+          await pollBatchJob(examId, job.jobId, (status) => {
+            if (status.done !== undefined && status.total !== undefined) {
+              setFactCheckProgress({ done: status.done, total: status.total, skipped: status.skipped ?? 0, failed: status.failed ?? 0 });
+            }
+          });
+          setFactCheckStatus("done");
+          setTimeout(() => { setFactCheckStatus("idle"); setFactCheckProgress(null); }, 4000);
+        }
+      }
+    };
+
+    reconnectToBatchJobs().catch(() => {
+      // Silently ignore errors during reconnect attempt
+    });
+  }, [exam.id]);
 
   async function saveExamMeta() {
     setMetaSaving(true);
