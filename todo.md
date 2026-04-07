@@ -1,8 +1,25 @@
-- [x] settingでpromptsにai fact checkが二つある。使われている方を調べて不要な方を削除
-- [x] aws側でのモデルは全然geminiではないのに、まだgeminiが出てきている。aws側でのTTSはそもそも実装されている？なければ作って。pollyとかのリソース追加しても良い
-  - Settings UI更新完了（AWS: "Claude model"/"Ruth" Cloudflare: "Gemini model"/"gemini-2.5-flash-preview-tts"）
-  - Polly TTS実装: npm install @aws-sdk/client-polly 失敗（パッケージキャッシュ権限問題）。App Runner IAMで polly:SynthesizeSpeech 権限が必要
-- [x] aiの問題文をfixするやつを以下のプロンプトへと更新して
+## 🔥 In Progress
+
+### batch-status 500 エラー修正 (fix/batch-status-500)
+両PF (Cloudflare / AWS) で `/api/admin/exams/[id]/batch-status` が 500 を返す。
+- [x] 原因特定: `batch_jobs` テーブルが正しく作成されていない
+- [x] `scripts/migrate-pg.js` — 非init SQL の分割を `\n` → `;` に修正 (AWS)
+- [x] `package.json` — `db:migrate` を全 `migrations/*.sql` 対応に (CF D1)
+- [x] `app/api/admin/exams/[id]/batch-status/route.ts` — try-catch 追加
+- [x] `npm run build` 確認
+- [ ] PR → main Squash Merge (コミット: 080c6e6)
+  - ローカルコミット完了、ブランチ push は sandbox ネットワーク制限で失敗
+  - `git push origin fix/batch-status-500` → `gh pr create` で手動作成が必要
+- [ ] `main:deploy/aws` push → migrate-pg.js 自動適用を確認
+- [ ] `main:deploy/cloudflare` push → `npm run db:migrate` で batch_jobs 作成
+
+---
+
+## Backlog
+
+- [] settingでpromptsにai fact checkが二つある。使われている方を調べて不要な方を削除
+- [] aws側でのモデルは全然geminiではないのに、まだgeminiが出てきている。aws側でのTTSはそもそも実装されている？なければ作って。pollyとかのリソース追加しても良い
+- [] aiの問題文をfixするやつを以下のプロンプトへと更新して
 You are an expert editor for Salesforce/MuleSoft certification exam questions.
 Your tasks:
 
@@ -41,12 +58,5 @@ highlights: up to 6 exact substrings from the (possibly refined) question text t
   (c) the core decision clause of the question (e.g. "which feature should be used", "what is the first step")
   Avoid generic nouns. Choose only phrases where changing the phrase would change which answer is correct.
 
-- [x] DAILY GOALの問題として解いた数がカウントおかしい。ロジック確認して、回答した解答した数だけになるようにして。
-  - getDailyProgress() を修正: sessions.question_count の合計 → scores テーブルの行数カウント
-  - activeDays クエリも scores.updated_at::date に変更
-- [x] Mobileで(e.g.iphone16e)見ると完全にquizの時に選択肢が潰れて選択できないので、ちゃんとコンポーネント構成を考える。必要に応じて問題のsourceなどは潰した表示にする/Gridを整えるなど
-  - 質問セクション高さ: max-h-[25vh] sm:max-h-[40vh]
-  - Source/メタデータ: hidden sm:block で非表示
-  - 選択肢パディング: px-3 py-2.5 sm:px-4 sm:py-3 lg:px-5 lg:py-4
-  - バッジサイズ: w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7
-  - Gap: gap-2 sm:gap-3
+- [] DAILY GOALの問題として解いた数がカウントおかしい。ロジック確認して、回答した解答した数だけになるようにして。
+- [] Mobileで(e.g.iphone16e)見ると完全にquizの時に選択肢が潰れて選択できないので、ちゃんとコンポーネント構成を考える。必要に応じて問題のsourceなどは潰した表示にする/Gridを整えるなど

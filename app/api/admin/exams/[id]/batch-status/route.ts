@@ -25,8 +25,13 @@ export async function GET(
   }
 
   if (latest) {
-    const job = await getActiveJob(pg, examId, latest);
-    return NextResponse.json(job ?? null);
+    try {
+      const job = await getActiveJob(pg, examId, latest);
+      return NextResponse.json(job ?? null);
+    } catch {
+      // Table may not exist yet — treat as no active job
+      return NextResponse.json(null);
+    }
   }
 
   return NextResponse.json({ error: "jobId or latest required" }, { status: 400 });

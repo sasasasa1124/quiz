@@ -57,8 +57,8 @@ async function migrate() {
             .map((s) => stripLeadingComments(s))
             .filter((s) => s.length > 0)
         : content
-            .split("\n")
-            .map((s) => s.trim())
+            .split(";")
+            .map((s) => s.replace(/^([ \t]*--[^\n]*\n)*/g, "").trim())
             .filter((s) => s.length > 0 && !s.startsWith("--"));
 
       console.log(`[migrate]   ${statements.length} statements`);
