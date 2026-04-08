@@ -30,8 +30,8 @@ export async function POST(
   } else {
     try {
       const { getRequestContext } = await import("@cloudflare/next-on-pages");
-      const ctx = getRequestContext() as { waitUntil?: (p: Promise<void>) => void };
-      ctx.waitUntil?.(task);
+      const { ctx } = getRequestContext() as unknown as { ctx: { waitUntil: (p: Promise<void>) => void } };
+      ctx.waitUntil(task);
     } catch {
       void task;
     }

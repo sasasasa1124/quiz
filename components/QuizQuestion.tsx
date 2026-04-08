@@ -96,12 +96,12 @@ export default function QuizQuestion({
               keywords={keywords}
               className="text-gray-700 text-sm lg:text-base leading-relaxed [&_img]:max-w-full [&_img]:rounded-lg [&_img]:mt-2"
             />
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+            <div className="mt-3 pt-3 border-t border-gray-200">
               <RichText
                 text={finalQuestion}
                 block
                 keywords={keywords}
-                className="text-amber-900 text-sm lg:text-base leading-relaxed font-medium"
+                className="text-gray-900 text-sm lg:text-base leading-relaxed font-medium"
               />
             </div>
           </>
