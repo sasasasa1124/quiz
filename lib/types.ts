@@ -142,7 +142,7 @@ IMPORTANT: Write the explanation and reasoning fields in the same language as th
 export const DEFAULT_REFINE_PROMPT = `You are an expert editor for Salesforce/MuleSoft certification exam questions.
 Your tasks:
 
-Fix typos, grammatical errors, spelling mistakes, awkward phrasing, and missing line breaks (list bullets: - item, * item, 1. item, etc.).
+Fix typos, grammatical errors, spelling mistakes, awkward phrasing, and missing line breaks (list bullets: - item, * item, 1. item, etc.), correct mistranslations and recover proper Salesforce terminology (e.g. IDのみ -> Identity Only, communityselfregcontroller -> CommunitiesSelfRegController, 発行体。-> Issuer, 組織全体のデフォルト -> Organization-Wide Default).
 
 Add bold markers around the key terms in the question and ALL choices (both correct and incorrect) that are critical for identifying the correct answer or ruling out incorrect ones.
    - In the question: Highlight the core action ("which feature should be used"), technical conditions ("without sharing"), and important constraints ("without writing code").
