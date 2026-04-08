@@ -8,7 +8,7 @@
  */
 
 import type { D1Client } from "@/lib/db";
-import { getNow } from "@/lib/db";
+import { getNow, isPg } from "@/lib/db";
 import { aiGenerate } from "@/lib/ai-client";
 import { parseAiJsonAs } from "@/lib/ai-json";
 import { AiRefineResponseSchema, AiFactCheckResponseSchema, FillFromExplainSchema } from "@/lib/ai-schemas";
@@ -54,8 +54,34 @@ export async function getBatchJob(pg: D1Client, jobId: string): Promise<BatchJob
 
 export async function getActiveJob(pg: D1Client, examId: string, jobType: JobType): Promise<BatchJobRow | null> {
   type R = { id: string; exam_id: string; job_type: string; status: string; done: number; total: number; skipped: number; result_count: number; failed: number; error_msg: string | null };
-  const [row] = await pg<R[]>`SELECT id, exam_id, job_type, status, done, total, skipped, result_count, failed, error_msg FROM batch_jobs WHERE exam_id = ${examId} AND job_type = ${jobType} AND status IN ('pending', 'running') ORDER BY created_at DESC LIMIT 1`;
-  if (!row) return null;
+
+  // Only consider jobs updated within the last 60 minutes — older ones are zombie jobs from crashed workers.
+  const freshCutoff = pg.unsafe(
+    isPg()
+      ? "updated_at::timestamptz > (NOW() - INTERVAL '60 minutes')"
+      : "updated_at > datetime('now', '-60 minutes')"
+  );
+  const [row] = await pg<R[]>`
+    SELECT id, exam_id, job_type, status, done, total, skipped, result_count, failed, error_msg
+    FROM batch_jobs
+    WHERE exam_id = ${examId} AND job_type = ${jobType}
+      AND status IN ('pending', 'running') AND ${freshCutoff}
+    ORDER BY created_at DESC LIMIT 1`;
+
+  if (!row) {
+    // Auto-clean any zombie jobs older than 60 minutes so they don't accumulate.
+    const staleCutoff = pg.unsafe(
+      isPg()
+        ? "updated_at::timestamptz < (NOW() - INTERVAL '60 minutes')"
+        : "updated_at < datetime('now', '-60 minutes')"
+    );
+    const now = getNow(pg);
+    await pg`UPDATE batch_jobs SET status='error', error_msg='stale: auto-cleaned', updated_at=${now}
+             WHERE exam_id = ${examId} AND job_type = ${jobType}
+               AND status IN ('pending', 'running') AND ${staleCutoff}`;
+    return null;
+  }
+
   return { id: row.id, examId: row.exam_id, jobType: row.job_type as JobType, status: row.status as JobStatus, done: row.done, total: row.total, skipped: row.skipped, resultCount: row.result_count, failed: row.failed, errorMsg: row.error_msg };
 }
 
