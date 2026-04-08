@@ -38,33 +38,30 @@
 
 ---
 
-## 実装 Todo
+## 実装 Todo ✅ 完了
 
-### ブランチ: `fix/migrate-pg-idempotent` (現在のブランチ)
+### ブランチ: `fix/migrate-pg-idempotent` → `main` にマージ済み (commit `c7b147d`)
 
 #### AWS 修正
 - [x] `scripts/migrate-pg.js` — ステートメント単位の try-catch 追加
   - PostgreSQL エラーコード 42701(duplicate_column)、42P07(duplicate_table)、42710(duplicate_object) をスキップ
   - これにより全ての SQL ファイルを最後まで実行し `0021_batch_jobs.sql` に到達する
-  - **未コミット** — git diff HEAD で変更確認済み
 
 #### CF 修正
-- [ ] `lib/batch-job.ts` — `createBatchJob()` 冒頭に D1 用テーブル自動作成追加
+- [x] `lib/batch-job.ts` — `createBatchJob()` 冒頭に D1 用テーブル自動作成追加
   - `!isPg()` の場合のみ実行（CF/D1 環境のみ）
-  - `CREATE TABLE IF NOT EXISTS batch_jobs (...)` — 完全なスキーマを定義
-  - `CREATE INDEX IF NOT EXISTS idx_batch_jobs_exam_id ON batch_jobs(exam_id)`
-  - モジュールレベルの `let d1TableEnsured = false` フラグでガード（毎回 DDL 実行を防ぐ）
-  - D1 Migration の wrangler 手動実行が不要になる安全ネット
-
-#### 共通
-- [ ] `TASK.md` 更新 (本ファイル)
+  - モジュールレベルの `d1TableEnsured` フラグでガード（初回のみ DDL 実行）
 
 #### コミット・デプロイ
-- [ ] `git add scripts/migrate-pg.js lib/batch-job.ts TASK.md`
-- [ ] `git commit -m "fix: make batch_jobs table creation idempotent on AWS and CF"` (※ ASCII のみ)
-- [ ] `git checkout main && git merge fix/migrate-pg-idempotent`
-- [ ] `git push origin main deploy/aws` → AWS App Runner 再デプロイトリガー
-- [ ] `git push origin main deploy/cloudflare` → CF Pages 再デプロイトリガー
+- [x] commit `c7b147d`: fix: make batch_jobs table creation idempotent on AWS and CF
+- [x] `main` → `deploy/aws` push → GitHub Actions `24138092961` completed:success (4m33s)
+- [x] `deploy/cloudflare` cherry-pick → GitHub Actions `24138166248` completed:success (1m38s)
+
+#### テスト結果
+- AWS: デプロイ成功。サーバー応答確認（auth エラー = 500 ではなく Unauthorized）
+- CF: 同上
+- ⚠️ CloudWatch で migrate-pg.js の実際のログ確認未実施（AWS SSO セッション期限切れ）
+  - `! aws sso login --profile scholion-aws` でセッション更新後、CloudWatch で確認可能
 
 ---
 
