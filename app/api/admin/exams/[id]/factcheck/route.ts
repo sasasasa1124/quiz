@@ -24,20 +24,26 @@ export async function POST(
     forceRecheck = body.forceRecheck ?? false;
   } catch { /* no body is fine */ }
 
-  const jobId = await createBatchJob(pg, examId, "factcheck", { userPrompt, forceRecheck });
-  const task = runFactCheckJob(pg, jobId, examId, { userPrompt, forceRecheck });
+  try {
+    const jobId = await createBatchJob(pg, examId, "factcheck", { userPrompt, forceRecheck });
+    const task = runFactCheckJob(pg, jobId, examId, { userPrompt, forceRecheck });
 
-  if (isAWS) {
-    void task;
-  } else {
-    try {
-      const { getRequestContext } = await import("@cloudflare/next-on-pages");
-      const { ctx } = getRequestContext() as unknown as { ctx: { waitUntil: (p: Promise<void>) => void } };
-      ctx.waitUntil(task);
-    } catch {
+    if (isAWS) {
       void task;
+    } else {
+      try {
+        const { getRequestContext } = await import("@cloudflare/next-on-pages");
+        const { ctx } = getRequestContext() as unknown as { ctx: { waitUntil: (p: Promise<void>) => void } };
+        ctx.waitUntil(task);
+      } catch {
+        void task;
+      }
     }
-  }
 
-  return NextResponse.json({ jobId });
+    return NextResponse.json({ jobId });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[factcheck] error:", msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }
