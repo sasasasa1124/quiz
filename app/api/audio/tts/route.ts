@@ -1,4 +1,5 @@
-export const runtime = 'edge';
+// AWS deploy: nodejs runtime required for Polly SDK
+export const runtime = 'nodejs';
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenAI } from "@google/genai";
 import { getEnv } from "@/lib/env";

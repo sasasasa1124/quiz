@@ -9,7 +9,7 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname, ".."),
   },
   // csv-parse is Node.js-only; keep it out of edge bundles.
-  serverExternalPackages: ["csv-parse", "csv-parse/sync"],
+  serverExternalPackages: ["csv-parse", "csv-parse/sync", "@aws-sdk/client-polly", "@smithy/fetch-http-handler"],
   webpack(config) {
     // For edge (Cloudflare Workers) bundles, provide empty fallbacks for Node.js
     // built-ins used by the `postgres` package.  The postgres code paths are
