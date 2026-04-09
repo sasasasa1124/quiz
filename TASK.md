@@ -1,56 +1,42 @@
-# TASK.md — Scholion AWS Deployment & Batch Jobs Fix
+# TASK.md — Scholion 次フェーズ課題
 
-## 目標
-AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作すること。
-テスト基準: https://bngmzhtypy.us-west-2.awsapprunner.com/exam/experience_cloud_consultant_exam_en
-の管理画面からFact Checkを実行し、全問題チェックが完了すること。
+## AWS バッチジョブ ✅ 全修正完了 (2026-04-09)
 
-## テスト合格基準
-- [ ] `GET /api/debug-batch` → `{"ok":true, steps.sql_now: <timestamp>}` (200)
-- [ ] `GET /api/admin/exams/.../batch-status?latest=factcheck` → 200 (500ではない)
-- [ ] Fact Check実行 → jobId返却 → status running→done
-- [ ] App Runner: `list-operations[0].Status = SUCCEEDED`（ROLLBACKではない）
+### 修正済み根本原因
+1. **migrate-pg.js SQLiteスキップ** — AUTOINCREMENT/datetime() ファイルをスキップ
+2. **Admin routes runtime='edge' 削除** — 全14ルートからedge削除
+3. **batch_jobs ensureTable追加** — getBatchJob/getActiveJob に追加
+4. **after() → fire-and-forget async** — App RunnerでのNext.js after()不動作を修正 (d1a1663)
 
-## 根本原因と修正状況
+### テスト結果 ✅
+- [x] `GET /api/debug-batch` → `{"ok":true}` (200)
+- [x] `GET /api/admin/exams/.../batch-status?latest=factcheck` → 200
+- [x] Fact Check実行 → jobId返却 → status `running` → `done` 確認済み (109問完走)
+- [x] App Runner: SUCCEEDED デプロイ確認済み
 
-### 1. コンテナ起動失敗 exit code 1 → 修正デプロイ中 (b1935d1)
-- 原因: migrate-pg.js が AUTOINCREMENT/datetime() を含むSQLiteファイル実行 → process.exit(1)
-- 修正: SQLite構文含むファイルをスキップ
-
-### 2. Admin routes 500 → 修正済み (7a92d9f)
-- 原因: runtime='edge' + require("postgres") が共存不可
-- 修正: 全14 admin routeから runtime='edge' 削除
-
-### 3. batch_jobs 42P01 → 修正済み (cba028e)
-- 原因: getBatchJob/getActiveJob に ensureTable() がなかった
-- 修正: 両関数に追加
-
-### 4. デプロイフック誤検知 → 未修正
-- 原因: post-hookがECR SHA確認のみ。ROLLBACK_SUCCEEDEDを成功と誤検知
-- TODO: deploy-aws.yml に running image SHA 検証を追加
-
-## 完了
-- [x] AI APIタイムアウト 60s
-- [x] デプロイ待機20分
-- [x] SQS統合
-- [x] SuggestPanel Adopt/Enter修正
-- [x] CLAUDE.md リポジトリ修正
-- [x] Admin routes Node.js runtime化
-- [x] migrate-pg.js SQLiteスキップ
+---
 
 ## 次フェーズ課題
 
-### 1. AI解説プロンプト改善 ✅ 修正済み (chore/task-update-and-gitignore-fix)
+### 1. クリーンアップ
+- [ ] `app/api/debug-batch/route.ts` を削除
+- [ ] `middleware.ts` の `PUBLIC_PATHS` から `/api/debug-batch` を削除
+- [ ] git の未コミット削除ファイル（CSV/xlsx/古いMD）を `git rm` してコミット
+- [ ] **テスト:** `/api/debug-batch` が401を返すことを確認
+
+---
+
+### 2. AI解説プロンプト改善 ✅ 修正済み
 **目標:** 解説の冒頭に「コア知識1行」を挿入し、理解の軸を先に提示する
 
-- [x] `lib/types.ts` の `DEFAULT_EXPLAIN_PROMPT` に `coreConcept` フィールド定義を追加（先頭フィールド・最大25語）
+- [x] `lib/types.ts` の `DEFAULT_EXPLAIN_PROMPT` に `coreConcept` フィールド定義を追加
 - [x] `app/api/ai/explain/route.ts` の Zod スキーマに `coreConcept: z.string().optional()` を追加
 - [x] `components/AiExplainPopup.tsx` で Core Concept バナーを解説最上部に表示
 - [ ] **テスト:** Explainを実行し、コア知識が解説の先頭に表示されることを確認
 
 ---
 
-### 2. 問題文・解説バージョン管理UI
+### 3. 問題文・解説バージョン管理UI
 **目標:** 管理者が過去バージョンと現在の差分を見てロールバックできる
 
 - [ ] `app/api/admin/questions/[id]/history/route.ts` のレスポンス確認（フィールド網羅性）
@@ -63,7 +49,7 @@ AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作
 
 ---
 
-### 3. 問題文の黄色ハイライト削除
+### 4. 問題文の黄色ハイライト削除
 **目標:** AI Explainのハイライト表示をやめ、クリーンな問題文表示にする
 
 - [ ] `components/RichText.tsx`（または該当コンポーネント）でハイライト適用ロジックを特定
@@ -73,7 +59,7 @@ AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作
 
 ---
 
-### 4. 正解率表示をセッション内に限定
+### 5. 正解率表示をセッション内に限定
 **目標:** 正解率をセッション累計ではなく「今回のセッション内」の正答率に変更する
 
 - [ ] `components/QuizClient.tsx` の正解率計算ロジックを特定
@@ -83,7 +69,7 @@ AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作
 
 ---
 
-### 5. スライダーの過去履歴半透明化
+### 6. スライダーの過去履歴半透明化
 **目標:** プロフィール画面の正解率スライダーで過去データを薄く表示し、トレンドを視認しやすくする
 
 - [ ] `components/ExamTrendChart.tsx` または該当グラフコンポーネントを特定
@@ -93,14 +79,14 @@ AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作
 
 ---
 
-### 6. 設定画面 AI Model — AWS で Claude モデルを表示 ✅ 修正済み (chore/task-update-and-gitignore-fix)
+### 7. 設定画面 AI Model — AWS で Claude モデルを表示 ✅ 修正済み
 **修正内容:**
 - `app/api/app-settings/route.ts`: `claude_model` デフォルト (`us.anthropic.claude-sonnet-4-6`) を追加
-- `app/settings/page.tsx`: `deployTarget` 取得後に正しいキー (`claude_model` / `gemini_model`) でモデルをロード・保存するよう修正（競合状態の解消）
+- `app/settings/page.tsx`: `deployTarget` 取得後に正しいキー (`claude_model` / `gemini_model`) でモデルをロード・保存するよう修正
 
 ---
 
-### 7. AWS TTS 修正
+### 8. AWS TTS 修正
 **目標:** AWS App Runner環境でTTS音声再生が動作すること
 
 - [ ] `app/api/audio/tts/route.ts` の現在の実装を確認（Gemini TTS vs AWS Polly の切り替えロジック）
@@ -111,7 +97,7 @@ AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作
 
 ---
 
-### 8. AI Wording Fix の Enter でAdopt
+### 9. AI Wording Fix の Enter でAdopt
 **目標:** AI Refine提案ダイアログでEnterキーを押すと採用（Adopt）される
 
 - [ ] `components/AiRefinePopup.tsx` のキーボードイベントハンドラを確認
@@ -121,7 +107,7 @@ AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作
 
 ---
 
-### 9. W・X ショートカット追加（Quiz / フラッシュカード / Answers）
+### 10. W・X ショートカット追加（Quiz / フラッシュカード / Answers）
 **目標:** W=不正解として次へ、X=問題を無効化 のショートカットを全モードに追加
 
 - [ ] `components/QuizClient.tsx` の `onKeyDown` ハンドラに追加:
@@ -131,11 +117,3 @@ AWS App Runner上でバッチジョブ（fill/refine/factcheck）が正常動作
 - [ ] フラッシュカード（Reviewモード）コンポーネントにも追加
 - [ ] `KeyboardHintToast` に W・X の説明を追記
 - [ ] **テスト:** 各モードでW/Xキーを押して正しい動作になることを確認
-
----
-
-### 10. クリーンアップ（デプロイ前）
-- [ ] `app/api/debug-batch/route.ts` を削除（コメントに「DELETE THIS FILE」と明記済み）
-- [ ] `middleware.ts` の `PUBLIC_PATHS` から `/api/debug-batch` を削除
-- [ ] git の未コミット削除ファイル（CSV/xlsx/古いMD）を `git rm` してコミット
-- [ ] **テスト:** `/api/debug-batch` が404を返すことを確認

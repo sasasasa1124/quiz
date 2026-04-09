@@ -340,7 +340,7 @@ npm run build:cf           # Cloudflare Pages 向けビルド
 
 ## デプロイ
 
-**Cloudflare Pages**（主）と **GCP Cloud Run**（副）の両方に対応。
+**AWS**（主）と **Cloudflare Pages**（副）の両方に対応。
 
 ```
 main ──────────────────────────────► 開発の source of truth
@@ -358,9 +358,6 @@ main ─────────────────────────
 ```bash
 npm run db:migrate
 ```
-
-GCP 移行の詳細は **[GCP-Project.md](./GCP-Project.md)** を参照。
-
 ---
 
 ## ルート一覧

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/sign-up", "/unauthorized", "/api/auth", "/api/debug-batch"];
+const PUBLIC_PATHS = ["/login", "/sign-up", "/unauthorized", "/api/auth"];
 
 /**
  * Decode JWT payload without signature verification (Edge-safe).
