@@ -13,6 +13,7 @@ export interface Question {
   choices: Choice[];
   answers: string[]; // ["A", "C", "E"]
   explanation: string;
+  coreConcept: string; // one-line concept anchor (max 25 words), stored separately
   source: string;            // question source (website/reference)
   explanationSources: string[]; // explanation/answer reference URLs (multiple)
   isDuplicate: boolean;

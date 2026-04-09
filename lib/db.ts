@@ -245,7 +245,7 @@ export async function renameCategory(examId: string, oldName: string, newName: s
 
 function mapQuestionRow(row: {
   id: string; num: number; question_text: string; options: string;
-  answers: string; explanation: string; source: string;
+  answers: string; explanation: string; core_concept: string | null; source: string;
   explanation_sources: string | null; is_duplicate: number; version: number;
   category: string | null; created_by: string; created_at: string | null;
   added_at: string | null; updated_at: string | null;
@@ -259,6 +259,7 @@ function mapQuestionRow(row: {
     choices,
     answers,
     explanation: row.explanation ?? "",
+    coreConcept: row.core_concept ?? "",
     source: row.source ?? "",
     explanationSources: JSON.parse(row.explanation_sources ?? "[]") as string[],
     isDuplicate: row.is_duplicate === 1,
@@ -273,7 +274,7 @@ function mapQuestionRow(row: {
   };
 }
 
-const QUESTION_COLS = `id, num, question_text, options, answers, explanation, source, explanation_sources,
+const QUESTION_COLS = `id, num, question_text, options, answers, explanation, core_concept, source, explanation_sources,
   is_duplicate, version, category, created_by, created_at, added_at, updated_at`;
 
 export async function getQuestions(examId: string): Promise<Question[]> {
@@ -282,7 +283,7 @@ export async function getQuestions(examId: string): Promise<Question[]> {
 
   type Row = {
     id: string; num: number; question_text: string; options: string;
-    answers: string; explanation: string; source: string;
+    answers: string; explanation: string; core_concept: string | null; source: string;
     explanation_sources: string | null; is_duplicate: number; version: number;
     category: string | null; created_by: string; created_at: string | null;
     added_at: string | null; updated_at: string | null;
@@ -297,7 +298,7 @@ export async function getQuestionById(id: string): Promise<Question | null> {
 
   type Row = {
     id: string; num: number; question_text: string; options: string;
-    answers: string; explanation: string; source: string;
+    answers: string; explanation: string; core_concept: string | null; source: string;
     explanation_sources: string | null; is_duplicate: number; version: number;
     category: string | null; created_by: string; created_at: string | null;
     added_at: string | null; updated_at: string | null;

@@ -57,6 +57,7 @@ export type AdminFillResult = z.infer<typeof AdminFillResultSchema>;
 
 // Schema for parsing fill responses that use the explain prompt format
 export const FillFromExplainSchema = z.object({
+  coreConcept: z.string().optional(),
   highlights: z.array(z.string()).optional(),
   explanation: z.string(),
   answers: z.array(z.string()),

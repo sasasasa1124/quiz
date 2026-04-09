@@ -1,0 +1,2 @@
+ALTER TABLE questions ADD COLUMN IF NOT EXISTS core_concept TEXT DEFAULT '';
+ALTER TABLE question_history ADD COLUMN IF NOT EXISTS core_concept TEXT DEFAULT '';

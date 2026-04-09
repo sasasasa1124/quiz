@@ -20,6 +20,7 @@ export const questions = sqliteTable("questions", {
   options: text("options").notNull(), // JSON: Choice[]
   answers: text("answers").notNull(), // JSON: string[]
   explanation: text("explanation").default(""),
+  coreConcept: text("core_concept").default(""),
   source: text("source").default(""),
   explanationSources: text("explanation_sources"), // JSON: string[]
   isDuplicate: integer("is_duplicate").default(0),

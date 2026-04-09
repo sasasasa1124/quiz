@@ -129,17 +129,22 @@ async function fail(pg: D1Client, jobId: string, msg: string) {
 
 export async function runFillJob(
   pg: D1Client, jobId: string, examId: string,
-  params: { userPrompt?: string; forceRefill?: boolean },
+  params: { userPrompt?: string; forceRefill?: boolean; refillShort?: boolean },
 ): Promise<void> {
-  const { userPrompt, forceRefill = false } = params;
+  const { userPrompt, forceRefill = false, refillShort = false } = params;
   const now = getNow(pg);
   try {
     type QR = { id: string; question_text: string; options: string; answers: string; explanation: string; category: string | null; filled_at: string | null };
     const all = await pg<QR[]>`SELECT id, question_text, options, answers, explanation, category, filled_at FROM questions WHERE exam_id=${examId} ORDER BY num ASC`;
     const candidates = all.filter((q) => {
       if (!q.question_text.trim()) return false;
-      if (!forceRefill && q.filled_at) return false;
       const ans = JSON.parse(q.answers ?? "[]") as string[];
+      // refillShort: re-fill questions whose explanation lacks the new structured format
+      if (refillShort && !forceRefill) {
+        const isOldFormat = !q.explanation?.includes("[Key Concepts]");
+        if (isOldFormat) return true;
+      }
+      if (!forceRefill && q.filled_at) return false;
       return forceRefill || ans.length === 0 || !q.explanation || !q.category;
     });
 
@@ -187,7 +192,7 @@ export async function runFillJob(
           .replace("{explanation}", q.explanation ? `Current explanation: ${q.explanation}` : "")
           + catConstraint;
 
-        let result: { answers?: string[]; explanation?: string; category?: string } | null = null;
+        let result: { coreConcept?: string; answers?: string[]; explanation?: string; category?: string } | null = null;
         for (let retries = 2; retries >= 0 && !result; retries--) {
           try {
             const { text } = await aiGenerate(prompt, { jsonMode: true, useSearch: true });
@@ -198,10 +203,11 @@ export async function runFillJob(
 
         if (result) {
           const newAns = missing.includes("answers") && Array.isArray(result.answers) && result.answers.length > 0 ? JSON.stringify(result.answers) : null;
-          const newExp = missing.includes("explanation") && result.explanation ? result.explanation : null;
+          const newExp = (forceRefill || refillShort || missing.includes("explanation")) && result.explanation ? result.explanation : null;
           const newCat = missing.includes("category") && result.category ? result.category : null;
-          if (newAns || newExp || newCat) {
-            await pg`UPDATE questions SET answers=COALESCE(${newAns},answers), explanation=COALESCE(${newExp},explanation), category=COALESCE(${newCat},category), filled_at=${now}, updated_at=${now} WHERE id=${q.id}`;
+          const newCore = result.coreConcept ?? null;
+          if (newAns || newExp || newCat || newCore) {
+            await pg`UPDATE questions SET answers=COALESCE(${newAns},answers), explanation=COALESCE(${newExp},explanation), core_concept=COALESCE(${newCore},core_concept), category=COALESCE(${newCat},category), filled_at=${now}, updated_at=${now} WHERE id=${q.id}`;
             filled++;
           } else {
             await pg`UPDATE questions SET filled_at=${now} WHERE id=${q.id}`;

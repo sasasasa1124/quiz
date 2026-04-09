@@ -111,6 +111,14 @@ export default function AnswerRevealModal({ question, isCorrect, isLast, onNext,
             </div>
           )}
 
+          {/* Core Concept */}
+          {question.coreConcept && (
+            <div className="rounded-xl bg-scholion-50 border border-scholion-200 px-4 py-3">
+              <p className="text-[10px] font-semibold text-scholion-500 uppercase tracking-wide mb-1">Core Concept</p>
+              <p className="text-xs font-medium text-scholion-700 leading-relaxed">{question.coreConcept}</p>
+            </div>
+          )}
+
           {/* Explanation */}
           <div>
             <p className="text-[11px] font-semibold text-amber-600 uppercase tracking-wider mb-2">{t("aiExplanation")}</p>
