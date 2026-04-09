@@ -208,7 +208,7 @@ async function bedrockGenerate(
     method: "POST",
     headers,
     body: bodyStr,
-    signal: AbortSignal.timeout(options.timeoutMs ?? 25_000),
+    signal: AbortSignal.timeout(options.timeoutMs ?? 60_000),
   });
 
   if (!resp.ok) {
@@ -252,7 +252,7 @@ async function geminiGenerate(
     ];
   }
 
-  const timeoutMs = options.timeoutMs ?? 25_000;
+  const timeoutMs = options.timeoutMs ?? 60_000;
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
   const timeoutRace = new Promise<never>((_, reject) => {
     timeoutSignal.addEventListener("abort", () =>
