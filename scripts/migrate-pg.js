@@ -39,12 +39,21 @@ async function migrate() {
   const ssl = url.includes("rds.amazonaws.com") ? { rejectUnauthorized: false } : false;
   const sql = postgres(url, { max: 1, connect_timeout: 30, ssl });
 
+  // SQLite-specific patterns that are incompatible with PostgreSQL
+  const SQLITE_PATTERNS = [/\bAUTOINCREMENT\b/i, /\bdatetime\s*\(/i, /\bstrftime\s*\(/i];
+
   try {
     for (let i = 0; i < sqlFiles.length; i++) {
       const file = sqlFiles[i];
       const filePath = sqlPaths[i];
       console.log(`[migrate] Running ${file}...`);
       const content = fs.readFileSync(filePath, "utf8");
+
+      // Skip entire files that contain SQLite-only syntax (these are D1 migrations)
+      if (SQLITE_PATTERNS.some((p) => p.test(content))) {
+        console.log(`[migrate]   skipped (SQLite-only file): ${file}`);
+        continue;
+      }
 
       // 0000_init_complete.sql uses --> statement-breakpoint separators
       // 0001_seed_exams.sql is plain semicolon-terminated statements (one per line)
@@ -70,12 +79,9 @@ async function migrate() {
           //   42701 = duplicate_column (ALTER TABLE ADD COLUMN already exists)
           //   42P07 = duplicate_table  (CREATE TABLE already exists, non-IF-NOT-EXISTS)
           //   42710 = duplicate_object (CREATE INDEX already exists, non-IF-NOT-EXISTS)
-          //   42601 = syntax_error (SQLite-specific syntax like AUTOINCREMENT — skip silently)
           const code = e.code ?? "";
           if (code === "42701" || code === "42P07" || code === "42710") {
             console.log(`[migrate]   skipped (already applied): ${e.message.split("\n")[0]}`);
-          } else if (code === "42601") {
-            console.log(`[migrate]   skipped (SQLite syntax, not PG-compatible): ${e.message.split("\n")[0]}`);
           } else {
             throw e;
           }
