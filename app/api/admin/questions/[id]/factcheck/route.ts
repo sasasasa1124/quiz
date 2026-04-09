@@ -1,5 +1,3 @@
-export const runtime = 'edge';
-
 import { NextRequest, NextResponse } from "next/server";
 import { getDB, getNow } from "@/lib/db";
 import { aiGenerate } from "@/lib/ai-client";

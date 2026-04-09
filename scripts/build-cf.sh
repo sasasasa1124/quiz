@@ -17,6 +17,7 @@ npx vercel build
 rm -rf \
   .vercel/output/functions/api/local-exams.func \
   .vercel/output/functions/api/local-exams.rsc.func \
-  .vercel/output/functions/api/local-questions
+  .vercel/output/functions/api/local-questions \
+  .vercel/output/functions/api/admin
 
 npx @cloudflare/next-on-pages --skip-build
