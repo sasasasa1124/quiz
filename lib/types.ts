@@ -115,6 +115,7 @@ Currently recorded answer(s): {answers}
 Respond ONLY with a JSON object (no markdown, no code fences) with exactly these keys:
 
 {
+  "coreConcept": "One sentence stating the single most important concept needed to answer this question.",
   "highlights": ["exact phrase 1", "exact phrase 2"],
   "explanation": "...",
   "answers": ["A"],
@@ -122,6 +123,7 @@ Respond ONLY with a JSON object (no markdown, no code fences) with exactly these
 }
 
 Field definitions:
+- coreConcept: a single sentence (max 25 words) that names the core Salesforce/MuleSoft concept or rule this question tests — written in the same language as the question. This is shown first so the learner can orient before reading the full explanation.
 - highlights: up to 6 exact substrings from the question text that are critical for determining the correct answer — constraint words, feature names, qualifying conditions, action verbs that change the scope, etc. These will be visually highlighted for the user.
 - explanation: structured in three labeled sections (use the exact section headers below):
 

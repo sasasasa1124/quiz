@@ -293,12 +293,18 @@ function SettingsInner() {
   const modelBeforeFocus = useRef<string>("");
   const ttsModelBeforeFocus = useRef<string>("");
 
-  // Fetch deployment target on mount
+  // Fetch deployment target, then load the correct AI model key for that env
   useEffect(() => {
     fetch("/api/app-settings")
       .then((r) => r.json() as Promise<{ deployTarget?: string }>)
       .then(({ deployTarget: dt }) => {
-        if (dt === "aws" || dt === "cloudflare") setDeployTarget(dt);
+        const target = (dt === "aws" || dt === "cloudflare") ? dt : "cloudflare";
+        setDeployTarget(target);
+        const modelKey = target === "aws" ? "claude_model" : "gemini_model";
+        return fetch(`/api/app-settings?key=${modelKey}`)
+          .then((r) => r.json() as Promise<{ value: string | null }>)
+          .then(({ value }) => { if (value) setGeminiModel(value); })
+          .catch(() => {});
       })
       .catch(() => {});
   }, []);
@@ -325,12 +331,8 @@ function SettingsInner() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [settings.aiPrompt, settings.aiRefinePrompt, settings.studyGuidePrompt, settings.aiFactCheckPrompt, settings.audioMode, settings.audioSpeed, settings.audioPrefetch, settings.skipRevealOnCorrect, userDisplayName]);
 
-  // Load current gemini model and tts model from DB
+  // Load tts model from DB
   useEffect(() => {
-    fetch("/api/app-settings?key=gemini_model")
-      .then((r) => r.json() as Promise<{ value: string | null }>)
-      .then(({ value }) => { if (value) setGeminiModel(value); })
-      .catch(() => {});
     fetch("/api/app-settings?key=tts_model")
       .then((r) => r.json() as Promise<{ value: string | null }>)
       .then(({ value }) => { if (value) setTtsModel(value); })
@@ -366,7 +368,7 @@ function SettingsInner() {
         fetch("/api/app-settings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: "gemini_model", value: geminiModel }),
+          body: JSON.stringify({ key: deployTarget === "aws" ? "claude_model" : "gemini_model", value: geminiModel }),
         }).catch(() => {}),
       );
     }

@@ -8,6 +8,7 @@ import { aiGenerate } from "@/lib/ai-client";
 
 
 const AiResponseSchema = z.object({
+  coreConcept: z.string().optional(),
   highlights: z.array(z.string()).optional(),
   explanation: z.string(),
   answers: z.array(z.string()),

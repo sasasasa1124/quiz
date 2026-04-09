@@ -44,3 +44,8 @@ next-env.d.ts
 .wrangler/
 scripts/_seed.sql
 .env.gcp
+
+# Claude
+CLAUDE.md
+DESIGN.md
+TASK.md

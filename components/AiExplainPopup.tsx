@@ -201,6 +201,14 @@ export default function AiExplainPopup({
               </div>
             </div>
 
+            {/* Core concept — one-line anchor shown first */}
+            {result.coreConcept && (
+              <div className="rounded-xl bg-scholion-50 border border-scholion-200 px-3 py-2">
+                <p className="text-[10px] font-semibold text-scholion-500 uppercase tracking-wide mb-1">Core Concept</p>
+                <p className="text-xs font-medium text-scholion-700 leading-relaxed">{result.coreConcept}</p>
+              </div>
+            )}
+
             {/* Question with highlights */}
             {question && result.highlights && result.highlights.length > 0 && (
               <div>

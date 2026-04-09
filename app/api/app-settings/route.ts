@@ -4,6 +4,7 @@ import { getSetting, setSetting } from "@/lib/db";
 
 const DEFAULTS: Record<string, string> = {
   gemini_model: "gemini-2.5-flash",
+  claude_model: "us.anthropic.claude-sonnet-4-6",
 };
 
 export async function GET(req: NextRequest) {
