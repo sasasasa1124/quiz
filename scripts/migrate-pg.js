@@ -55,20 +55,32 @@ async function migrate() {
         continue;
       }
 
-      // 0000_init_complete.sql uses --> statement-breakpoint separators
-      // 0001_seed_exams.sql is plain semicolon-terminated statements (one per line)
-      // Strip leading SQL comments from each statement before checking emptiness.
-      // A block may start with "-- comment\n\nCREATE TABLE..." — the CREATE TABLE must not be dropped.
+      // Statement splitting strategy:
+      //   - Files with "--> statement-breakpoint": split on that marker (drizzle schema files)
+      //   - drizzle/ seed files (0001_seed_exams.sql): one SQL statement per line — split by \n
+      //     (semicolon-split is unsafe because values contain semicolons inside quoted strings)
+      //   - root incremental migrations: safe to split by ; (short ALTER TABLE / CREATE INDEX)
       const stripLeadingComments = (s) => s.replace(/^([ \t]*--[^\n]*\n)*/g, "").trim();
-      const statements = file.includes("init")
-        ? content
-            .split("--> statement-breakpoint")
-            .map((s) => stripLeadingComments(s))
-            .filter((s) => s.length > 0)
-        : content
-            .split(";")
-            .map((s) => s.replace(/^([ \t]*--[^\n]*\n)*/g, "").trim())
-            .filter((s) => s.length > 0 && !s.startsWith("--"));
+      const isDrizzleFile = filePath.includes("/drizzle/");
+      let statements;
+      if (content.includes("--> statement-breakpoint")) {
+        statements = content
+          .split("--> statement-breakpoint")
+          .map((s) => stripLeadingComments(s))
+          .filter((s) => s.length > 0);
+      } else if (isDrizzleFile) {
+        // Drizzle seed files: one statement per line, safe to split by newline
+        statements = content
+          .split("\n")
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && !s.startsWith("--"));
+      } else {
+        // Root incremental migrations: short statements, split by semicolon
+        statements = content
+          .split(";")
+          .map((s) => s.replace(/^([ \t]*--[^\n]*\n)*/g, "").trim())
+          .filter((s) => s.length > 0 && !s.startsWith("--"));
+      }
 
       console.log(`[migrate]   ${statements.length} statements`);
       for (const stmt of statements) {
