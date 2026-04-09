@@ -15,19 +15,20 @@ export async function POST(
   if (!pg) return NextResponse.json({ error: "DB not available" }, { status: 503 });
 
   const { id: examId } = await params;
-  let userPrompt: string | undefined, forceRefill = false;
+  let userPrompt: string | undefined, forceRefill = false, refillShort = false;
   try {
-    const body = await req.json() as { userPrompt?: string; forceRefill?: boolean };
+    const body = await req.json() as { userPrompt?: string; forceRefill?: boolean; refillShort?: boolean };
     userPrompt = body.userPrompt;
     forceRefill = body.forceRefill ?? false;
+    refillShort = body.refillShort ?? false;
   } catch { /* no body is fine */ }
 
   try {
-    const jobId = await createBatchJob(pg, examId, "fill", { userPrompt, forceRefill });
+    const jobId = await createBatchJob(pg, examId, "fill", { userPrompt, forceRefill, refillShort });
     // Fire-and-forget: unawaited async keeps event loop alive in Node.js (App Runner)
-    enqueueBatchJob({ jobId, examId, jobType: "fill", params: { userPrompt, forceRefill } })
+    enqueueBatchJob({ jobId, examId, jobType: "fill", params: { userPrompt, forceRefill, refillShort } })
       .catch(e => console.error("[fill] sqs enqueue failed:", e instanceof Error ? e.message : String(e)));
-    runFillJob(pg, jobId, examId, { userPrompt, forceRefill })
+    runFillJob(pg, jobId, examId, { userPrompt, forceRefill, refillShort })
       .catch(e => console.error("[fill] background job failed:", e instanceof Error ? e.message : String(e)));
     return NextResponse.json({ jobId });
   } catch (e) {
