@@ -141,6 +141,7 @@ export function getQuestions(examId: string): Question[] {
       choices,
       answers,
       explanation: row["explanation"] ?? "",
+      coreConcept: "",
       source: row["source"] ?? "",
       explanationSources,
       isDuplicate: !!(row["duplicate"] ?? "").trim(),
