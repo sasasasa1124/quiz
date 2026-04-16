@@ -230,7 +230,7 @@ export async function POST(req: NextRequest) {
         const parsed = await parseUploadedFile(file, sheetHint);
         if (parsed.rows.length === 0) {
           send({ step: "error", message: "File contains no data rows." });
-          return controller.close();
+          return;
         }
 
         // Filter out hidden columns
@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
           const { data, error } = parseAiJsonAs(jsonStr, ImportedQuestionsSchema);
           if (!data) {
             send({ step: "error", message: `AI code execution failed: ${error}` });
-            return controller.close();
+            return;
           }
           allQuestions = data;
         } else {
@@ -306,7 +306,7 @@ export async function POST(req: NextRequest) {
             };
           } catch (e) {
             send({ step: "error", message: `Column mapping failed: ${e instanceof Error ? e.message : String(e)}` });
-            return controller.close();
+            return;
           }
 
           send({ step: "convert", message: `Mapping: question=col${mapping.questionCol}, answer=col${mapping.answerCol}` });
@@ -317,7 +317,7 @@ export async function POST(req: NextRequest) {
 
         if (allQuestions.length === 0) {
           send({ step: "error", message: "No questions extracted from file." });
-          return controller.close();
+          return;
         }
 
         send({ step: "convert", message: `Extracted ${allQuestions.length} questions` });
@@ -364,7 +364,7 @@ export async function POST(req: NextRequest) {
         send({ step: "error", message: msg });
       } finally {
         if (keepalive) clearInterval(keepalive);
-        controller.close();
+        try { controller.close(); } catch { /* already closed */ }
       }
     },
   });
