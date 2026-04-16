@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame, Sparkles, Trash2, FileUp } from "lucide-react";
+import { ChevronRight, RotateCcw, Upload, Download, Plus, X, User, Search, Flame, Sparkles, Trash2 } from "lucide-react";
 import Link from "next/link";
 import type { ExamMeta } from "@/lib/types";
 import type { Locale } from "@/lib/i18n";
@@ -15,7 +15,7 @@ interface Props {
   exams: ExamMeta[];
 }
 
-type UploadStatus = "idle" | "uploading" | "done" | "error";
+type UploadStatus = "idle" | "uploading" | "importing" | "done" | "error";
 
 const CSV_TEMPLATE = `duplicate,#,question,choices,answer,explanation,source
 ,1,Enter question text here,A. Choice A | B. Choice B | C. Choice C | D. Choice D,A,Enter explanation here,Source URL
@@ -39,6 +39,91 @@ async function uploadFile(file: File): Promise<ExamMeta> {
   if (!res.ok) throw new Error(await res.text());
   const { exam } = await res.json() as { exam: ExamMeta };
   return exam;
+}
+
+function isExcelFile(f: File): boolean {
+  return /\.(xlsx?|xls)$/i.test(f.name);
+}
+
+function fileToExamId(name: string): string {
+  return name
+    .replace(/\.(xlsx?|csv)$/i, "")
+    .replace(/[^a-zA-Z0-9\u3040-\u9FFF_-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "")
+    .toLowerCase()
+    .slice(0, 64);
+}
+
+interface ImportEvent {
+  step: string;
+  message?: string;
+  done?: number;
+  total?: number;
+  examId?: string;
+  count?: number;
+}
+
+async function importExcelFile(
+  file: File,
+  lang: string,
+  onProgress: (evt: ImportEvent) => void
+): Promise<ExamMeta | null> {
+  const examId = fileToExamId(file.name);
+  const examName = file.name.replace(/\.(xlsx?|csv)$/i, "");
+
+  const form = new FormData();
+  form.append("file", file);
+  form.append("examId", examId);
+  form.append("examName", examName);
+  form.append("lang", lang);
+
+  const res = await fetch("/api/admin/import", { method: "POST", body: form });
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const b = await res.json() as { error?: string }; msg = b.error ?? msg; } catch { /* */ }
+    throw new Error(msg);
+  }
+
+  const reader = res.body!.getReader();
+  const dec = new TextDecoder();
+  let buf = "";
+  let resultExamId: string | undefined;
+  let resultCount: number | undefined;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += dec.decode(value, { stream: true });
+    const parts = buf.split("\n\n");
+    buf = parts.pop() ?? "";
+    for (const part of parts) {
+      if (!part.startsWith("data: ")) continue;
+      try {
+        const evt = JSON.parse(part.slice(6)) as ImportEvent;
+        onProgress(evt);
+        if (evt.step === "done") {
+          resultExamId = evt.examId;
+          resultCount = evt.count;
+        }
+        if (evt.step === "error") {
+          throw new Error(evt.message ?? "Import failed");
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message !== "Import failed") continue;
+        throw e;
+      }
+    }
+  }
+
+  if (!resultExamId) return null;
+  return {
+    id: resultExamId,
+    name: file.name.replace(/\.(xlsx?|csv)$/i, ""),
+    questionCount: resultCount ?? 0,
+    language: lang as Locale,
+    tags: [],
+  };
 }
 
 export default function ExamListClient({ exams: initialExams }: Props) {
@@ -87,13 +172,6 @@ export default function ExamListClient({ exams: initialExams }: Props) {
           </button>
         ))}
       </div>
-      <Link
-        href="/admin/import"
-        className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-        title="Import Exam"
-      >
-        <FileUp size={14} />
-      </Link>
       <Link
         href="/profile"
         className="p-1.5 rounded-lg text-gray-300 hover:text-gray-600 hover:bg-gray-100 transition-colors"
@@ -154,48 +232,90 @@ export default function ExamListClient({ exams: initialExams }: Props) {
   }, [exams]);
 
   const processFiles = useCallback(async (files: File[]) => {
-    const csvFiles = files.filter((f) => f.name.endsWith(".csv"));
-    if (csvFiles.length === 0) return;
+    const supported = files.filter((f) => /\.(csv|xlsx?|xls)$/i.test(f.name));
+    if (supported.length === 0) return;
 
     setShowAdd(true);
-    setUploadStatus("uploading");
     setUploadErrorMsg(null);
-    setUploadProgress({ done: 0, total: csvFiles.length });
     setFillStatus("idle");
     setFillProgress(null);
     setFillResult(null);
 
-    let hasError = false;
-    let lastExam: ExamMeta | null = null;
-    for (let i = 0; i < csvFiles.length; i++) {
-      try {
-        const exam = await uploadFile(csvFiles[i]);
-        lastExam = exam;
-        setExams((prev) => {
-          const exists = prev.find((e) => e.id === exam.id);
-          return exists ? prev.map((e) => (e.id === exam.id ? exam : e)) : [...prev, exam];
-        });
-      } catch (e) {
-        hasError = true;
-        let msg = e instanceof Error ? e.message : String(e);
-        try { msg = JSON.parse(msg).error ?? msg; } catch { /* keep raw */ }
-        setUploadErrorMsg(msg);
+    const csvFiles = supported.filter((f) => !isExcelFile(f));
+    const excelFiles = supported.filter(isExcelFile);
+
+    // CSV: existing fast upload
+    if (csvFiles.length > 0) {
+      setUploadStatus("uploading");
+      setUploadProgress({ done: 0, total: csvFiles.length });
+      let hasError = false;
+      let lastExam: ExamMeta | null = null;
+      for (let i = 0; i < csvFiles.length; i++) {
+        try {
+          const exam = await uploadFile(csvFiles[i]);
+          lastExam = exam;
+          setExams((prev) => {
+            const exists = prev.find((e) => e.id === exam.id);
+            return exists ? prev.map((e) => (e.id === exam.id ? exam : e)) : [...prev, exam];
+          });
+        } catch (e) {
+          hasError = true;
+          let msg = e instanceof Error ? e.message : String(e);
+          try { msg = JSON.parse(msg).error ?? msg; } catch { /* keep raw */ }
+          setUploadErrorMsg(msg);
+        }
+        setUploadProgress({ done: i + 1, total: csvFiles.length });
       }
-      setUploadProgress({ done: i + 1, total: csvFiles.length });
+      if (hasError) {
+        setUploadStatus("error");
+      } else if (lastExam) {
+        setUploadStatus("done");
+        setUploadedExam(lastExam);
+        setPreviewName(lastExam.name);
+        setPreviewLang(lastExam.language);
+        setPreviewTags(["Salesforce"]);
+        setPreviewTagInput("");
+      }
+      setUploadProgress(null);
+      if (excelFiles.length === 0) setTimeout(() => setUploadStatus("idle"), 2000);
     }
 
-    setUploadStatus(hasError ? "error" : "done");
-    setUploadProgress(null);
-    if (lastExam) {
-      setUploadedExam(lastExam);
-      setPreviewName(lastExam.name);
-      setPreviewLang(lastExam.language);
-      setPreviewTags(["Salesforce"]);
-      setPreviewTagInput("");
+    // Excel: AI code execution import
+    for (const ef of excelFiles) {
+      setUploadStatus("importing");
+      setUploadProgress(null);
+      setUploadErrorMsg(null);
+      try {
+        const exam = await importExcelFile(ef, langFilter, (evt) => {
+          if (evt.message) {
+            setUploadErrorMsg(null); // clear any previous message
+          }
+          if (evt.done != null && evt.total != null) {
+            setUploadProgress({ done: evt.done, total: evt.total });
+          }
+        });
+        if (exam) {
+          setExams((prev) => {
+            const exists = prev.find((e) => e.id === exam.id);
+            return exists ? prev.map((e) => (e.id === exam.id ? exam : e)) : [...prev, exam];
+          });
+          setUploadedExam(exam);
+          setPreviewName(exam.name);
+          setPreviewLang(exam.language);
+          setPreviewTags(["Salesforce"]);
+          setPreviewTagInput("");
+          setUploadStatus("done");
+        }
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        setUploadErrorMsg(msg);
+        setUploadStatus("error");
+      }
     }
-    setTimeout(() => setUploadStatus("idle"), 2000);
+
+    setTimeout(() => setUploadStatus("idle"), 3000);
     if (fileRef.current) fileRef.current.value = "";
-  }, []);
+  }, [langFilter]);
 
   const startFill = useCallback(async (examId: string) => {
     setFillStatus("filling");
@@ -266,6 +386,10 @@ export default function ExamListClient({ exams: initialExams }: Props) {
       ? uploadProgress && uploadProgress.total > 1
         ? `${uploadProgress.done}/${uploadProgress.total}...`
         : "Uploading..."
+      : uploadStatus === "importing"
+      ? uploadProgress
+        ? `Importing ${uploadProgress.done}/${uploadProgress.total}...`
+        : "Importing..."
       : uploadStatus === "done" ? "Added"
       : uploadStatus === "error" ? "Error"
       : null;
@@ -323,8 +447,8 @@ export default function ExamListClient({ exams: initialExams }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
           <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-scholion-400 rounded-2xl px-10 py-8 shadow-xl">
             <Upload size={32} className="text-scholion-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-scholion-600">Drop CSV here</p>
-            <p className="text-xs text-scholion-300">Multiple files supported</p>
+            <p className="text-sm font-semibold text-scholion-600">Drop files here</p>
+            <p className="text-xs text-scholion-300">CSV / Excel supported</p>
           </div>
         </div>
       )}
@@ -496,21 +620,21 @@ export default function ExamListClient({ exams: initialExams }: Props) {
               </div>
               <div>
                 <p className="text-xs text-gray-400 mb-2">Upload</p>
-                <input ref={fileRef} type="file" accept=".csv" multiple className="hidden" onChange={(e) => processFiles(Array.from(e.target.files ?? []))} />
+                <input ref={fileRef} type="file" accept=".csv,.xlsx,.xls" multiple className="hidden" onChange={(e) => processFiles(Array.from(e.target.files ?? []))} />
                 <button
                   onClick={() => fileRef.current?.click()}
-                  disabled={uploadStatus === "uploading"}
+                  disabled={uploadStatus === "uploading" || uploadStatus === "importing"}
                   className={`w-full py-4 rounded-xl border-2 border-dashed text-sm transition-all ${
                     uploadStatus === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-600"
                     : uploadStatus === "error" ? "border-rose-300 bg-rose-50 text-rose-500"
-                    : uploadStatus === "uploading" ? "border-scholion-300 bg-scholion-50 text-scholion-500"
+                    : uploadStatus === "uploading" || uploadStatus === "importing" ? "border-scholion-300 bg-scholion-50 text-scholion-500"
                     : "border-gray-200 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
                   }`}
                 >
                   <div className="flex flex-col items-center gap-1.5">
                     <Upload size={18} strokeWidth={1.5} />
                     <span>{uploadStatusText ?? "Click or drag & drop"}</span>
-                    {uploadStatus === "idle" && <span className="text-xs text-gray-300">Multiple files</span>}
+                    {uploadStatus === "idle" && <span className="text-xs text-gray-300">CSV / Excel</span>}
                   </div>
                 </button>
                 {uploadStatus === "error" && uploadErrorMsg && (

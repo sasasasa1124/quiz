@@ -18,6 +18,14 @@
 
 ---
 
-## 未着手タスク
+## 進行中タスク
 
-（なし）
+### Import機能リファクタ — AI code execution
+
+- [x] `ai-client.ts`: Gemini `codeExecution` ツール対応（`useCodeExecution` オプション追加）
+- [x] `import/route.ts`: AI code execution でファイルパース（1回のAI呼び出しでPythonコード生成→実行）
+- [x] Bedrock フォールバック: 先頭10行でカラムマッピング取得 → 決定論的変換
+- [x] ヘッダーのFileUpアイコン削除、Add Examカードにインポート統合
+- [x] Upload: CSV/Excel両対応、Excel→AI code executionフロー
+- [x] ビルド確認
+- [ ] デプロイ・実機テスト

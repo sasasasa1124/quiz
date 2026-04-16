@@ -1,16 +1,19 @@
 /**
  * POST /api/admin/import
  *
- * Accepts an Excel (.xlsx/.xls) or CSV file, parses it server-side,
- * then uses the unified AI adapter (Gemini or Bedrock) to convert
- * the data into standardised exam questions and bulk-inserts into the DB.
+ * Accepts an Excel (.xlsx/.xls) or CSV file, uses AI code execution
+ * (Gemini codeExecution sandbox with pandas/openpyxl) to parse and
+ * convert the data into standardised exam questions, then bulk-inserts
+ * into the DB.
  *
- * Streams progress as Server-Sent Events:
- *   data: { step: "upload" | "inspect" | "convert" | "saving" | "done" | "error", ...fields }
+ * The AI writes Python code to process the file — it does NOT read
+ * every row via LLM tokens. One AI call handles any file size.
+ *
+ * Streams progress as Server-Sent Events.
  */
 
 import { NextRequest } from "next/server";
-import { aiGenerate } from "@/lib/ai-client";
+import { aiGenerate, isAWS } from "@/lib/ai-client";
 import { getDB, getNow } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { getUserEmail } from "@/lib/user";
@@ -21,23 +24,23 @@ import { parseUploadedFile } from "@/lib/file-parser";
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-/** Max questions per AI call to stay within token limits */
-const BATCH_SIZE = 80;
-
 const SSE_HEADERS = {
   "Content-Type": "text/event-stream",
   "Cache-Control": "no-cache",
   "X-Accel-Buffering": "no",
 };
 
-// ── System instruction ───────────────────────────────────────────────────────
+// ── System instruction for code execution ───────────────────────────────────
 
-const SYSTEM_PROMPT = `You are a data conversion specialist for a certification quiz application.
-Your task is to convert structured file data into a standardised JSON array of exam questions.
+const CODE_EXEC_PROMPT = `You are a data conversion specialist. You have an uploaded file (Excel or CSV).
 
-## Output Format
+Write Python code to:
+1. Read the file using pandas (pd.read_excel or pd.read_csv as appropriate)
+2. Detect which columns contain: question number, question text, answer(s), choices, explanation
+3. Convert ALL rows into the required JSON format
+4. Print ONLY the JSON array to stdout (no other output)
 
-Respond with a JSON array ONLY (no markdown fences, no explanation):
+Output JSON format:
 [{"num":1,"question":"...","choices":["A. opt","B. opt","C. opt","D. opt"],"answer":["A"],"explanation":"...","source":""}]
 
 Field rules:
@@ -48,23 +51,138 @@ Field rules:
 - explanation: explanation text (empty string if none)
 - source: source URL or reference (empty string if none)
 
-## Important
+Important:
 - Convert ALL rows — do NOT truncate or summarize
 - Japanese/Chinese/Korean column headers are fine — identify by content
 - Handle both embedded choices (in same cell, newline-separated) and separate choice columns
-- Normalise answers: extract uppercase letters only
+- Normalise answers: extract uppercase letters only (e.g. "B ↓ A" → ["A","B"])
 - Skip rows where both question and answer are empty
-- If choices are not labelled with letters, assign A, B, C, D... in order`;
+- If choices are not labelled with letters, assign A, B, C, D... in order
+- If a column appears to be a "duplicate" or "check" flag, ignore it`;
+
+// ── Fallback: column mapping prompt for Bedrock ─────────────────────────────
+
+const MAPPING_PROMPT = `You are a data conversion specialist. Analyze the sample rows below and return a JSON object describing the column mapping.
+
+Return ONLY this JSON (no markdown, no explanation):
+{
+  "questionCol": <0-based column index for question text>,
+  "answerCol": <0-based column index for answer>,
+  "explanationCol": <0-based column index for explanation, or -1 if none>,
+  "numCol": <0-based column index for question number, or -1 if none>,
+  "choicesCols": [<0-based indices of columns containing individual choices>],
+  "choicesEmbedded": <true if choices are embedded in the question cell>,
+  "answerSeparator": <string used to separate multiple answers, e.g. "," or "↓" or null if single>
+}
+
+Rules:
+- Identify columns by their content, not just headers
+- Japanese/Chinese/Korean headers are fine
+- Ignore columns that are flags/checks/duplicates
+- choicesCols should be empty if choices are embedded in question`;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Build {label, text} choices from the string array the agent outputs. */
 function buildOptions(choices: string[]): { label: string; text: string }[] {
   return choices.map((c, i) => {
     const m = c.match(/^([A-Z])[.)]\s*([\s\S]+)$/);
     if (m) return { label: m[1], text: m[2].trim() };
     return { label: String.fromCharCode(65 + i), text: c.trim() };
   });
+}
+
+function rowsToCsv(headers: string[], rows: string[][]): string {
+  const escape = (s: string) => {
+    if (s.includes(",") || s.includes('"') || s.includes("\n")) {
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+    return s;
+  };
+  const lines = [headers.map(escape).join(",")];
+  for (const row of rows) {
+    lines.push(row.map((c) => escape(c ?? "")).join(","));
+  }
+  return lines.join("\n");
+}
+
+// ── Bedrock fallback: deterministic mapping ─────────────────────────────────
+
+interface ColumnMapping {
+  questionCol: number;
+  answerCol: number;
+  explanationCol: number;
+  numCol: number;
+  choicesCols: number[];
+  choicesEmbedded: boolean;
+  answerSeparator: string | null;
+}
+
+const ColumnMappingKeys = [
+  "questionCol", "answerCol", "explanationCol", "numCol",
+  "choicesCols", "choicesEmbedded", "answerSeparator",
+] as const;
+
+function applyMapping(
+  headers: string[],
+  rows: string[][],
+  mapping: ColumnMapping
+): ImportedQuestion[] {
+  const questions: ImportedQuestion[] = [];
+  let num = 1;
+
+  for (const row of rows) {
+    const questionText = (row[mapping.questionCol] ?? "").trim();
+    const answerRaw = (row[mapping.answerCol] ?? "").trim();
+
+    if (!questionText && !answerRaw) continue;
+
+    // Parse answer letters
+    const answer = answerRaw
+      .split(/[,\s↓→]+/)
+      .map((s) => s.trim().toUpperCase())
+      .filter((s) => /^[A-Z]$/.test(s));
+
+    // Parse choices
+    let choices: string[] = [];
+    if (mapping.choicesCols.length > 0) {
+      choices = mapping.choicesCols
+        .map((ci, i) => {
+          const text = (row[ci] ?? "").trim();
+          return text ? `${String.fromCharCode(65 + i)}. ${text}` : "";
+        })
+        .filter(Boolean);
+    } else if (mapping.choicesEmbedded) {
+      // Try to extract choices from question text
+      const choicePattern = /^[A-Z][.)]\s*.+/gm;
+      const matches = questionText.match(choicePattern);
+      if (matches) {
+        choices = matches.map((m, i) => {
+          const cm = m.match(/^([A-Z])[.)]\s*(.+)/);
+          return cm ? `${cm[1]}. ${cm[2].trim()}` : `${String.fromCharCode(65 + i)}. ${m.trim()}`;
+        });
+      }
+    }
+
+    const explanation = mapping.explanationCol >= 0
+      ? (row[mapping.explanationCol] ?? "").trim()
+      : "";
+
+    const qNum = mapping.numCol >= 0
+      ? parseInt(row[mapping.numCol], 10) || num
+      : num;
+
+    questions.push({
+      num: qNum,
+      question: questionText,
+      choices,
+      answer,
+      explanation,
+      source: "",
+    });
+    num++;
+  }
+
+  return questions;
 }
 
 // ── Main handler ─────────────────────────────────────────────────────────────
@@ -104,13 +222,11 @@ export async function POST(req: NextRequest) {
         } catch { /* client disconnected */ }
       };
 
-      let keepalive: ReturnType<typeof setInterval> | null = null;
       try {
         // ── 1. Parse file server-side ──────────────────────────────────────
         send({ step: "upload", message: "Reading file..." });
 
         const parsed = await parseUploadedFile(file, sheetHint);
-
         if (parsed.rows.length === 0) {
           send({ step: "error", message: "File contains no data rows." });
           return controller.close();
@@ -129,62 +245,74 @@ export async function POST(req: NextRequest) {
           message: `Found ${parsed.rows.length} rows in "${parsed.sheet}" with columns: ${parsed.headers.join(", ")}`,
         });
 
-        // Keepalive: send periodic pings during AI processing to prevent chunked encoding errors
-        keepalive = setInterval(() => {
-          send({ step: "convert", message: "Processing..." });
-        }, 15_000);
+        // ── 2. Convert via AI ────────────────────────────────────────────
+        let allQuestions: ImportedQuestion[];
 
-        // ── 2. Convert via AI (batch if large) ────────────────────────────
-        send({ step: "convert", message: `Converting ${parsed.rows.length} rows via AI...` });
+        if (!isAWS) {
+          // ── Gemini: code execution ──────────────────────────────────────
+          send({ step: "convert", message: `Processing ${parsed.rows.length} rows via AI code execution...` });
 
-        const allQuestions: ImportedQuestion[] = [];
-        const totalRows = parsed.rows.length;
-        const batches = Math.ceil(totalRows / BATCH_SIZE);
+          const csvText = rowsToCsv(parsed.headers, parsed.rows);
+          const prompt = `${CODE_EXEC_PROMPT}\n\nHere is the data as CSV (${parsed.rows.length} rows):\n\n${csvText}`;
 
-        for (let b = 0; b < batches; b++) {
-          const startIdx = b * BATCH_SIZE;
-          const endIdx = Math.min(startIdx + BATCH_SIZE, totalRows);
-          const batchRows = parsed.rows.slice(startIdx, endIdx);
-
-          // Build a text representation for this batch
-          const batchText = buildBatchText(parsed.headers, batchRows, startIdx);
-
-          const numOffset = allQuestions.length;
-          const batchPrompt = batches > 1
-            ? `Convert the following rows (${startIdx + 1}–${endIdx} of ${totalRows}) to JSON. Start numbering from ${numOffset + 1}.\n\n${batchText}`
-            : `Convert all rows to JSON.\n\n${batchText}`;
-
-          const result = await aiGenerate(batchPrompt, {
-            jsonMode: true,
-            systemPrompt: SYSTEM_PROMPT,
-            maxTokens: 16384,
-            timeoutMs: 120_000,
+          const result = await aiGenerate(prompt, {
+            useCodeExecution: true,
+            timeoutMs: 180_000,
           });
 
-          const { data, error } = parseAiJsonAs(result.text, ImportedQuestionsSchema);
+          const jsonStr = result.codeOutput || result.text;
+          const { data, error } = parseAiJsonAs(jsonStr, ImportedQuestionsSchema);
           if (!data) {
-            send({ step: "error", message: `AI validation failed (batch ${b + 1}/${batches}): ${error}` });
+            send({ step: "error", message: `AI code execution failed: ${error}` });
+            return controller.close();
+          }
+          allQuestions = data;
+        } else {
+          // ── Bedrock fallback: column mapping ────────────────────────────
+          send({ step: "convert", message: "Detecting column structure..." });
+
+          const sampleRows = parsed.rows.slice(0, 10);
+          const sampleText = `Columns: ${parsed.headers.join(" | ")}\n\n` +
+            sampleRows.map((row, i) =>
+              `Row ${i + 1}: ${parsed.headers.map((h, j) => `${h || `Col${j + 1}`}: ${(row[j] ?? "").slice(0, 200)}`).join(" | ")}`
+            ).join("\n");
+
+          const mappingResult = await aiGenerate(
+            `${MAPPING_PROMPT}\n\nSample data:\n${sampleText}`,
+            { jsonMode: true, maxTokens: 1024, timeoutMs: 30_000 }
+          );
+
+          let mapping: ColumnMapping;
+          try {
+            const raw = JSON.parse(mappingResult.text);
+            // Validate required fields exist
+            if (typeof raw.questionCol !== "number" || typeof raw.answerCol !== "number") {
+              throw new Error("Missing questionCol or answerCol");
+            }
+            mapping = {
+              questionCol: raw.questionCol,
+              answerCol: raw.answerCol,
+              explanationCol: raw.explanationCol ?? -1,
+              numCol: raw.numCol ?? -1,
+              choicesCols: Array.isArray(raw.choicesCols) ? raw.choicesCols : [],
+              choicesEmbedded: raw.choicesEmbedded ?? false,
+              answerSeparator: raw.answerSeparator ?? null,
+            };
+          } catch (e) {
+            send({ step: "error", message: `Column mapping failed: ${e instanceof Error ? e.message : String(e)}` });
             return controller.close();
           }
 
-          allQuestions.push(...data);
-
-          if (batches > 1) {
-            send({
-              step: "convert",
-              message: `Batch ${b + 1}/${batches} done (${data.length} questions)`,
-              done: endIdx,
-              total: totalRows,
-            });
-          }
+          send({ step: "convert", message: `Mapping: question=col${mapping.questionCol}, answer=col${mapping.answerCol}` });
+          allQuestions = applyMapping(parsed.headers, parsed.rows, mapping);
         }
-
-        clearInterval(keepalive);
 
         if (allQuestions.length === 0) {
-          send({ step: "error", message: "AI returned 0 questions." });
+          send({ step: "error", message: "No questions extracted from file." });
           return controller.close();
         }
+
+        send({ step: "convert", message: `Extracted ${allQuestions.length} questions` });
 
         // ── 3. Bulk insert ───────────────────────────────────────────────
         send({ step: "saving", message: `Saving ${allQuestions.length} questions...`, done: 0, total: allQuestions.length });
@@ -216,43 +344,20 @@ export async function POST(req: NextRequest) {
               source        = EXCLUDED.source`;
 
           saved++;
-          if (saved % 20 === 0 || saved === allQuestions.length) {
+          if (saved % 50 === 0 || saved === allQuestions.length) {
             send({ step: "saving", done: saved, total: allQuestions.length });
           }
         }
 
         send({ step: "done", examId, count: saved });
       } catch (e) {
-        if (keepalive) clearInterval(keepalive);
         const msg = e instanceof Error ? e.message : String(e);
         send({ step: "error", message: msg });
       } finally {
-        if (keepalive) clearInterval(keepalive);
         controller.close();
       }
     },
   });
 
   return new Response(stream, { headers: SSE_HEADERS });
-}
-
-// ── Batch text builder ──────────────────────────────────────────────────────
-
-function buildBatchText(headers: string[], rows: string[][], startIdx: number): string {
-  const lines: string[] = [];
-  lines.push(`Columns: ${headers.join(" | ")}`);
-  lines.push("");
-
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const cells = headers.map((h, j) => {
-      const val = (row[j] ?? "").trim();
-      const display = val.length > 500 ? val.slice(0, 500) + "..." : val;
-      return `${h}: ${display}`;
-    });
-    lines.push(`--- Row ${startIdx + i + 1} ---`);
-    lines.push(cells.join("\n"));
-  }
-
-  return lines.join("\n");
 }

@@ -442,7 +442,7 @@ export default function ImportPage() {
         <div>
           <h1 className="text-lg font-semibold text-gray-900">Import Exam from File</h1>
           <p className="text-sm text-gray-400 mt-1">
-            Upload any Excel or CSV file — the agent will figure out the structure automatically.
+            Upload any Excel or CSV file — AI writes code to parse and convert it automatically.
           </p>
         </div>
 

@@ -28,6 +28,8 @@ export interface AiGenerateOptions {
   jsonMode?: boolean;
   /** Request web search grounding (Gemini only; ignored on Bedrock) */
   useSearch?: boolean;
+  /** Enable code execution sandbox (Gemini only) */
+  useCodeExecution?: boolean;
   /** Multi-turn conversation history */
   history?: AiMessage[];
   /** System prompt */
@@ -44,6 +46,8 @@ export interface AiGenerateResult {
   text: string;
   /** Grounding source URLs (Gemini googleSearch only; empty on Bedrock) */
   sources: string[];
+  /** stdout from code execution sandbox (Gemini codeExecution only) */
+  codeOutput?: string;
 }
 
 /** Main entry point. Routes to Bedrock on AWS, Gemini elsewhere. */
@@ -262,17 +266,23 @@ async function geminiGenerate(
     );
   });
 
+  // Build tools array
+  const tools: Array<Record<string, unknown>> = [];
+  if (options.useCodeExecution) tools.push({ codeExecution: {} });
+
   // Gemini API: cannot use tools with responseMimeType: "application/json"
-  // If JSON mode is needed, skip search grounding
-  const useSearch = options.useSearch && !options.jsonMode;
+  const useSearch = options.useSearch && !options.jsonMode && !options.useCodeExecution;
+  if (useSearch) tools.push({ googleSearch: {} });
+
+  const useJsonMode = options.jsonMode && tools.length === 0;
 
   const response = await Promise.race([
     ai.models.generateContent({
       model,
       contents,
       config: {
-        ...(useSearch ? { tools: [{ googleSearch: {} }] } : {}),
-        ...(options.jsonMode ? { responseMimeType: "application/json" } : {}),
+        ...(tools.length > 0 ? { tools } : {}),
+        ...(useJsonMode ? { responseMimeType: "application/json" } : {}),
       },
     }),
     timeoutRace,
@@ -287,5 +297,11 @@ async function geminiGenerate(
       .slice(0, 3);
   }
 
-  return { text: (response.text ?? "").trim(), sources };
+  // Extract code execution output
+  let codeOutput: string | undefined;
+  if (options.useCodeExecution) {
+    codeOutput = response.codeExecutionResult ?? undefined;
+  }
+
+  return { text: (response.text ?? "").trim(), sources, codeOutput };
 }
