@@ -9,8 +9,17 @@ import Link from "next/link";
 import * as XLSX from "xlsx";
 
 type Lang = "ja" | "en" | "zh" | "ko";
-type ImportStep = "upload" | "inspect" | "convert" | "saving" | "done" | "error";
+type ImportStep = "upload" | "inspect" | "convert" | "preview" | "saving" | "done" | "error";
 type FeedbackStep = "analyzing" | "fixing" | "done" | "error";
+
+interface PreviewQuestion {
+  num: number;
+  question: string;
+  choices: string[];
+  answer: string[];
+  explanation: string;
+  source: string;
+}
 
 interface ImportEvent {
   step: ImportStep;
@@ -19,6 +28,7 @@ interface ImportEvent {
   total?: number;
   examId?: string;
   count?: number;
+  questions?: PreviewQuestion[];
 }
 
 interface FeedbackEvent {
@@ -251,6 +261,10 @@ export default function ImportPage() {
   const [importError, setImportError] = useState<string | null>(null);
   const [agentLog, setAgentLog] = useState<LogLine[]>([]);
 
+  // Preview state (after AI conversion, before DB save)
+  const [previewQuestions, setPreviewQuestions] = useState<PreviewQuestion[]>([]);
+  const [confirming, setConfirming] = useState(false);
+
   // Feedback state
   const [feedbackText, setFeedbackText] = useState("");
   const [feedbackBusy, setFeedbackBusy] = useState(false);
@@ -319,6 +333,7 @@ export default function ImportPage() {
     setImportedCount(null);
     setImportError(null);
     setAgentLog([]);
+    setPreviewQuestions([]);
 
     const form = new FormData();
     form.append("file", file);
@@ -355,6 +370,9 @@ export default function ImportPage() {
             type: evt.step === "error" ? "error" : "info",
           }]);
         }
+        if (evt.step === "preview" && evt.questions) {
+          setPreviewQuestions(evt.questions);
+        }
         if (evt.step === "done") {
           setImportedExamId(evt.examId ?? null);
           setImportedCount(evt.count ?? null);
@@ -368,6 +386,48 @@ export default function ImportPage() {
       setImportStep("error");
     } finally {
       setImporting(false);
+    }
+  }
+
+  // ── Confirm handler (save previewed questions to DB) ────────────────────────
+
+  async function handleConfirm() {
+    if (!file || previewQuestions.length === 0 || confirming) return;
+
+    const autoExamId = fileToExamId(file.name);
+    setConfirming(true);
+    setImportStep("saving");
+    setImportProgress({ done: 0, total: previewQuestions.length });
+
+    try {
+      const res = await fetch("/api/admin/import/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          examId: autoExamId,
+          examName: examName.trim() || file.name.replace(/\.(xlsx?|csv)$/i, ""),
+          lang,
+          questions: previewQuestions,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json() as { error?: string };
+        setImportError(body.error ?? `HTTP ${res.status}`);
+        setImportStep("error");
+        return;
+      }
+
+      const result = await res.json() as { examId: string; count: number };
+      setImportedExamId(result.examId);
+      setImportedCount(result.count);
+      setImportStep("done");
+      setImportProgress({ done: result.count, total: result.count });
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err));
+      setImportStep("error");
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -420,17 +480,19 @@ export default function ImportPage() {
 
   const importDone = importStep === "done";
   const importFailed = importStep === "error" || !!importError;
+  const hasPreview = previewQuestions.length > 0 && !importDone;
 
   const STEP_LABELS: Record<ImportStep, string> = {
     upload: "Reading file",
     inspect: "Analyzing file structure",
     convert: "Converting questions",
+    preview: "Preview ready",
     saving: "Saving to database",
     done: "Done",
     error: "Error",
   };
 
-  const stepOrder: ImportStep[] = ["upload", "inspect", "convert", "saving", "done"];
+  const stepOrder: ImportStep[] = ["upload", "inspect", "convert", "preview", "saving", "done"];
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -442,7 +504,7 @@ export default function ImportPage() {
         <div>
           <h1 className="text-lg font-semibold text-gray-900">Import Exam from File</h1>
           <p className="text-sm text-gray-400 mt-1">
-            Upload any Excel or CSV file — AI writes code to parse and convert it automatically.
+            Upload any Excel or CSV file — AI converts it into exam questions for your review.
           </p>
         </div>
 
@@ -565,9 +627,9 @@ export default function ImportPage() {
               className="w-full h-10 rounded-xl bg-gray-900 text-white text-sm font-semibold hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {importing ? (
-                <><Loader2 size={15} className="animate-spin" /> Importing...</>
+                <><Loader2 size={15} className="animate-spin" /> Converting...</>
               ) : (
-                `Import ${activeSheet.rows.length} rows`
+                "Convert"
               )}
             </button>
           )}
@@ -620,6 +682,53 @@ export default function ImportPage() {
             )}
 
             <LogPanel lines={agentLog} />
+          </div>
+        )}
+
+        {/* Question preview + register button */}
+        {hasPreview && (
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
+                Preview ({previewQuestions.length} questions)
+              </p>
+            </div>
+
+            <div className="overflow-x-auto rounded-lg border border-gray-100 max-h-[400px] overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-gray-50 z-10">
+                  <tr>
+                    <th className="px-2 py-1.5 text-left text-gray-400 font-medium w-8">#</th>
+                    <th className="px-2 py-1.5 text-left text-gray-500 font-medium">Question</th>
+                    <th className="px-2 py-1.5 text-left text-gray-500 font-medium w-24">Answer</th>
+                    <th className="px-2 py-1.5 text-left text-gray-500 font-medium w-16">Choices</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {previewQuestions.map((q) => (
+                    <tr key={q.num} className="border-t border-gray-50">
+                      <td className="px-2 py-1.5 text-gray-300 tabular-nums">{q.num}</td>
+                      <td className="px-2 py-1.5 text-gray-600 max-w-[300px] truncate">{q.question}</td>
+                      <td className="px-2 py-1.5 text-gray-600">{q.answer.join(", ")}</td>
+                      <td className="px-2 py-1.5 text-gray-400">{q.choices.length}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={confirming}
+              className="w-full h-10 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {confirming ? (
+                <><Loader2 size={15} className="animate-spin" /> Registering...</>
+              ) : (
+                <><CheckCircle size={15} /> Register as Exam ({previewQuestions.length} questions)</>
+              )}
+            </button>
           </div>
         )}
 

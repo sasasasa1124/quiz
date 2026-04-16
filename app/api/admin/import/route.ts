@@ -320,44 +320,8 @@ export async function POST(req: NextRequest) {
           return;
         }
 
-        send({ step: "convert", message: `Extracted ${allQuestions.length} questions` });
-
-        // ── 3. Bulk insert ───────────────────────────────────────────────
-        send({ step: "saving", message: `Saving ${allQuestions.length} questions...`, done: 0, total: allQuestions.length });
-
-        await pg`
-          INSERT INTO exams (id, name, lang, created_by)
-          VALUES (${examId}, ${examName ?? examId}, ${lang}, ${userEmail})
-          ON CONFLICT (id) DO UPDATE SET name = EXCLUDED.name, lang = EXCLUDED.lang`;
-
-        let saved = 0;
-        for (const q of allQuestions) {
-          const qId = `${examId}__${q.num}`;
-          const options = buildOptions(q.choices);
-
-          await pg`
-            INSERT INTO questions
-              (id, exam_id, num, question_text, options, answers, explanation, source,
-               explanation_sources, created_by, created_at, added_at)
-            VALUES (
-              ${qId}, ${examId}, ${q.num}, ${q.question},
-              ${JSON.stringify(options)}, ${JSON.stringify(q.answer)},
-              ${q.explanation}, ${q.source}, ${"[]"}, ${userEmail}, ${now}, ${now}
-            )
-            ON CONFLICT (id) DO UPDATE SET
-              question_text = EXCLUDED.question_text,
-              options       = EXCLUDED.options,
-              answers       = EXCLUDED.answers,
-              explanation   = EXCLUDED.explanation,
-              source        = EXCLUDED.source`;
-
-          saved++;
-          if (saved % 50 === 0 || saved === allQuestions.length) {
-            send({ step: "saving", done: saved, total: allQuestions.length });
-          }
-        }
-
-        send({ step: "done", examId, count: saved });
+        // Return converted questions for preview (no DB save)
+        send({ step: "preview", message: `Extracted ${allQuestions.length} questions`, questions: allQuestions });
       } catch (e) {
         if (keepalive) clearInterval(keepalive);
         const msg = e instanceof Error ? e.message : String(e);
