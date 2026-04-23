@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useRef, useMemo, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   Upload, FileText, ChevronDown, ChevronUp, Send, CheckCircle,
-  AlertCircle, Loader2, X, Eye, EyeOff, GripVertical,
+  AlertCircle, Loader2, Eye, EyeOff, Trash2, Plus, Pencil,
 } from "lucide-react";
 import Link from "next/link";
 import * as XLSX from "xlsx";
+import { t } from "@/lib/i18n";
+import { useSettings } from "@/lib/settings-context";
 
 type Lang = "ja" | "en" | "zh" | "ko";
 type ImportStep = "upload" | "inspect" | "convert" | "preview" | "saving" | "done" | "error";
@@ -240,6 +242,7 @@ function PreviewTable({ sheet, hiddenCols, onToggleCol }: {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ImportPage() {
+  const { settings } = useSettings();
   // File + preview state
   const [file, setFile] = useState<File | null>(null);
   const [sheets, setSheets] = useState<ParsedSheet[]>([]);
@@ -264,6 +267,11 @@ export default function ImportPage() {
   // Preview state (after AI conversion, before DB save)
   const [previewQuestions, setPreviewQuestions] = useState<PreviewQuestion[]>([]);
   const [confirming, setConfirming] = useState(false);
+  const [editingIdx, setEditingIdx] = useState<number | null>(null);
+
+  // Drag & drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const dragCountRef = useRef(0);
 
   // Feedback state
   const [feedbackText, setFeedbackText] = useState("");
@@ -308,6 +316,52 @@ export default function ImportPage() {
       setParsing(false);
     }
   }, []);
+
+  // Auto-load pending file handed off from Add Exam flow
+  useEffect(() => {
+    const w = window as unknown as { __pendingImportFile?: File };
+    if (w.__pendingImportFile) {
+      const pending = w.__pendingImportFile;
+      delete w.__pendingImportFile;
+      handleFileSelect(pending);
+    }
+  }, [handleFileSelect]);
+
+  // Global drag & drop to receive files from anywhere on the page
+  useEffect(() => {
+    const onDragEnter = (e: DragEvent) => {
+      if (!e.dataTransfer?.types.includes("Files")) return;
+      dragCountRef.current++;
+      setIsDragging(true);
+    };
+    const onDragLeave = () => {
+      dragCountRef.current--;
+      if (dragCountRef.current <= 0) {
+        dragCountRef.current = 0;
+        setIsDragging(false);
+      }
+    };
+    const onDragOver = (e: DragEvent) => { e.preventDefault(); };
+    const onDrop = (e: DragEvent) => {
+      e.preventDefault();
+      dragCountRef.current = 0;
+      setIsDragging(false);
+      const f = e.dataTransfer?.files?.[0];
+      if (f && /\.(xlsx?|csv)$/i.test(f.name)) {
+        handleFileSelect(f);
+      }
+    };
+    document.addEventListener("dragenter", onDragEnter);
+    document.addEventListener("dragleave", onDragLeave);
+    document.addEventListener("dragover", onDragOver);
+    document.addEventListener("drop", onDrop);
+    return () => {
+      document.removeEventListener("dragenter", onDragEnter);
+      document.removeEventListener("dragleave", onDragLeave);
+      document.removeEventListener("dragover", onDragOver);
+      document.removeEventListener("drop", onDrop);
+    };
+  }, [handleFileSelect]);
 
   const toggleCol = useCallback((idx: number) => {
     setHiddenCols((prev) => {
@@ -431,6 +485,60 @@ export default function ImportPage() {
     }
   }
 
+  // ── Preview editing handlers ───────────────────────────────────────────────
+
+  const updateQuestion = useCallback((idx: number, patch: Partial<PreviewQuestion>) => {
+    setPreviewQuestions((prev) => prev.map((q, i) => (i === idx ? { ...q, ...patch } : q)));
+  }, []);
+
+  const updateChoice = useCallback((idx: number, choiceIdx: number, value: string) => {
+    setPreviewQuestions((prev) =>
+      prev.map((q, i) => {
+        if (i !== idx) return q;
+        const next = [...q.choices];
+        next[choiceIdx] = value;
+        return { ...q, choices: next };
+      })
+    );
+  }, []);
+
+  const addChoice = useCallback((idx: number) => {
+    setPreviewQuestions((prev) =>
+      prev.map((q, i) => {
+        if (i !== idx) return q;
+        const letter = String.fromCharCode(65 + q.choices.length);
+        return { ...q, choices: [...q.choices, `${letter}. `] };
+      })
+    );
+  }, []);
+
+  const removeChoice = useCallback((idx: number, choiceIdx: number) => {
+    setPreviewQuestions((prev) =>
+      prev.map((q, i) => {
+        if (i !== idx) return q;
+        return { ...q, choices: q.choices.filter((_, j) => j !== choiceIdx) };
+      })
+    );
+  }, []);
+
+  const deleteQuestion = useCallback((idx: number) => {
+    setPreviewQuestions((prev) =>
+      prev.filter((_, i) => i !== idx).map((q, i) => ({ ...q, num: i + 1 }))
+    );
+    setEditingIdx(null);
+  }, []);
+
+  // Client-side validation mirror of ImportedQuestionSchema (choices>=2, question non-empty)
+  const invalidPreviewIdx = useMemo(() => {
+    const idxs: number[] = [];
+    previewQuestions.forEach((q, i) => {
+      if (!q.question.trim() || q.choices.length < 2 || q.choices.some((c) => !c.trim()) || q.answer.length === 0) {
+        idxs.push(i);
+      }
+    });
+    return idxs;
+  }, [previewQuestions]);
+
   // ── Feedback handler ───────────────────────────────────────────────────────
 
   async function handleFeedback(e: React.FormEvent) {
@@ -498,14 +606,24 @@ export default function ImportPage() {
 
   return (
     <div className="min-h-screen bg-[#f8f9fb]">
+      {/* Drag & drop overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
+          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-scholion-400 rounded-2xl px-10 py-8 shadow-xl">
+            <Upload size={32} className="text-scholion-500" strokeWidth={1.5} />
+            <p className="text-sm font-semibold text-scholion-600">
+              {settings.language === "ja" ? "ファイルをドロップ" : settings.language === "zh" ? "拖放文件" : settings.language === "ko" ? "파일 드롭" : "Drop file here"}
+            </p>
+            <p className="text-xs text-scholion-300">.xlsx / .xls / .csv</p>
+          </div>
+        </div>
+      )}
       <div className="max-w-2xl mx-auto px-4 sm:px-8 py-10 space-y-6">
 
         {/* Header */}
         <div>
-          <h1 className="text-lg font-semibold text-gray-900">Import Exam from File</h1>
-          <p className="text-sm text-gray-400 mt-1">
-            Upload any Excel or CSV file — AI converts it into exam questions for your review.
-          </p>
+          <h1 className="text-lg font-semibold text-gray-900">{t(settings.language, "importPageTitle")}</h1>
+          <p className="text-sm text-gray-400 mt-1">{t(settings.language, "importPageDesc")}</p>
         </div>
 
         {/* Form */}
@@ -514,7 +632,7 @@ export default function ImportPage() {
           {/* File picker */}
           <div>
             <label className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider block mb-1.5">
-              File
+              {t(settings.language, "importFileLabel")}
             </label>
             <div
               className="flex items-center gap-3 h-10 px-3 rounded-xl border border-gray-200 cursor-pointer hover:bg-gray-50 transition-colors"
@@ -522,7 +640,7 @@ export default function ImportPage() {
             >
               <Upload size={14} className="text-gray-400" />
               <span className="text-sm text-gray-600 truncate flex-1">
-                {file ? file.name : "Choose .xlsx / .xls / .csv"}
+                {file ? file.name : t(settings.language, "importFilePlaceholder")}
               </span>
               {file && !parseError && (
                 <FileText size={14} className="text-emerald-500 shrink-0" />
@@ -692,36 +810,151 @@ export default function ImportPage() {
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider">
                 Preview ({previewQuestions.length} questions)
               </p>
+              {invalidPreviewIdx.length > 0 && (
+                <span className="text-[11px] text-rose-500 font-medium">
+                  {invalidPreviewIdx.length} invalid
+                </span>
+              )}
             </div>
 
-            <div className="overflow-x-auto rounded-lg border border-gray-100 max-h-[400px] overflow-y-auto">
-              <table className="w-full text-xs">
-                <thead className="sticky top-0 bg-gray-50 z-10">
-                  <tr>
-                    <th className="px-2 py-1.5 text-left text-gray-400 font-medium w-8">#</th>
-                    <th className="px-2 py-1.5 text-left text-gray-500 font-medium">Question</th>
-                    <th className="px-2 py-1.5 text-left text-gray-500 font-medium w-24">Answer</th>
-                    <th className="px-2 py-1.5 text-left text-gray-500 font-medium w-16">Choices</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewQuestions.map((q) => (
-                    <tr key={q.num} className="border-t border-gray-50">
-                      <td className="px-2 py-1.5 text-gray-300 tabular-nums">{q.num}</td>
-                      <td className="px-2 py-1.5 text-gray-600 max-w-[300px] truncate">{q.question}</td>
-                      <td className="px-2 py-1.5 text-gray-600">{q.answer.join(", ")}</td>
-                      <td className="px-2 py-1.5 text-gray-400">{q.choices.length}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="rounded-lg border border-gray-100 max-h-[480px] overflow-y-auto divide-y divide-gray-50">
+              {previewQuestions.map((q, idx) => {
+                const isEditing = editingIdx === idx;
+                const isInvalid = invalidPreviewIdx.includes(idx);
+                const answerStr = q.answer.join(", ");
+                return (
+                  <div
+                    key={idx}
+                    className={`text-xs ${isInvalid ? "bg-rose-50/40" : ""}`}
+                  >
+                    {/* Compact row */}
+                    <div className="flex items-start gap-2 px-2 py-1.5">
+                      <span className="text-gray-300 tabular-nums w-6 pt-0.5">{q.num}</span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingIdx(isEditing ? null : idx)}
+                        className="flex-1 min-w-0 text-left hover:text-gray-900 transition-colors"
+                      >
+                        <p className={`truncate ${q.question.trim() ? "text-gray-600" : "text-rose-400 italic"}`}>
+                          {q.question.trim() || "(empty)"}
+                        </p>
+                      </button>
+                      <span className="text-gray-500 w-16 shrink-0 truncate">{answerStr || <span className="text-rose-400">—</span>}</span>
+                      <span className={`w-6 shrink-0 text-right ${q.choices.length < 2 ? "text-rose-500" : "text-gray-400"}`}>
+                        {q.choices.length}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setEditingIdx(isEditing ? null : idx)}
+                        className="text-gray-300 hover:text-gray-600 transition-colors shrink-0"
+                        title={isEditing ? "Close" : "Edit"}
+                      >
+                        {isEditing ? <ChevronUp size={12} /> : <Pencil size={12} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deleteQuestion(idx)}
+                        className="text-gray-300 hover:text-rose-500 transition-colors shrink-0"
+                        title="Delete"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+
+                    {/* Editable panel */}
+                    {isEditing && (
+                      <div className="px-3 pb-3 pt-1 space-y-2 bg-gray-50/50">
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Question</label>
+                          <textarea
+                            value={q.question}
+                            onChange={(e) => updateQuestion(idx, { question: e.target.value })}
+                            rows={2}
+                            className="w-full px-2 py-1.5 rounded-md border border-gray-200 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-gray-200"
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Choices ({q.choices.length})</label>
+                            <button
+                              type="button"
+                              onClick={() => addChoice(idx)}
+                              className="text-[10px] text-gray-500 hover:text-gray-800 flex items-center gap-0.5"
+                            >
+                              <Plus size={10} /> Add
+                            </button>
+                          </div>
+                          <div className="space-y-1">
+                            {q.choices.map((c, ci) => (
+                              <div key={ci} className="flex items-center gap-1.5">
+                                <input
+                                  value={c}
+                                  onChange={(e) => updateChoice(idx, ci, e.target.value)}
+                                  className="flex-1 px-2 py-1 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
+                                  placeholder={`${String.fromCharCode(65 + ci)}. ...`}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeChoice(idx, ci)}
+                                  className="text-gray-300 hover:text-rose-500 transition-colors"
+                                  title="Remove choice"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Answer (A,B,...)</label>
+                            <input
+                              value={q.answer.join(",")}
+                              onChange={(e) => {
+                                const letters = e.target.value
+                                  .split(/[,\s]+/)
+                                  .map((s) => s.trim().toUpperCase())
+                                  .filter((s) => /^[A-Z]$/.test(s));
+                                updateQuestion(idx, { answer: letters });
+                              }}
+                              className="w-full px-2 py-1 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
+                              placeholder="A"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Source</label>
+                            <input
+                              value={q.source}
+                              onChange={(e) => updateQuestion(idx, { source: e.target.value })}
+                              className="w-full px-2 py-1 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
+                            />
+                          </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Explanation</label>
+                          <textarea
+                            value={q.explanation}
+                            onChange={(e) => updateQuestion(idx, { explanation: e.target.value })}
+                            rows={2}
+                            className="w-full px-2 py-1.5 rounded-md border border-gray-200 text-xs resize-none focus:outline-none focus:ring-2 focus:ring-gray-200"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={confirming}
+              disabled={confirming || invalidPreviewIdx.length > 0 || previewQuestions.length === 0}
               className="w-full h-10 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-500 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              title={invalidPreviewIdx.length > 0 ? `Fix ${invalidPreviewIdx.length} invalid rows first` : undefined}
             >
               {confirming ? (
                 <><Loader2 size={15} className="animate-spin" /> Registering...</>

@@ -17,8 +17,8 @@ import { aiGenerate, isAWS } from "@/lib/ai-client";
 import { getDB, getNow } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { getUserEmail } from "@/lib/user";
-import { parseAiJsonAs } from "@/lib/ai-json";
-import { ImportedQuestionsSchema } from "@/lib/ai-schemas";
+import { parseAiJson } from "@/lib/ai-json";
+import { ImportedQuestionSchema } from "@/lib/ai-schemas";
 import type { ImportedQuestion } from "@/lib/ai-schemas";
 import { parseUploadedFile } from "@/lib/file-parser";
 
@@ -267,12 +267,17 @@ export async function POST(req: NextRequest) {
           });
 
           const jsonStr = result.codeOutput || result.text;
-          const { data, error } = parseAiJsonAs(jsonStr, ImportedQuestionsSchema);
-          if (!data) {
-            send({ step: "error", message: `AI code execution failed: ${error}` });
+          const raw = parseAiJson(jsonStr);
+          if (!Array.isArray(raw)) {
+            send({ step: "error", message: "AI code execution failed: output is not a JSON array" });
             return;
           }
-          allQuestions = data;
+          // Validate per-item; skip malformed rather than failing the whole batch
+          allQuestions = [];
+          for (const item of raw) {
+            const p = ImportedQuestionSchema.safeParse(item);
+            if (p.success) allQuestions.push(p.data);
+          }
         } else {
           // ── Bedrock fallback: column mapping ────────────────────────────
           send({ step: "convert", message: "Detecting column structure..." });
@@ -320,8 +325,27 @@ export async function POST(req: NextRequest) {
           return;
         }
 
+        // Filter out malformed questions per-item (zod) and renumber sequentially
+        const valid: ImportedQuestion[] = [];
+        let skipped = 0;
+        for (const q of allQuestions) {
+          const r = ImportedQuestionSchema.safeParse(q);
+          if (r.success) valid.push(r.data); else skipped++;
+        }
+        const renumbered = valid.map((q, i) => ({ ...q, num: i + 1 }));
+
+        if (renumbered.length === 0) {
+          send({ step: "error", message: `All ${allQuestions.length} extracted rows were malformed (missing choices/question). Try cleaning the source file.` });
+          return;
+        }
+
         // Return converted questions for preview (no DB save)
-        send({ step: "preview", message: `Extracted ${allQuestions.length} questions`, questions: allQuestions });
+        const skipMsg = skipped > 0 ? ` (${skipped} malformed rows skipped)` : "";
+        send({
+          step: "preview",
+          message: `Extracted ${renumbered.length} questions${skipMsg}`,
+          questions: renumbered,
+        });
       } catch (e) {
         if (keepalive) clearInterval(keepalive);
         const msg = e instanceof Error ? e.message : String(e);

@@ -2,9 +2,9 @@
 
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { RotateCcw, ChevronRight, Download, Upload, Plus, X, Loader2, Search } from "lucide-react";
+import { RotateCcw, ChevronRight, Download, Upload, Plus, X, Loader2, Search, Sparkles } from "lucide-react";
 import type { ExamMeta } from "@/lib/types";
-import type { Locale } from "@/lib/i18n";
+import { t, type Locale } from "@/lib/i18n";
 import { useSetHeader } from "@/lib/header-context";
 import { useSettings } from "@/lib/settings-context";
 
@@ -96,7 +96,17 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
   }, [exams]);
 
   const processFiles = useCallback(async (files: File[]) => {
-    const csvFiles = files.filter((f) => f.name.endsWith(".csv"));
+    if (files.length === 0) return;
+
+    // Non-CSV (Excel) → hand off to /admin/import via window global
+    const excelFile = files.find((f) => /\.(xlsx?|xls)$/i.test(f.name) && !f.name.toLowerCase().endsWith(".csv"));
+    if (excelFile) {
+      (window as unknown as { __pendingImportFile?: File }).__pendingImportFile = excelFile;
+      router.push("/admin/import");
+      return;
+    }
+
+    const csvFiles = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
     if (csvFiles.length === 0) return;
 
     setShowAdd(true);
@@ -121,7 +131,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
     setUploadProgress(null);
     setTimeout(() => setUploadStatus("idle"), 2000);
     if (fileRef.current) fileRef.current.value = "";
-  }, []);
+  }, [router]);
 
   // Exams in other languages available for translation
   const translatableExams = useMemo(() => {
@@ -233,8 +243,10 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
           <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-scholion-400 rounded-2xl px-10 py-8 shadow-xl">
             <Upload size={32} className="text-scholion-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-scholion-600">Drop CSV here</p>
-            <p className="text-xs text-scholion-300">Multiple files supported</p>
+            <p className="text-sm font-semibold text-scholion-600">
+              {settings.language === "ja" ? "ファイルをドロップ" : settings.language === "zh" ? "拖放文件" : settings.language === "ko" ? "파일 드롭" : "Drop file here"}
+            </p>
+            <p className="text-xs text-scholion-300">CSV / Excel</p>
           </div>
         </div>
       )}
@@ -304,49 +316,63 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
           ) : (
             <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">Add Exam</p>
+                <p className="text-sm font-semibold text-gray-700">{t(settings.language, "addExamTitle")}</p>
                 <button onClick={() => setShowAdd(false)} className="text-gray-300 hover:text-gray-500 transition-colors">
                   <X size={15} />
                 </button>
               </div>
 
-              {/* Template download */}
+              {/* Template section */}
               <div>
-                <p className="text-xs text-gray-400 mb-2">Template</p>
-                <button
-                  onClick={() => downloadTemplate()}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all"
-                >
-                  <Download size={12} /> CSV Template
-                </button>
+                <p className="text-xs text-gray-400 mb-2">{t(settings.language, "addExamFromTemplate")}</p>
+                <div className="flex flex-col gap-2">
+                  <button
+                    onClick={() => downloadTemplate()}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-gray-200 text-xs text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all"
+                  >
+                    <Download size={12} /> CSV Template
+                  </button>
+                  <input ref={fileRef} type="file" accept=".csv" multiple className="hidden" onChange={(e) => processFiles(Array.from(e.target.files ?? []))} />
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    disabled={uploadStatus === "uploading"}
+                    className={`w-full py-3 rounded-xl border-2 border-dashed text-sm transition-all ${
+                      uploadStatus === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-600"
+                      : uploadStatus === "error" ? "border-rose-300 bg-rose-50 text-rose-500"
+                      : uploadStatus === "uploading" ? "border-scholion-300 bg-scholion-50 text-scholion-500"
+                      : "border-gray-200 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex flex-col items-center gap-1">
+                      <Upload size={16} strokeWidth={1.5} />
+                      <span>{uploadStatusText ?? t(settings.language, "addExamTemplateHint")}</span>
+                    </div>
+                  </button>
+                </div>
               </div>
 
-              {/* Drop zone */}
+              {/* Convert any file → /admin/import */}
               <div>
-                <p className="text-xs text-gray-400 mb-2">Upload</p>
-                <input ref={fileRef} type="file" accept=".csv" multiple className="hidden" onChange={(e) => processFiles(Array.from(e.target.files ?? []))} />
+                <p className="text-xs text-gray-400 mb-2">{t(settings.language, "addExamConvertAny")}</p>
                 <button
-                  onClick={() => fileRef.current?.click()}
-                  disabled={uploadStatus === "uploading"}
-                  className={`w-full py-4 rounded-xl border-2 border-dashed text-sm transition-all ${
-                    uploadStatus === "done" ? "border-emerald-300 bg-emerald-50 text-emerald-600"
-                    : uploadStatus === "error" ? "border-rose-300 bg-rose-50 text-rose-500"
-                    : uploadStatus === "uploading" ? "border-scholion-300 bg-scholion-50 text-scholion-500"
-                    : "border-gray-200 text-gray-400 hover:border-gray-400 hover:bg-gray-50"
-                  }`}
+                  onClick={() => router.push("/admin/import")}
+                  className="w-full flex items-center gap-2 px-3 py-3 rounded-xl border border-gray-200 hover:border-scholion-400 hover:bg-scholion-50/40 transition-all text-left group"
                 >
-                  <div className="flex flex-col items-center gap-1.5">
-                    <Upload size={18} strokeWidth={1.5} />
-                    <span>{uploadStatusText ?? "Click or drag & drop"}</span>
-                    {uploadStatus === "idle" && <span className="text-xs text-gray-300">Multiple files</span>}
+                  <div className="w-8 h-8 rounded-lg bg-scholion-50 flex items-center justify-center shrink-0 group-hover:bg-scholion-100 transition-colors">
+                    <Sparkles size={14} className="text-scholion-500" />
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-700">{t(settings.language, "addExamConvertAny")}</p>
+                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{t(settings.language, "addExamConvertDesc")}</p>
+                  </div>
+                  <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
                 </button>
               </div>
 
               {/* Translate from another language */}
               {translatableExams.length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-400 mb-2">Translate from another language</p>
+                  <p className="text-xs text-gray-400 mb-2">{t(settings.language, "addExamTranslate")}</p>
                   {translatableExams.length > 4 && (
                     <div className="relative mb-2">
                       <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-300" />

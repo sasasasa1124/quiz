@@ -99,7 +99,17 @@ export type TranslationKey =
   | "codeSentTo"
   | "alreadyHaveAccount"
   | "noAccount"
-  | "domainOnlyError";
+  | "domainOnlyError"
+  | "addExamTitle"
+  | "addExamFromTemplate"
+  | "addExamTemplateHint"
+  | "addExamConvertAny"
+  | "addExamConvertDesc"
+  | "addExamTranslate"
+  | "importPageTitle"
+  | "importPageDesc"
+  | "importFileLabel"
+  | "importFilePlaceholder";
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {
   en: {
@@ -195,6 +205,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     alreadyHaveAccount: "Already have an account?",
     noAccount: "Don't have an account?",
     domainOnlyError: "Only salesforce.com emails are allowed",
+    addExamTitle: "Add Exam",
+    addExamFromTemplate: "From template",
+    addExamTemplateHint: "Use the CSV template for instant registration",
+    addExamConvertAny: "Convert any file with AI",
+    addExamConvertDesc: "Upload any Excel / CSV — AI converts it into questions",
+    addExamTranslate: "Translate from another language",
+    importPageTitle: "Import Exam from File",
+    importPageDesc: "Upload any Excel or CSV file — AI converts it into exam questions for your review.",
+    importFileLabel: "File",
+    importFilePlaceholder: "Choose .xlsx / .xls / .csv",
   },
   ja: {
     settings: "設定",
@@ -289,6 +309,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     alreadyHaveAccount: "すでにアカウントをお持ちの方は",
     noAccount: "アカウントをお持ちでない方は",
     domainOnlyError: "salesforce.com のメールアドレスのみ使用できます",
+    addExamTitle: "試験を追加",
+    addExamFromTemplate: "テンプレートから追加",
+    addExamTemplateHint: "CSVテンプレートで即時登録",
+    addExamConvertAny: "任意ファイルをAI変換",
+    addExamConvertDesc: "Excel / CSV をアップロード。AIが問題に変換します。",
+    addExamTranslate: "他言語から翻訳",
+    importPageTitle: "ファイルから試験をインポート",
+    importPageDesc: "任意の Excel / CSV をアップロードすると、AIが問題に変換しレビュー可能な形で表示します。",
+    importFileLabel: "ファイル",
+    importFilePlaceholder: ".xlsx / .xls / .csv を選択",
   },
   zh: {
     settings: "设置",
@@ -383,6 +413,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     alreadyHaveAccount: "已有账号？",
     noAccount: "没有账号？",
     domainOnlyError: "仅支持 salesforce.com 邮箱",
+    addExamTitle: "添加考试",
+    addExamFromTemplate: "从模板添加",
+    addExamTemplateHint: "使用 CSV 模板即时注册",
+    addExamConvertAny: "AI 转换任意文件",
+    addExamConvertDesc: "上传 Excel / CSV，AI 自动转换为题目。",
+    addExamTranslate: "从其他语言翻译",
+    importPageTitle: "从文件导入考试",
+    importPageDesc: "上传任意 Excel 或 CSV 文件 — AI 会将其转换为题目以供审核。",
+    importFileLabel: "文件",
+    importFilePlaceholder: "选择 .xlsx / .xls / .csv",
   },
   ko: {
     settings: "설정",
@@ -477,6 +517,16 @@ const translations: Record<Locale, Record<TranslationKey, string>> = {
     alreadyHaveAccount: "이미 계정이 있으신가요?",
     noAccount: "계정이 없으신가요?",
     domainOnlyError: "salesforce.com 이메일만 사용 가능합니다",
+    addExamTitle: "시험 추가",
+    addExamFromTemplate: "템플릿에서 추가",
+    addExamTemplateHint: "CSV 템플릿으로 즉시 등록",
+    addExamConvertAny: "AI로 파일 변환",
+    addExamConvertDesc: "Excel / CSV 업로드 시 AI가 문제로 변환합니다.",
+    addExamTranslate: "다른 언어에서 번역",
+    importPageTitle: "파일에서 시험 가져오기",
+    importPageDesc: "Excel 또는 CSV 파일을 업로드하면 AI가 문제로 변환합니다.",
+    importFileLabel: "파일",
+    importFilePlaceholder: ".xlsx / .xls / .csv 선택",
   },
 };
 
