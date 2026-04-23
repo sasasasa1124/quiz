@@ -48,12 +48,10 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
   const [statsMap, setStatsMap] = useState<Record<string, { pct: number | null; answered: number; total: number; wrongCount: number }>>({});
   const [uploadStatus, setUploadStatus] = useState<UploadStatus>("idle");
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const [showAdd, setShowAdd] = useState(false);
   const [translateSearch, setTranslateSearch] = useState("");
   const [translatingId, setTranslatingId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const dragCountRef = useRef(0);
 
   useEffect(() => {
     fetch("/api/scores")
@@ -98,14 +96,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
   const processFiles = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
-    // Non-CSV (Excel) → hand off to /admin/import via window global
-    const excelFile = files.find((f) => /\.(xlsx?|xls)$/i.test(f.name) && !f.name.toLowerCase().endsWith(".csv"));
-    if (excelFile) {
-      (window as unknown as { __pendingImportFile?: File }).__pendingImportFile = excelFile;
-      router.push("/admin/import");
-      return;
-    }
-
+    // Only template CSVs are handled here. Excel / arbitrary files go through /admin/import.
     const csvFiles = files.filter((f) => f.name.toLowerCase().endsWith(".csv"));
     if (csvFiles.length === 0) return;
 
@@ -194,35 +185,7 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
     }
   }, [settings.language]);
 
-  // Global drag & drop
-  useEffect(() => {
-    const onDragEnter = (e: DragEvent) => {
-      if (!e.dataTransfer?.types.includes("Files")) return;
-      dragCountRef.current++;
-      setIsDragging(true);
-    };
-    const onDragLeave = () => {
-      dragCountRef.current--;
-      if (dragCountRef.current === 0) setIsDragging(false);
-    };
-    const onDragOver = (e: DragEvent) => { e.preventDefault(); };
-    const onDrop = (e: DragEvent) => {
-      e.preventDefault();
-      dragCountRef.current = 0;
-      setIsDragging(false);
-      processFiles(Array.from(e.dataTransfer?.files ?? []));
-    };
-    document.addEventListener("dragenter", onDragEnter);
-    document.addEventListener("dragleave", onDragLeave);
-    document.addEventListener("dragover", onDragOver);
-    document.addEventListener("drop", onDrop);
-    return () => {
-      document.removeEventListener("dragenter", onDragEnter);
-      document.removeEventListener("dragleave", onDragLeave);
-      document.removeEventListener("dragover", onDragOver);
-      document.removeEventListener("drop", onDrop);
-    };
-  }, [processFiles]);
+  // No global drag&drop: arbitrary files go through /admin/import where the UX handles preview/edit.
 
   const modeLabel = mode === "quiz" ? "Quiz" : mode === "review" ? "Flashcard" : "Answers";
   useSetHeader({ back: { href: "/" }, title: modeLabel }, [modeLabel]);
@@ -238,19 +201,6 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
 
   return (
     <div className="min-h-screen bg-[#f8f9fb] flex flex-col relative pt-14">
-      {/* Drag & drop overlay */}
-      {isDragging && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-scholion-500/10 backdrop-blur-[1px] pointer-events-none">
-          <div className="flex flex-col items-center gap-3 bg-white border-2 border-dashed border-scholion-400 rounded-2xl px-10 py-8 shadow-xl">
-            <Upload size={32} className="text-scholion-500" strokeWidth={1.5} />
-            <p className="text-sm font-semibold text-scholion-600">
-              {settings.language === "ja" ? "ファイルをドロップ" : settings.language === "zh" ? "拖放文件" : settings.language === "ko" ? "파일 드롭" : "Drop file here"}
-            </p>
-            <p className="text-xs text-scholion-300">CSV / Excel</p>
-          </div>
-        </div>
-      )}
-
       <div className="flex-1 px-4 sm:px-8 py-6 overflow-y-auto">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-3xl mx-auto">
           {/* Existing exam cards */}
@@ -302,17 +252,35 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
             );
           })}
 
-          {/* Add card */}
+          {/* Add entries: two distinct paths (CSV template vs AI convert) */}
           {!showAdd ? (
-            <button
-              onClick={() => setShowAdd(true)}
-              className="bg-white rounded-2xl border border-dashed border-gray-300 px-5 py-4 flex items-center gap-3 text-gray-400 hover:border-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-all group"
-            >
-              <div className="w-8 h-8 rounded-lg border border-dashed border-gray-300 group-hover:border-gray-400 flex items-center justify-center transition-colors">
-                <Plus size={16} />
-              </div>
-              <span className="text-sm font-medium">Add</span>
-            </button>
+            <>
+              <button
+                onClick={() => setShowAdd(true)}
+                className="bg-white rounded-2xl border border-dashed border-gray-300 px-5 py-4 flex items-center gap-3 text-gray-500 hover:border-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all group text-left"
+              >
+                <div className="w-8 h-8 rounded-lg border border-dashed border-gray-300 group-hover:border-gray-400 flex items-center justify-center shrink-0 transition-colors">
+                  <Plus size={16} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium">{t(settings.language, "addExamFromTemplate")}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{t(settings.language, "addExamTemplateHint")}</p>
+                </div>
+              </button>
+              <button
+                onClick={() => router.push("/admin/import")}
+                className="bg-white rounded-2xl border border-scholion-200 px-5 py-4 flex items-center gap-3 hover:border-scholion-400 hover:bg-scholion-50/40 transition-all group text-left"
+              >
+                <div className="w-8 h-8 rounded-lg bg-scholion-50 group-hover:bg-scholion-100 flex items-center justify-center shrink-0 transition-colors">
+                  <Sparkles size={16} className="text-scholion-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-700">{t(settings.language, "addExamConvertAny")}</p>
+                  <p className="text-[11px] text-gray-400 mt-0.5 truncate">{t(settings.language, "addExamConvertDesc")}</p>
+                </div>
+                <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
+              </button>
+            </>
           ) : (
             <div className="bg-white rounded-2xl border border-gray-200 p-5 flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -349,24 +317,6 @@ export default function ExamSelectClient({ exams: initialExams, mode }: Props) {
                     </div>
                   </button>
                 </div>
-              </div>
-
-              {/* Convert any file → /admin/import */}
-              <div>
-                <p className="text-xs text-gray-400 mb-2">{t(settings.language, "addExamConvertAny")}</p>
-                <button
-                  onClick={() => router.push("/admin/import")}
-                  className="w-full flex items-center gap-2 px-3 py-3 rounded-xl border border-gray-200 hover:border-scholion-400 hover:bg-scholion-50/40 transition-all text-left group"
-                >
-                  <div className="w-8 h-8 rounded-lg bg-scholion-50 flex items-center justify-center shrink-0 group-hover:bg-scholion-100 transition-colors">
-                    <Sparkles size={14} className="text-scholion-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700">{t(settings.language, "addExamConvertAny")}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5 truncate">{t(settings.language, "addExamConvertDesc")}</p>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors shrink-0" />
-                </button>
               </div>
 
               {/* Translate from another language */}

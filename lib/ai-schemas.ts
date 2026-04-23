@@ -110,6 +110,10 @@ export const ImportedQuestionSchema = z.object({
     }),
   explanation: z.string().default(""),
   source: z.string().default(""),
+  category: z
+    .union([z.string(), z.null()])
+    .optional()
+    .transform((v) => (v ?? "").toString()),
 });
 
 export const ImportedQuestionsSchema = z.array(ImportedQuestionSchema);

@@ -62,21 +62,24 @@ export async function POST(req: NextRequest) {
     const qId = `${examId}__${q.num}`;
     const options = buildOptions(q.choices);
 
+    const category = (q.category ?? "").trim() || null;
+
     await pg`
       INSERT INTO questions
         (id, exam_id, num, question_text, options, answers, explanation, source,
-         explanation_sources, created_by, created_at, added_at)
+         explanation_sources, category, created_by, created_at, added_at)
       VALUES (
         ${qId}, ${examId}, ${q.num}, ${q.question},
         ${JSON.stringify(options)}, ${JSON.stringify(q.answer)},
-        ${q.explanation}, ${q.source}, ${"[]"}, ${userEmail}, ${now}, ${now}
+        ${q.explanation}, ${q.source}, ${"[]"}, ${category}, ${userEmail}, ${now}, ${now}
       )
       ON CONFLICT (id) DO UPDATE SET
         question_text = EXCLUDED.question_text,
         options       = EXCLUDED.options,
         answers       = EXCLUDED.answers,
         explanation   = EXCLUDED.explanation,
-        source        = EXCLUDED.source`;
+        source        = EXCLUDED.source,
+        category      = COALESCE(EXCLUDED.category, questions.category)`;
 
     saved++;
   }

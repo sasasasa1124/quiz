@@ -21,6 +21,7 @@ interface PreviewQuestion {
   answer: string[];
   explanation: string;
   source: string;
+  category?: string;
 }
 
 interface ImportEvent {
@@ -931,6 +932,16 @@ export default function ImportPage() {
                               className="w-full px-2 py-1 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
                             />
                           </div>
+                        </div>
+
+                        <div>
+                          <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block mb-1">Category (optional)</label>
+                          <input
+                            value={q.category ?? ""}
+                            onChange={(e) => updateQuestion(idx, { category: e.target.value })}
+                            className="w-full px-2 py-1 rounded-md border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-gray-200"
+                            placeholder="Topic / chapter / section"
+                          />
                         </div>
 
                         <div>

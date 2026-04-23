@@ -36,12 +36,12 @@ const CODE_EXEC_PROMPT = `You are a data conversion specialist. You have an uplo
 
 Write Python code to:
 1. Read the file using pandas (pd.read_excel or pd.read_csv as appropriate)
-2. Detect which columns contain: question number, question text, answer(s), choices, explanation
+2. Detect which columns contain: question number, question text, answer(s), choices, explanation, category
 3. Convert ALL rows into the required JSON format
 4. Print ONLY the JSON array to stdout (no other output)
 
 Output JSON format:
-[{"num":1,"question":"...","choices":["A. opt","B. opt","C. opt","D. opt"],"answer":["A"],"explanation":"...","source":""}]
+[{"num":1,"question":"...","choices":["A. opt","B. opt","C. opt","D. opt"],"answer":["A"],"explanation":"...","source":"","category":""}]
 
 Field rules:
 - num: integer, 1-based question number
@@ -50,6 +50,7 @@ Field rules:
 - answer: array of uppercase letters, e.g. ["A"] or ["A","C"] for multi-select
 - explanation: explanation text (empty string if none)
 - source: source URL or reference (empty string if none)
+- category: topic/section/chapter/domain label if available (empty string "" if no such column)
 
 Important:
 - Convert ALL rows — do NOT truncate or summarize
@@ -70,6 +71,7 @@ Return ONLY this JSON (no markdown, no explanation):
   "answerCol": <0-based column index for answer>,
   "explanationCol": <0-based column index for explanation, or -1 if none>,
   "numCol": <0-based column index for question number, or -1 if none>,
+  "categoryCol": <0-based column index for category/topic/section/chapter, or -1 if none>,
   "choicesCols": [<0-based indices of columns containing individual choices>],
   "choicesEmbedded": <true if choices are embedded in the question cell>,
   "answerSeparator": <string used to separate multiple answers, e.g. "," or "↓" or null if single>
@@ -112,15 +114,11 @@ interface ColumnMapping {
   answerCol: number;
   explanationCol: number;
   numCol: number;
+  categoryCol: number;
   choicesCols: number[];
   choicesEmbedded: boolean;
   answerSeparator: string | null;
 }
-
-const ColumnMappingKeys = [
-  "questionCol", "answerCol", "explanationCol", "numCol",
-  "choicesCols", "choicesEmbedded", "answerSeparator",
-] as const;
 
 function applyMapping(
   headers: string[],
@@ -167,6 +165,10 @@ function applyMapping(
       ? (row[mapping.explanationCol] ?? "").trim()
       : "";
 
+    const category = mapping.categoryCol >= 0
+      ? (row[mapping.categoryCol] ?? "").trim()
+      : "";
+
     const qNum = mapping.numCol >= 0
       ? parseInt(row[mapping.numCol], 10) || num
       : num;
@@ -178,6 +180,7 @@ function applyMapping(
       answer,
       explanation,
       source: "",
+      category,
     });
     num++;
   }
@@ -305,6 +308,7 @@ export async function POST(req: NextRequest) {
               answerCol: raw.answerCol,
               explanationCol: raw.explanationCol ?? -1,
               numCol: raw.numCol ?? -1,
+              categoryCol: raw.categoryCol ?? -1,
               choicesCols: Array.isArray(raw.choicesCols) ? raw.choicesCols : [],
               choicesEmbedded: raw.choicesEmbedded ?? false,
               answerSeparator: raw.answerSeparator ?? null,
